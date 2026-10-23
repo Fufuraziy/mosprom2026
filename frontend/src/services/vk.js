@@ -108,6 +108,9 @@ export async function getVKProfile() {
  */
 export async function shareStory(blob) {
   if (isInsideVK) {
+    // VKWebAppShowStoryBox поддерживается только в мобильных приложениях ВК, не на vk.com
+    const supported = await withTimeout(bridge.supportsAsync?.('VKWebAppShowStoryBox') ?? Promise.resolve(true), 3000).catch(() => false)
+    if (!supported) return { source: 'unsupported', ok: false }
     try {
       await send('VKWebAppShowStoryBox', {
         background_type: 'image',

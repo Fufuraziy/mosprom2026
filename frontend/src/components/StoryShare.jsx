@@ -95,7 +95,7 @@ export default function StoryShare({ className = '' }) {
   const { state, balance, actions } = useGame()
   const [open, setOpen] = useState(false)
   const [img, setImg] = useState(null)
-  const [status, setStatus] = useState(null) // null | sending | done
+  const [status, setStatus] = useState(null) // null | sending | done | unsupported
   const rec = buildRecommendation(state.telemetry)
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export default function StoryShare({ className = '' }) {
     if (r.ok) {
       if (!state.storyShared) actions.storyShared(r.source)
       setStatus('done')
-    } else setStatus(null)
+    } else setStatus(r.source === 'unsupported' ? 'unsupported' : null)
   }
 
   return (
@@ -136,13 +136,18 @@ export default function StoryShare({ className = '' }) {
                 {img ? <img src={img} alt="Превью истории" className="max-h-[56vh] w-auto rounded-xl shadow-lg" /> : <Loader2 className="my-24 h-8 w-8 animate-spin text-vk" />}
               </div>
               <div className="space-y-2 p-4">
+                {status === 'unsupported' && (
+                  <div className="rounded-lg bg-vk-light px-3 py-2.5 text-sm text-[#2C2D2E]">
+                    Истории публикуются из мобильного приложения ВКонтакте. Открой «Секретный код 1978» на телефоне, чтобы поделиться результатом.
+                  </div>
+                )}
                 {status === 'done' ? (
                   <div className="flex items-center gap-2 rounded-lg bg-[#E8F5E8] px-3 py-2.5 text-sm font-semibold text-vk-green">
                     <Check className="h-5 w-5" />
                     {isInsideVK ? 'История опубликована!' : 'Демо: история «опубликована». Во ВКонтакте откроется редактор историй со ссылкой на мини-приложение.'}
                   </div>
                 ) : (
-                  <button onClick={publish} disabled={!img || status === 'sending'} className="flex w-full items-center justify-center gap-2 rounded-lg bg-vk py-3 text-[15px] font-semibold text-white hover:bg-vk-dark disabled:opacity-50">
+                  <button onClick={publish} disabled={!img || status === 'sending' || status === 'unsupported'} className="flex w-full items-center justify-center gap-2 rounded-lg bg-vk py-3 text-[15px] font-semibold text-white hover:bg-vk-dark disabled:opacity-50">
                     {status === 'sending' && <Loader2 className="h-4 w-4 animate-spin" />}
                     {isInsideVK ? 'Открыть редактор историй' : 'Опубликовать (демо вне ВК)'}
                   </button>
