@@ -12,7 +12,7 @@ const ROLES = ['Фон банки', 'Акцент', 'Детали']
 function KernCan({ colors, flavor }) {
   const [bg, accent, detail] = colors.map((id) => PANTONE.find((p) => p.id === id)?.hex)
   return (
-    <svg viewBox="0 0 160 300" className="h-[300px] w-auto drop-shadow-[6px_6px_0_#17110F]">
+    <svg viewBox="0 0 160 300" className="h-[300px] w-auto drop-shadow-xl">
       <defs>
         <linearGradient id="shine" x1="0" x2="1">
           <stop offset="0" stopColor="#fff" stopOpacity=".0" />
@@ -21,33 +21,33 @@ function KernCan({ colors, flavor }) {
           <stop offset=".85" stopColor="#000" stopOpacity=".18" />
         </linearGradient>
       </defs>
-      <rect x="22" y="6" width="116" height="18" rx="6" fill="#C8CDD2" stroke="#17110F" strokeWidth="3" />
-      <path d="M14 26 h132 v246 q0 18 -18 18 h-96 q-18 0 -18 -18z" fill={bg || '#E9DCC6'} stroke="#17110F" strokeWidth="3" style={{ transition: 'fill .3s' }} />
+      <rect x="22" y="6" width="116" height="18" rx="6" fill="#C8CDD2" stroke="#4A4A4A" strokeWidth="3" />
+      <path d="M14 26 h132 v246 q0 18 -18 18 h-96 q-18 0 -18 -18z" fill={bg || '#E8EBEC'} stroke="#4A4A4A" strokeWidth="3" style={{ transition: 'fill .3s' }} />
       {/* полосы */}
       {[52, 72, 230, 250].map((y) => (
-        <rect key={y} x="14" y={y} width="132" height="7" fill={detail || '#CDB894'} opacity=".8" style={{ transition: 'fill .3s' }} />
+        <rect key={y} x="14" y={y} width="132" height="7" fill={detail || '#C9CED0'} opacity=".8" style={{ transition: 'fill .3s' }} />
       ))}
-      <circle cx="80" cy="150" r="54" fill="#FFFDF9" stroke={accent || '#17110F'} strokeWidth="7" style={{ transition: 'stroke .3s' }} />
-      <text x="80" y="128" textAnchor="middle" fontSize="11" fontWeight="800" fill="#17110F" fontFamily="Montserrat, Arial">
+      <circle cx="80" cy="150" r="54" fill="#FFFFFF" stroke={accent || '#4A4A4A'} strokeWidth="7" style={{ transition: 'stroke .3s' }} />
+      <text x="80" y="128" textAnchor="middle" fontSize="11" fontWeight="800" fill="#4A4A4A" fontFamily="Montserrat, Arial">
         MALT DRINK
       </text>
-      <text x="80" y="160" textAnchor="middle" fontSize="34" fontWeight="900" fill={accent || '#17110F'} fontFamily="Montserrat, Arial" style={{ transition: 'fill .3s' }}>
+      <text x="80" y="160" textAnchor="middle" fontSize="34" fontWeight="900" fill={accent || '#4A4A4A'} fontFamily="Montserrat, Arial" style={{ transition: 'fill .3s' }}>
         KERN
       </text>
-      <text x="80" y="178" textAnchor="middle" fontSize="11" fontWeight="800" fill={detail || '#7D716B'} fontFamily="Montserrat, Arial" style={{ transition: 'fill .3s' }}>
+      <text x="80" y="178" textAnchor="middle" fontSize="11" fontWeight="800" fill={detail || '#8A8F92'} fontFamily="Montserrat, Arial" style={{ transition: 'fill .3s' }}>
         NO ALCO
       </text>
       {flavor === 'pineapple' ? (
         <g transform="translate(80 94)">
-          <path d="M-6 -6 l-8 -16 10 8 4 -14 4 14 10 -8 -8 16z" fill={accent || '#3BA935'} stroke="#17110F" strokeWidth="1.5" />
-          <ellipse cx="0" cy="6" rx="10" ry="13" fill="#F5C400" stroke="#17110F" strokeWidth="1.5" />
-          <path d="M-8 0 l16 10 M-8 10 l16 -10" stroke="#C9922E" strokeWidth="1.3" />
+          <path d="M-6 -6 l-8 -16 10 8 4 -14 4 14 10 -8 -8 16z" fill={accent || '#3BA935'} stroke="#4A4A4A" strokeWidth="1.5" />
+          <ellipse cx="0" cy="6" rx="10" ry="13" fill="#F5C400" stroke="#4A4A4A" strokeWidth="1.5" />
+          <path d="M-8 0 l16 10 M-8 10 l16 -10" stroke="#A2AAAD" strokeWidth="1.3" />
         </g>
       ) : (
         <g transform="translate(80 96)">
           <path d="M-4 -14 q4 -6 8 0" stroke="#3BA935" strokeWidth="3" fill="none" />
           {[[-5, -6], [5, -6], [0, -2], [-7, 3], [7, 3], [0, 6], [-4, 11], [4, 11]].map(([x, y], i) => (
-            <circle key={i} cx={x} cy={y} r="4.6" fill="#D0145A" stroke="#17110F" strokeWidth="1.2" />
+            <circle key={i} cx={x} cy={y} r="4.6" fill="#D0145A" stroke="#4A4A4A" strokeWidth="1.2" />
           ))}
         </g>
       )}
@@ -84,7 +84,7 @@ function PantoneGame({ onDone }) {
       <Card className="p-4 sm:p-6">
         <VerbTag>Создай лицо банки</VerbTag>
         <p className="mt-2 text-sm text-ink-soft">
-          Дизайнер «Очаково» подбирает цвета упаковки по вееру Pantone. Выбери вкус, затем по очереди назначь три цвета: фон, акцент и детали 3D-макета банки KERN.
+          Дизайнер ОЧАКОВО подбирает цвета упаковки по вееру Pantone. Выбери вкус, затем по очереди назначь три цвета: фон, акцент и детали 3D-макета банки KERN.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {Object.entries(KERN_FLAVORS).map(([k, v]) => (
@@ -95,7 +95,7 @@ function PantoneGame({ onDone }) {
                 setColors([])
                 setResult(null)
               }}
-              className={cx('rounded-xl border-2 border-ink px-3 py-2 text-sm font-extrabold', flavor === k ? 'bg-ink text-white shadow-pop-red' : 'bg-white')}
+              className={cx('rounded-sm border border-line px-3 py-2 text-sm font-extrabold', flavor === k ? 'bg-graphite text-white shadow-pop' : 'bg-white')}
             >
               {v.label.replace('KERN Malt Drink No Alco · ', '')}
             </button>
@@ -113,26 +113,41 @@ function PantoneGame({ onDone }) {
                 key={p.id}
                 onClick={() => pick(p.id)}
                 whileHover={{ y: -14 }}
-                className={cx('absolute bottom-0 left-1/2 h-[200px] w-[58px] -ml-[29px] hover:z-20 overflow-hidden rounded-xl border-2 border-ink bg-white text-left shadow-pop-sm', used >= 0 && 'ring-4 ring-brand')}
+                className={cx('absolute bottom-0 left-1/2 h-[200px] w-[58px] -ml-[29px] hover:z-20 overflow-hidden rounded-sm border border-line bg-white text-left shadow-pop-sm', used >= 0 && 'ring-4 ring-brand')}
                 style={{ transformOrigin: '50% 95%', rotate: ang }}
                 aria-label={p.code}
               >
                 <div className="h-[150px]" style={{ background: p.hex }} />
                 <div className="px-1 pt-1 font-mono text-[8px] font-bold leading-tight">{p.code}</div>
-                {used >= 0 && <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-white font-mono text-[10px] font-black">{used + 1}</span>}
+                {used >= 0 && <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-white font-mono text-[10px] font-extrabold">{used + 1}</span>}
               </motion.button>
             )
           })}
-          <div className="absolute bottom-[-6px] left-1/2 z-10 h-5 w-5 -translate-x-1/2 rounded-full border-2 border-ink bg-malt" />
+          <div className="absolute bottom-[-6px] left-1/2 z-10 h-5 w-5 -translate-x-1/2 rounded-full border border-line bg-malt" />
         </div>
 
+        <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+          {PANTONE.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => pick(p.id)}
+              disabled={!!result || colors.includes(p.id) || colors.length >= 3}
+              className="flex items-center gap-1.5 border border-line bg-white py-1 pl-1 pr-2 text-[11px] font-semibold disabled:opacity-40"
+              aria-label={`Выбрать ${p.code}`}
+              title={p.name}
+            >
+              <span className="h-4 w-4" style={{ background: p.hex }} />
+              {p.code.replace('PANTONE ', '')}
+            </button>
+          ))}
+        </div>
         <div className="mt-6 grid grid-cols-3 gap-2">
           {ROLES.map((r, i) => {
             const p = PANTONE.find((x) => x.id === colors[i])
             return (
-              <div key={r} className={cx('rounded-xl border-2 p-2 text-center', i === colors.length && !result ? 'border-brand' : 'border-ink/20')}>
+              <div key={r} className={cx('rounded-sm border-2 p-2 text-center', i === colors.length && !result ? 'border-brand' : 'border-ink/20')}>
                 <div className="text-[11px] font-extrabold uppercase text-ink-mute">{r}</div>
-                <div className="mx-auto mt-1 h-8 w-full rounded-md border-2 border-ink" style={{ background: p?.hex || 'repeating-linear-gradient(45deg,#fff 0 6px,#eee 6px 12px)' }} />
+                <div className="mx-auto mt-1 h-8 w-full rounded-sm border border-line" style={{ background: p?.hex || 'repeating-linear-gradient(45deg,#fff 0 6px,#eee 6px 12px)' }} />
                 <div className="mt-1 truncate text-[11px] font-semibold">{p?.name || '—'}</div>
               </div>
             )
@@ -149,8 +164,8 @@ function PantoneGame({ onDone }) {
               </Button>
             </>
           ) : (
-            <div className="flex w-full flex-wrap items-center gap-3 rounded-xl border-2 border-ink bg-cream p-3">
-              <div className="font-display text-3xl font-black text-brand">{result.score}%</div>
+            <div className="flex w-full flex-wrap items-center gap-3 rounded-sm border border-line bg-cream p-3">
+              <div className="font-display text-3xl font-extrabold text-brand">{result.score}%</div>
               <p className="flex-1 text-sm font-semibold">{comment}</p>
               <Button onClick={() => onDone({ pantone_match: result.score, flavor, colors })}>
                 В СДО Mirapolis <ArrowRight className="h-4 w-4" />
@@ -160,7 +175,7 @@ function PantoneGame({ onDone }) {
         </div>
       </Card>
       <div className="space-y-4">
-        <Card className="grid place-items-center overflow-hidden bg-[radial-gradient(circle_at_50%_40%,#fff,#E9DCC6)] p-6">
+        <Card className="grid place-items-center overflow-hidden bg-[radial-gradient(circle_at_50%_40%,#fff,#E8EBEC)] p-6">
           <div className="mb-2 font-mono text-[11px] font-bold uppercase tracking-widest text-ink-mute">3D-макет · превью</div>
           <motion.div animate={{ rotate: [0, -2, 2, 0] }} transition={{ repeat: Infinity, duration: 5 }}>
             <KernCan colors={colors} flavor={flavor} />
@@ -191,7 +206,7 @@ function Mirapolis({ onDone }) {
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
       {/* телефон */}
-      <div className="mx-auto w-[320px] rounded-[42px] border-[3px] border-ink bg-ink p-3 shadow-pop-red">
+      <div className="mx-auto w-[320px] rounded-[42px] border border-line bg-graphite p-3 shadow-pop">
         <div className="overflow-hidden rounded-[32px] bg-white">
           <div className="flex items-center justify-between bg-[#1D3B6E] px-5 pb-2 pt-3 text-[11px] font-bold text-white">
             <span>12:27</span>
@@ -222,7 +237,7 @@ function Mirapolis({ onDone }) {
                         key={t}
                         onClick={() => answer(t)}
                         className={cx(
-                          'flex w-full items-center justify-between rounded-xl border-2 px-3 py-2.5 text-left text-sm font-bold transition',
+                          'flex w-full items-center justify-between rounded-sm border-2 px-3 py-2.5 text-left text-sm font-bold transition',
                           !chosen && 'border-[#1D3B6E]/20 hover:border-[#1D3B6E]',
                           ok && 'border-lime bg-lime/15',
                           bad && 'border-brand bg-brand-50',
@@ -239,7 +254,7 @@ function Mirapolis({ onDone }) {
                 {chosen && (
                   <div className="mt-3">
                     <p className="text-xs text-ink-soft">{step.hint}</p>
-                    <button onClick={next} className="mt-3 w-full rounded-xl bg-[#1D3B6E] py-3 text-sm font-extrabold text-white">
+                    <button onClick={next} className="mt-3 w-full rounded-sm bg-[#1D3B6E] py-3 text-sm font-extrabold text-white">
                       {i + 1 < MIRAPOLIS_STEPS.length ? 'Далее' : 'Завершить тест'}
                     </button>
                   </div>
@@ -252,7 +267,7 @@ function Mirapolis({ onDone }) {
       <div className="space-y-4">
         <Card className="p-5">
           <VerbTag>Обучайся легко и просто</VerbTag>
-          <h3 className="mt-3 font-display text-2xl font-black">Это реальный формат обучения «Очаково»</h3>
+          <h3 className="mt-3 font-display text-2xl font-extrabold">Это реальный формат обучения ОЧАКОВО</h3>
           <p className="mt-2 text-sm text-ink-soft">
             В вакансионных роликах сотрудники проходят в мобильной СДО Mirapolis курс «Инструменты менеджмента» и финальный тест из 4 шагов: SMART, SWOT, диаграмма Исикавы и «5 почему». Пройди его сейчас, и наставник увидит, что ты готов(а) к обучению с первого дня.
           </p>

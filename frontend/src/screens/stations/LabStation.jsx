@@ -54,7 +54,7 @@ function Titration({ onDone }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-      <Card className="relative overflow-hidden bg-[linear-gradient(180deg,#fff,#F5EEE2)] p-4 sm:p-6">
+      <Card className="relative overflow-hidden bg-[linear-gradient(180deg,#fff,#F4F5F6)] p-4 sm:p-6">
         <VerbTag>Контролируй процесс</VerbTag>
         <div className="mt-2 text-sm text-ink-soft">
           Индикатор — фенолфталеин. Добавляй титрант по каплям: розовый «всплеск» исчезает, пока точка не достигнута. Остановись на <b>первой устойчивой бледно-розовой</b> окраске.
@@ -62,19 +62,19 @@ function Titration({ onDone }) {
         <div className="relative mx-auto mt-4 h-[360px] w-[260px]">
           <svg viewBox="0 0 260 360" className="absolute inset-0 h-full w-full">
             {/* штатив */}
-            <rect x="196" y="10" width="8" height="330" fill="#7D716B" />
-            <rect x="150" y="336" width="100" height="12" rx="3" fill="#4B403B" />
-            <rect x="120" y="70" width="84" height="8" fill="#7D716B" />
+            <rect x="196" y="10" width="8" height="330" fill="#8A8F92" />
+            <rect x="150" y="336" width="100" height="12" rx="3" fill="#626262" />
+            <rect x="120" y="70" width="84" height="8" fill="#8A8F92" />
             {/* бюретка */}
-            <rect x="112" y="10" width="20" height="190" rx="4" fill="#ffffffcc" stroke="#17110F" strokeWidth="2.5" />
+            <rect x="112" y="10" width="20" height="190" rx="4" fill="#ffffffcc" stroke="#4A4A4A" strokeWidth="2.5" />
             <rect x="115" y={13 + (190 - 6) * (1 - level / 100)} width="14" height={(190 - 6) * (level / 100)} fill="#CFE8FF" />
             {[...Array(10)].map((_, i) => (
-              <line key={i} x1="112" x2={i % 2 ? 120 : 124} y1={24 + i * 17} y2={24 + i * 17} stroke="#17110F" strokeWidth="1.2" />
+              <line key={i} x1="112" x2={i % 2 ? 120 : 124} y1={24 + i * 17} y2={24 + i * 17} stroke="#4A4A4A" strokeWidth="1.2" />
             ))}
-            <rect x="104" y="200" width="36" height="10" rx="3" fill="#EC1A42" stroke="#17110F" strokeWidth="2" />
-            <path d="M118 210 h8 l-2 26 h-4z" fill="#ffffffcc" stroke="#17110F" strokeWidth="2" />
+            <rect x="104" y="200" width="36" height="10" rx="3" fill="#D50032" stroke="#4A4A4A" strokeWidth="2" />
+            <path d="M118 210 h8 l-2 26 h-4z" fill="#ffffffcc" stroke="#4A4A4A" strokeWidth="2" />
             {/* колба */}
-            <path d="M104 250 h36 v26 l40 60 q4 8 -6 8 h-104 q-10 0 -6 -8 l42 -60z" fill="#ffffff99" stroke="#17110F" strokeWidth="2.5" />
+            <path d="M104 250 h36 v26 l40 60 q4 8 -6 8 h-104 q-10 0 -6 -8 l42 -60z" fill="#ffffff99" stroke="#4A4A4A" strokeWidth="2.5" />
             <path d="M84 300 l-28 40 q-3 5 4 5 h124 q7 0 4 -5 l-28 -40z" fill={flaskColor} style={{ transition: 'fill .35s' }} />
             <ellipse cx="122" cy="300" rx="38" ry="4" fill="#ffffff66" />
           </svg>
@@ -90,7 +90,7 @@ function Titration({ onDone }) {
               />
             ))}
           </AnimatePresence>
-          <div className="absolute right-0 top-0 rounded-lg border-2 border-ink bg-ink px-2 py-1 text-right font-mono text-xs text-white">
+          <div className="absolute right-0 top-0 rounded-sm border border-line bg-graphite px-2 py-1 text-right font-mono text-xs text-white">
             <div className="text-white/60">V титранта</div>
             <div className="text-base font-bold">{(drops * 0.05).toFixed(2)} мл</div>
             <div className="text-white/60">{drops} кап.</div>
@@ -109,9 +109,9 @@ function Titration({ onDone }) {
             </Button>
           </div>
         ) : (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-2 rounded-xl border-2 border-ink bg-white p-4 text-center">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-2 rounded-sm border border-line bg-white p-4 text-center">
             <div className="font-mono text-xs font-bold uppercase text-ink-mute">Точка эквивалентности: {endpoint} кап. · ты остановился на {drops}</div>
-            <div className="mt-1 font-display text-3xl font-black text-brand">Точность {acc}%</div>
+            <div className="mt-1 font-display text-3xl font-extrabold text-brand">Точность {acc}%</div>
             <div className="mt-1 text-sm text-ink-soft">
               {acc === 100 ? 'Идеально — как у ведущего химика!' : over > 0 ? 'Перетитровано: раствор ушёл в малиновый.' : 'Рано остановился: окраска ещё не устойчива.'}
             </div>
@@ -123,7 +123,7 @@ function Titration({ onDone }) {
       </Card>
       <div className="space-y-4">
         <Card className="p-4">
-          <div className="font-display text-lg font-black">Что происходит</div>
+          <div className="font-display text-lg font-extrabold">Что происходит</div>
           <ul className="mt-2 space-y-2 text-sm text-ink-soft">
             <li>• Лаборант определяет кислотность напитка: щёлочь из бюретки нейтрализует кислоты образца.</li>
             <li>• В точке эквивалентности индикатор фенолфталеин даёт устойчивую бледно-розовую окраску.</li>
@@ -167,12 +167,12 @@ function Refractometer({ onDone }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
       {/* прибор */}
-      <div className="self-start rounded-[28px] border-2 border-ink bg-[linear-gradient(160deg,#ECEBE8,#C9C7C2)] p-4 shadow-pop">
+      <div className="self-start rounded-[28px] border border-line bg-[linear-gradient(160deg,#ECEBE8,#C9C7C2)] p-4 shadow-pop">
         <div className="flex items-center justify-between px-1 pb-2">
-          <span className="font-display text-sm font-black tracking-widest text-ink/70">ATAGO</span>
+          <span className="font-display text-sm font-extrabold tracking-widest text-ink/70">ATAGO</span>
           <span className="font-mono text-[11px] font-bold text-ink/60">RX-7000i</span>
         </div>
-        <div className="scanlines relative h-48 overflow-hidden rounded-xl border-2 border-ink bg-[#0D2236] p-3 font-mono text-[#BFF3FF]">
+        <div className="scanlines relative h-48 overflow-hidden rounded-sm border border-line bg-[#0D2236] p-3 font-mono text-[#BFF3FF]">
           <div className="flex justify-between text-[10px] text-[#7FB6C9]">
             <span>Brix (%) · nD</span>
             <span>20.00 °C</span>
@@ -199,7 +199,7 @@ function Refractometer({ onDone }) {
           )}
         </div>
         <div className="mt-3 flex items-center justify-between">
-          <div className="grid h-16 w-16 place-items-center rounded-full border-2 border-ink bg-[radial-gradient(circle,#555_0,#222_70%)]">
+          <div className="grid h-16 w-16 place-items-center rounded-full border border-line bg-[radial-gradient(circle,#555_0,#222_70%)]">
             <div className="h-8 w-8 rounded-full bg-[radial-gradient(circle,#9fd3ff,#1b3a52)]" />
           </div>
           <div className="text-right text-[11px] font-semibold text-ink/60">
@@ -212,15 +212,15 @@ function Refractometer({ onDone }) {
 
       {/* дегустационный лист */}
       <Card className="overflow-hidden">
-        <div className="flex items-center justify-between border-b-2 border-ink bg-kraft-light px-4 py-3">
-          <div className="font-display font-black uppercase">Дегустационный лист «Очаково»</div>
+        <div className="flex items-center justify-between border-b-2 border-brand bg-kraft-light px-4 py-3">
+          <div className="font-display font-extrabold uppercase">Дегустационный лист ОЧАКОВО</div>
           <span className="font-mono text-xs font-bold">образцы №5–8</span>
         </div>
         <div className="divide-y-2 divide-dashed divide-ink/10">
           {samples.map((s) => (
             <div key={s.n} className={cx('grid items-center gap-3 p-3 sm:grid-cols-[auto_1fr_auto]', active === s.n && 'bg-cream')}>
               <div className="flex items-center gap-3">
-                <span className="grid h-11 w-11 place-items-center rounded-full border-2 border-ink font-mono text-sm font-black text-white" style={{ background: s.color }}>
+                <span className="grid h-11 w-11 place-items-center rounded-full border border-line font-mono text-sm font-extrabold text-white" style={{ background: s.color }}>
                   {s.n}
                 </span>
                 <div className="sm:hidden">
@@ -238,7 +238,7 @@ function Refractometer({ onDone }) {
                 <Button size="sm" variant={measured[s.n] != null ? 'ghost' : 'light'} onClick={() => measure(s)} disabled={measuring}>
                   <ScanLine className="h-4 w-4" /> {measured[s.n] != null ? 'Показать' : 'Измерить'}
                 </Button>
-                <div className="flex overflow-hidden rounded-lg border-2 border-ink text-xs font-extrabold">
+                <div className="flex overflow-hidden rounded-sm border border-line text-xs font-extrabold">
                   {[
                     ['ok', 'Норма'],
                     ['bad', 'Брак'],
@@ -264,7 +264,7 @@ function Refractometer({ onDone }) {
             </div>
           ))}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-ink bg-paper p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-brand bg-paper p-4">
           <p className="text-xs text-ink-soft">Измерь Brix, реши «норма / брак» и поставь органолептическую оценку (цвет, аромат, вкус).</p>
           <Button disabled={!ready} onClick={finish}>
             Подписать лист <ArrowRight className="h-4 w-4" />

@@ -1,12 +1,13 @@
 /**
- * Дизайн-токены «Очаково».
- * Брендбука в материалах хакатона нет, поэтому цвета сняты пипеткой
- * с каталога продукции (стр. 2–6) и титров вакансионных роликов:
- *   основной красно-малиновый  #EC1A42  (плашки каталога, логотип)
- *   тёмный «кинематографичный»  #17110F  (фон ролика «Процесс создания нового вкуса»)
- *   золотисто-солодовый         #C9922E  (колосья, банка KERN)
- *   крафт / бежевый             #E9DCC6  (рваная бумага, дегустационный лист)
- * При получении официального брендбука достаточно заменить значения здесь и в :root (src/index.css).
+ * Дизайн-токены ОЧАКОВО — по брендбуку (папка brandbook/, стр. 58 «Фирменная цветовая палитра»,
+ * стр. 59 «Фирменные шрифты», Retail стр. 33–34 «Дополнительные цвета»).
+ *   красный       Pantone 199          RGB 213.0.50    #D50032  — основной цвет
+ *   белый                               #FFFFFF          — основной цвет
+ *   тёмно-серый   Pantone Cool Gray 10 RGB 98.98.98    #626262  — текстовые блоки
+ *   серый         Pantone 429          RGB 162.170.173 #A2AAAD  — паттерн, заливки
+ *   тёмно-красный Pantone 7621         RGB 171.35.40   #AB2328  — пиктограммы на красном, заливки
+ *   Retail: зелёный 376 C #84BD00, голубой 2194 #0086D6, тёмно-зелёный 362 #509E2F
+ * Шрифт бренда — Proxima Nova (платный, ставится первым в стеке); открытая замена — Montserrat.
  */
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -15,51 +16,49 @@ export default {
     extend: {
       colors: {
         brand: {
-          DEFAULT: '#EC1A42',
-          50: '#FFF1F4',
-          100: '#FFDDE4',
-          200: '#FFB8C6',
-          300: '#FB869E',
-          400: '#F44D6C',
-          500: '#EC1A42',
-          600: '#CF0F38',
-          700: '#AA0B2E',
-          800: '#820A25',
-          900: '#59071A',
+          DEFAULT: '#D50032',
+          50: '#FCEBEF',
+          100: '#F9D3DC',
+          200: '#F2A6B8',
+          300: '#E86F8C',
+          400: '#DE3961',
+          500: '#D50032',
+          600: '#BF002D',
+          700: '#AB2328',
+          800: '#8C1D21',
+          900: '#5F1416',
         },
         ink: {
-          DEFAULT: '#17110F',
-          2: '#2A211D',
-          soft: '#4B403B',
-          mute: '#7D716B',
+          DEFAULT: '#1F1F1F',
+          2: '#4A4A4A',
+          soft: '#626262',
+          mute: '#83898C',
         },
-        malt: {
-          DEFAULT: '#C9922E',
-          light: '#EBC779',
-          dark: '#8E6418',
-        },
-        kraft: {
-          DEFAULT: '#E9DCC6',
-          light: '#F5EEE2',
-          dark: '#CDB894',
-        },
-        cream: '#FBF6EE',
-        paper: '#FFFDF9',
-        mint: '#1E9E8C',
-        lime: '#7DBB2F',
+        graphite: { DEFAULT: '#626262', 2: '#575757' },
+        steel: { DEFAULT: '#A2AAAD', light: '#D4D8DA' },
+        line: '#DDE0E2',
+        // бывшие «солод» и «крафт» → серая шкала Pantone 429
+        malt: { DEFAULT: '#A2AAAD', light: '#E8EBEC', dark: '#626262' },
+        kraft: { DEFAULT: '#E8EBEC', light: '#F4F5F6', dark: '#C9CED0' },
+        cream: '#F5F6F7',
+        paper: '#FFFFFF',
+        mint: '#0086D6',
+        lime: '#84BD00',
+        leaf: '#509E2F',
       },
       fontFamily: {
-        sans: ['Montserrat', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Arial', 'sans-serif'],
-        display: ['Montserrat', 'Arial Black', 'system-ui', 'sans-serif'],
+        sans: ['"Proxima Nova"', 'Montserrat', 'Tahoma', 'system-ui', '-apple-system', 'Segoe UI', 'Arial', 'sans-serif'],
+        display: ['"Proxima Nova"', 'Montserrat', 'Tahoma', 'system-ui', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       boxShadow: {
-        pop: '4px 4px 0 0 #17110F',
-        'pop-sm': '2px 2px 0 0 #17110F',
-        'pop-lg': '7px 7px 0 0 #17110F',
-        'pop-red': '4px 4px 0 0 #EC1A42',
-        card: '0 18px 40px -22px rgba(23,17,15,.45)',
-        glow: '0 0 0 4px rgba(236,26,66,.18)',
+        // бренд — плоский и «чистый»: мягкие тени вместо поп-арт обводок
+        pop: '0 1px 2px rgba(98,98,98,.10), 0 10px 26px -16px rgba(98,98,98,.40)',
+        'pop-sm': '0 1px 2px rgba(98,98,98,.14)',
+        'pop-lg': '0 2px 4px rgba(98,98,98,.10), 0 22px 44px -22px rgba(98,98,98,.50)',
+        'pop-red': '0 12px 30px -14px rgba(213,0,50,.55)',
+        card: '0 1px 2px rgba(98,98,98,.10), 0 10px 26px -16px rgba(98,98,98,.40)',
+        glow: '0 0 0 4px rgba(213,0,50,.15)',
       },
       keyframes: {
         blink: { '0%,100%': { opacity: '1' }, '50%': { opacity: '0.15' } },

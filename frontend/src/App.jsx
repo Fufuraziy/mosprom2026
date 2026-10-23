@@ -27,7 +27,7 @@ function Toasts() {
             initial={{ opacity: 0, y: -16, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 py-2 text-sm font-bold text-white shadow-pop-red"
+            className="flex items-center gap-2 rounded-full border border-line bg-graphite px-4 py-2 text-sm font-bold text-white shadow-pop"
             role="status"
           >
             {t.kind === 'points' ? <Coins className="h-4 w-4 text-malt-light" /> : t.kind === 'ticket' ? <Ticket className="h-4 w-4 text-malt-light" /> : <Info className="h-4 w-4 text-malt-light" />}
@@ -42,13 +42,13 @@ function Toasts() {
 function Footer() {
   const { apiStatus } = useGame()
   return (
-    <footer className="border-t-2 border-ink bg-paper">
+    <footer className="border-t-2 border-brand bg-paper">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-xs text-ink-soft sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex items-center gap-3">
           <Logo className="h-10 w-auto" />
           <div>
             <div className="font-bold text-ink">«Секретный код 1978» · прототип для хакатона «Открой#Моспром» 2026</div>
-            <div>Работа, практика и стажировки в «Очаково» — только с 18 лет. Суммы указаны до вычета НДФЛ.</div>
+            <div>Работа, практика и стажировки в ОЧАКОВО — только с 18 лет. Суммы указаны до вычета НДФЛ.</div>
           </div>
         </div>
         <div className="flex items-center gap-2 font-mono">

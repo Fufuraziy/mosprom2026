@@ -63,14 +63,14 @@ export default function MascotChat() {
           >
             <AnimatePresence>
               {nudge && (
-                <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="mb-6 hidden max-w-[200px] rounded-2xl rounded-br-none border-2 border-ink bg-white px-3 py-2 text-left text-xs font-bold text-ink shadow-pop-sm sm:block">
+                <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="mb-6 hidden max-w-[200px] rounded-sm rounded-br-none border border-line bg-white px-3 py-2 text-left text-xs font-bold text-ink shadow-pop-sm sm:block">
                   Есть вопрос про общагу, зарплату или сессию? Спроси меня!
                 </motion.span>
               )}
             </AnimatePresence>
-            <span className="relative grid h-16 w-16 place-items-center rounded-full border-[3px] border-ink bg-brand shadow-pop transition hover:-translate-y-1">
+            <span className="relative grid h-16 w-16 place-items-center rounded-full border border-line bg-brand shadow-pop transition hover:-translate-y-1">
               <Krafty size={54} mood="happy" />
-              <span className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full border-2 border-ink bg-malt-light font-display text-xs font-black">?</span>
+              <span className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full border border-line bg-malt-light font-display text-xs font-extrabold">?</span>
             </span>
           </motion.button>
         )}
@@ -84,17 +84,17 @@ export default function MascotChat() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-            className="fixed inset-x-2 bottom-2 z-50 flex max-h-[min(640px,calc(100vh-80px))] flex-col overflow-hidden rounded-3xl border-[3px] border-ink bg-paper shadow-pop-lg sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[390px]"
+            className="fixed inset-x-2 bottom-2 z-50 flex max-h-[min(640px,calc(100vh-80px))] flex-col overflow-hidden rounded-sm border border-line bg-paper shadow-pop-lg sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[390px]"
             role="dialog"
             aria-label="Чат с наставником Крафти"
           >
             <div className="relative flex items-center gap-3 bg-brand px-4 py-3 text-white">
               <div className="halftone-white absolute inset-0 opacity-40" />
-              <div className="relative rounded-full border-2 border-ink bg-white p-0.5">
+              <div className="relative rounded-full border border-line bg-white p-0.5">
                 <Krafty size={44} mood="wink" />
               </div>
               <div className="relative flex-1">
-                <div className="font-display text-lg font-black leading-none">Крафти</div>
+                <div className="font-display text-lg font-extrabold leading-none">Крафти</div>
                 <div className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-white/85">
                   <span className="h-2 w-2 rounded-full bg-lime" /> ИИ-наставник · отвечает 24/7
                 </div>
@@ -103,7 +103,7 @@ export default function MascotChat() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto bg-[linear-gradient(180deg,#FBF6EE,#fff)] p-4">
+            <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto bg-[linear-gradient(180deg,#F5F6F7,#fff)] p-4">
               <Bubble role="bot">
                 Привет! Я Крафти, медведь-наставник из ЛЭП 🐻 Отвечу про практику, зарплату, общежитие, сессию на заводе, военкомат и график. Спрашивай!
               </Bubble>
@@ -122,7 +122,7 @@ export default function MascotChat() {
             </div>
             <div className="no-scrollbar flex gap-2 overflow-x-auto border-t-2 border-ink/10 bg-white px-3 py-2">
               {suggest.map((q) => (
-                <button key={q} onClick={() => send(q)} className="shrink-0 rounded-full border-2 border-ink/20 bg-cream px-3 py-1 text-xs font-bold hover:border-ink">
+                <button key={q} onClick={() => send(q)} className="shrink-0 rounded-full border-2 border-ink/20 bg-cream px-3 py-1 text-xs font-bold hover:border-brand">
                   {q}
                 </button>
               ))}
@@ -132,10 +132,10 @@ export default function MascotChat() {
                 e.preventDefault()
                 send()
               }}
-              className="flex gap-2 border-t-2 border-ink bg-white p-3"
+              className="flex gap-2 border-t-2 border-brand bg-white p-3"
             >
-              <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Спроси про практику…" className="min-w-0 flex-1 rounded-xl border-2 border-ink/20 px-3 py-2 text-sm font-semibold outline-none focus:border-ink" />
-              <button type="submit" disabled={!text.trim() || typing} className="grid h-10 w-10 place-items-center rounded-xl border-2 border-ink bg-brand text-white disabled:opacity-40" aria-label="Отправить">
+              <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Спроси про практику…" className="min-w-0 flex-1 rounded-sm border-2 border-ink/20 px-3 py-2 text-sm font-semibold outline-none focus:border-brand" />
+              <button type="submit" disabled={!text.trim() || typing} className="grid h-10 w-10 place-items-center rounded-sm border border-line bg-brand text-white disabled:opacity-40" aria-label="Отправить">
                 <Send className="h-4 w-4" />
               </button>
             </form>
@@ -150,7 +150,7 @@ function Bubble({ role, children, topic }) {
   const bot = role === 'bot'
   return (
     <div className={cx('flex', bot ? 'justify-start' : 'justify-end')}>
-      <div className={cx('max-w-[86%] rounded-2xl border-2 px-3 py-2 text-sm leading-snug', bot ? 'rounded-bl-none border-ink bg-white' : 'rounded-br-none border-ink bg-ink text-white')}>
+      <div className={cx('max-w-[86%] rounded-sm border-2 px-3 py-2 text-sm leading-snug', bot ? 'rounded-bl-none border-line bg-white' : 'rounded-br-none border-graphite bg-graphite text-white')}>
         {children}
         {topic && (
           <div className="mt-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-brand">

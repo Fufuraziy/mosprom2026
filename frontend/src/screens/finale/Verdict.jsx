@@ -38,7 +38,7 @@ export function AIVerdict() {
         </motion.div>
         <div>
           <div className="font-mono text-xs font-bold uppercase text-brand">ИИ-агент №2 · рекомендация</div>
-          <div className="mt-1 font-display text-lg font-black">{THINKING[line]}</div>
+          <div className="mt-1 font-display text-lg font-extrabold">{THINKING[line]}</div>
         </div>
       </Card>
     )
@@ -47,21 +47,21 @@ export function AIVerdict() {
   const comp = rec.competencies || {}
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
-      <div className="relative overflow-hidden rounded-2xl border-2 border-ink bg-brand p-6 text-white shadow-pop-lg">
+      <div className="relative overflow-hidden rounded-sm border border-line bg-brand p-6 text-white shadow-pop-lg">
         <div className="halftone-white absolute inset-0 opacity-40" />
         <div className="relative">
           <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-widest text-white/80">
             <Bot className="h-4 w-4" /> ИИ-агент №2 · твой архетип
           </div>
           <div className="mt-3 flex items-center gap-4">
-            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border-2 border-ink bg-white text-brand shadow-pop">
+            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-sm border border-line bg-white text-brand shadow-pop">
               <Icon name={rec.archetype?.icon || 'Sparkles'} className="h-8 w-8" />
             </span>
-            <div className="font-display text-3xl font-black leading-none sm:text-4xl">{rec.archetype?.name}</div>
+            <div className="font-display text-3xl font-extrabold leading-none sm:text-4xl">{rec.archetype?.name}</div>
           </div>
           <p className="mt-4 text-sm font-medium leading-relaxed text-white/95">{rec.verdict}</p>
-          <div className="mt-5 flex items-center gap-3 rounded-xl bg-white/15 p-3">
-            <div className="font-display text-3xl font-black">{rec.retention_score}</div>
+          <div className="mt-5 flex items-center gap-3 rounded-sm bg-white/15 p-3">
+            <div className="font-display text-3xl font-extrabold">{rec.retention_score}</div>
             <div className="text-xs font-semibold leading-tight text-white/90">
               индекс «Я останусь»: насколько вероятно, что тебе понравится работа и ты задержишься после практики
             </div>
@@ -69,7 +69,7 @@ export function AIVerdict() {
         </div>
       </div>
       <Card className="p-5">
-        <div className="font-display text-lg font-black">Профиль из игры</div>
+        <div className="font-display text-lg font-extrabold">Профиль из игры</div>
         <div className="mt-3 space-y-3">
           {COMPETENCY_META.map((m) => (
             <div key={m.key}>
@@ -81,11 +81,11 @@ export function AIVerdict() {
             </div>
           ))}
         </div>
-        <div className="mt-5 font-display text-lg font-black">Рекомендованные вакансии</div>
+        <div className="mt-5 font-display text-lg font-extrabold">Рекомендованные вакансии</div>
         <div className="mt-2 space-y-2">
           {(rec.matches || []).slice(0, 3).map((m, i) => (
-            <div key={m.id || m.title} className={cx('flex items-center gap-3 rounded-xl border-2 p-3', i === 0 ? 'border-ink bg-malt-light/40' : 'border-ink/15')}>
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-2 border-ink font-mono text-sm font-black" style={{ background: `conic-gradient(${BLOCKS[m.block]?.color || '#EC1A42'} ${m.match * 3.6}deg, #fff 0)` }}>
+            <div key={m.id || m.title} className={cx('flex items-center gap-3 rounded-sm border-2 p-3', i === 0 ? 'border-brand bg-malt-light/40' : 'border-ink/15')}>
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-line font-mono text-sm font-extrabold" style={{ background: `conic-gradient(${BLOCKS[m.block]?.color || '#D50032'} ${m.match * 3.6}deg, #fff 0)` }}>
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-[11px]">{m.match}%</span>
               </div>
               <div className="min-w-0 flex-1">
@@ -141,14 +141,14 @@ export function SalaryCalculator() {
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center gap-2 border-b-2 border-ink bg-kraft-light px-5 py-3 font-display font-black uppercase">
+      <div className="flex items-center gap-2 border-b-2 border-brand bg-kraft-light px-5 py-3 font-display font-extrabold uppercase">
         <Calculator className="h-5 w-5 text-brand" /> Калькулятор выгоды
       </div>
       <div className="grid gap-6 p-5 lg:grid-cols-2">
         <div className="space-y-5">
           <label className="block">
             <span className="text-xs font-extrabold uppercase text-ink-mute">Подразделение</span>
-            <select value={dept} onChange={(e) => setDept(e.target.value)} className="mt-1 w-full rounded-xl border-2 border-ink bg-white px-3 py-2.5 font-semibold">
+            <select value={dept} onChange={(e) => setDept(e.target.value)} className="mt-1 w-full rounded-sm border border-line bg-white px-3 py-2.5 font-semibold">
               {DEPARTMENTS.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.label}: от {x.base.toLocaleString('ru-RU')} ₽
@@ -174,9 +174,9 @@ export function SalaryCalculator() {
             <Toggle on={meals} set={setMeals} icon={UtensilsCrossed} label="Обедаю в столовой" sub="компания платит 50%" />
           </div>
         </div>
-        <div className="rounded-2xl border-2 border-ink bg-ink p-5 text-white">
+        <div className="rounded-sm border border-line bg-graphite p-5 text-white">
           <div className="text-xs font-bold uppercase text-white/60">Начислено (до НДФЛ)</div>
-          <div className="font-display text-4xl font-black">{fmtRub(calc.gross)}</div>
+          <div className="font-display text-4xl font-extrabold">{fmtRub(calc.gross)}</div>
           <div className="mt-1 text-xs text-white/70">
             оклад {fmtRub(d.base)} + ночные ≈ {fmtRub(calc.nightBonus)} · на руки ≈ {fmtRub(calc.net)}
           </div>
@@ -185,9 +185,9 @@ export function SalaryCalculator() {
             <Row k="Экономия на питании" v={calc.saveMeals} />
             <Row k="Спецодежда и прачечная" v={calc.saveUniform} />
           </div>
-          <div className="mt-4 rounded-xl bg-brand p-3">
+          <div className="mt-4 rounded-sm bg-brand p-3">
             <div className="text-xs font-bold uppercase text-white/80">Экономишь в месяц ≈</div>
-            <div className="font-display text-3xl font-black">{fmtRub(calc.savings)}</div>
+            <div className="font-display text-3xl font-extrabold">{fmtRub(calc.savings)}</div>
             <div className="mt-1 text-xs text-white/90">Итого эквивалент дохода ≈ {fmtRub(calc.total)} в месяц</div>
           </div>
           <p className="mt-3 flex gap-1.5 text-[11px] leading-snug text-white/55">
@@ -211,9 +211,9 @@ function Row({ k, v }) {
 
 function Toggle({ on, set, icon: I, label, sub }) {
   return (
-    <button onClick={() => set(!on)} className={cx('flex items-start gap-2 rounded-xl border-2 p-3 text-left transition', on ? 'border-ink bg-brand-50' : 'border-ink/15 bg-white')} aria-pressed={on}>
-      <span className={cx('mt-0.5 grid h-5 w-9 shrink-0 items-center rounded-full border-2 border-ink px-0.5 transition', on ? 'bg-brand' : 'bg-white')}>
-        <span className={cx('block h-3 w-3 rounded-full border border-ink bg-white transition', on && 'translate-x-4')} />
+    <button onClick={() => set(!on)} className={cx('flex items-start gap-2 rounded-sm border-2 p-3 text-left transition', on ? 'border-brand bg-brand-50' : 'border-ink/15 bg-white')} aria-pressed={on}>
+      <span className={cx('mt-0.5 grid h-5 w-9 shrink-0 items-center rounded-full border border-line px-0.5 transition', on ? 'bg-brand' : 'bg-white')}>
+        <span className={cx('block h-3 w-3 rounded-full border border-brand bg-white transition', on && 'translate-x-4')} />
       </span>
       <span>
         <span className="flex items-center gap-1 text-sm font-extrabold">

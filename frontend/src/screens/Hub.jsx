@@ -30,7 +30,7 @@ export default function Hub() {
       <div className="relative mt-8">
         {/* линия маршрута */}
         <svg className="pointer-events-none absolute inset-x-0 top-1/2 hidden h-10 w-full -translate-y-1/2 lg:block" viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden>
-          <path d="M20 20 C 200 -10, 300 50, 500 20 S 800 -10, 980 20" stroke="#17110F" strokeWidth="3" strokeDasharray="10 10" fill="none" />
+          <path d="M20 20 C 200 -10, 300 50, 500 20 S 800 -10, 980 20" stroke="#4A4A4A" strokeWidth="3" strokeDasharray="10 10" fill="none" />
         </svg>
         <div className="relative grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {STATIONS.map((s, i) => {
@@ -44,23 +44,23 @@ export default function Hub() {
                 transition={{ delay: i * 0.07 }}
                 onClick={() => actions.go('station', s.id)}
                 className={cx(
-                  'group relative flex flex-col overflow-hidden rounded-2xl border-2 border-ink bg-paper text-left shadow-pop transition hover:-translate-y-1 hover:shadow-pop-lg',
-                  isNext && 'ring-4 ring-brand/30',
+                  'group relative flex flex-col overflow-hidden rounded-sm border border-line bg-paper text-left shadow-pop transition hover:-translate-y-1 hover:shadow-pop-lg',
+                  isNext && 'ring-2 ring-brand',
                 )}
               >
-                <div className="relative h-40 overflow-hidden border-b-2 border-ink">
+                <div className="relative h-40 overflow-hidden border-b-2 border-brand">
                   <img src={PHOTO(s.photo)} alt="" className={cx('h-full w-full object-cover transition duration-500 group-hover:scale-105', ok && 'grayscale-[40%]')} />
                   <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent" />
                   <RecBadge label={`СТАНЦИЯ ${s.n}`} className="absolute left-3 top-3" />
                   <div className="absolute bottom-3 left-3 flex items-center gap-2 text-white">
-                    <span className="grid h-9 w-9 place-items-center rounded-lg border-2 border-white" style={{ background: s.color }}>
+                    <span className="grid h-9 w-9 place-items-center rounded-sm border-2 border-white" style={{ background: s.color }}>
                       <Icon name={s.icon} className="h-5 w-5" />
                     </span>
                     <span className="text-xs font-bold">{s.salary}</span>
                   </div>
                   <span
                     className={cx(
-                      'absolute right-3 top-3 grid h-12 w-10 place-items-center rounded-lg border-2 font-mono text-2xl font-black',
+                      'absolute right-3 top-3 grid h-12 w-10 place-items-center rounded-sm border-2 font-mono text-2xl font-extrabold',
                       ok ? 'border-white bg-brand text-white' : 'border-dashed border-white/70 bg-ink/40 text-white/70',
                     )}
                   >
@@ -68,7 +68,7 @@ export default function Hub() {
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col p-4">
-                  <div className="font-display text-lg font-black leading-tight">{s.title}</div>
+                  <div className="font-display text-lg font-extrabold leading-tight">{s.title}</div>
                   <div className="mt-0.5 text-xs font-bold text-ink-mute">{s.role}</div>
                   <p className="mt-2 flex-1 text-sm leading-snug text-ink-soft">{s.teaser}</p>
                   <div className="mt-4 flex items-center justify-between">
@@ -91,19 +91,19 @@ export default function Hub() {
       </div>
 
       {/* капсула */}
-      <div className="mt-10 grid items-center gap-6 rounded-3xl border-2 border-ink bg-ink p-6 text-white shadow-pop-red sm:p-8 md:grid-cols-[auto_1fr_auto]">
-        <div className="relative grid h-24 w-24 place-items-center rounded-full border-4 border-white/80 bg-ink-2">
+      <div className="mt-10 grid items-center gap-6 rounded-sm border border-line bg-graphite p-6 text-white shadow-pop sm:p-8 md:grid-cols-[auto_1fr_auto]">
+        <div className="relative grid h-24 w-24 place-items-center rounded-full border-4 border-white/80 bg-graphite-2">
           {done >= 4 ? <KeyRound className="h-10 w-10 text-malt-light" /> : <Lock className="h-10 w-10 text-white/70" />}
           <span className="absolute -bottom-2 rounded bg-brand px-2 font-mono text-xs font-bold">ЛЭП</span>
         </div>
         <div>
           <div className="font-mono text-xs font-bold uppercase tracking-widest text-white/60">Цифровая капсула мастерства</div>
-          <div className="mt-1 font-display text-2xl font-black">
+          <div className="mt-1 font-display text-2xl font-extrabold">
             {done >= 4 ? 'Код собран. Капсула ждёт!' : `Нужно ещё ${4 - done} ${4 - done === 1 ? 'цифра' : 'цифры'}`}
           </div>
           <div className="mt-3 flex gap-2">
             {state.digits.map((d, i) => (
-              <span key={i} className={cx('grid h-12 w-10 place-items-center rounded-lg border-2 font-mono text-2xl font-black', d ? 'border-white bg-brand' : 'border-dashed border-white/40 text-white/40')}>
+              <span key={i} className={cx('grid h-12 w-10 place-items-center rounded-sm border-2 font-mono text-2xl font-extrabold', d ? 'border-white bg-brand' : 'border-dashed border-white/40 text-white/40')}>
                 {d || '?'}
               </span>
             ))}
@@ -118,7 +118,7 @@ export default function Hub() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-ink-mute">
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-ink/15 bg-white px-3 py-2 font-semibold">
+        <label className="flex cursor-pointer items-center gap-2 rounded-sm border border-ink/15 bg-white px-3 py-2 font-semibold">
           <input type="checkbox" checked={state.demoFast} onChange={(e) => actions.setDemo(e.target.checked)} className="accent-brand" />
           Демо-ускорение для жюри (кнопка «Пропустить мини-игру»)
         </label>

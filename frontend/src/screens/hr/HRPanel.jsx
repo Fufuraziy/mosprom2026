@@ -25,13 +25,13 @@ function Kpi({ icon: I, label, value, sub, accent }) {
       <div className="flex items-center gap-2 text-xs font-extrabold uppercase text-ink-mute">
         <I className="h-4 w-4" /> {label}
       </div>
-      <div className={cx('mt-2 font-display text-3xl font-black leading-none', accent)}>{value}</div>
+      <div className={cx('mt-2 font-display text-3xl font-extrabold leading-none', accent)}>{value}</div>
       {sub && <div className="mt-1.5 text-xs font-semibold text-ink-soft">{sub}</div>}
     </Card>
   )
 }
 
-function HBars({ rows, color = '#EC1A42', format = (v) => v.toLocaleString('ru-RU'), showShare }) {
+function HBars({ rows, color = '#D50032', format = (v) => v.toLocaleString('ru-RU'), showShare }) {
   const max = Math.max(...rows.map((r) => r.value), 1)
   return (
     <div className="space-y-2.5">
@@ -105,11 +105,11 @@ export default function HRPanel() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-brand">Головной офис · ул. Рябиновая, 44</div>
-          <h1 className="mt-1 font-display text-3xl font-black tracking-tight sm:text-4xl">Панель HR «Очаково»</h1>
+          <h1 className="mt-1 font-display text-3xl uppercase tracking-tight text-brand sm:text-4xl"><span className="font-light">Панель HR </span><span className="font-extrabold">ОЧАКОВО</span></h1>
           <p className="mt-1 max-w-2xl text-sm text-ink-soft">Аналитика воронки и ИИ-досье по игровой телеметрии. Кандидаты попадают сюда только после анкеты с согласием на обработку данных.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cx('flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1.5 text-xs font-extrabold', apiStatus.online ? 'border-lime bg-lime/10 text-ink' : 'border-malt bg-malt-light/30')}>
+          <span className={cx('flex items-center gap-1.5 rounded-sm border-2 px-2.5 py-1.5 text-xs font-extrabold', apiStatus.online ? 'border-lime bg-lime/10 text-ink' : 'border-malt bg-malt-light/30')}>
             {apiStatus.online ? <Wifi className="h-4 w-4 text-lime" /> : <WifiOff className="h-4 w-4 text-malt-dark" />}
             {apiStatus.online ? `FastAPI онлайн · ${apiStatus.url.replace(/^https?:\/\//, '')}` : 'Автономный режим · встроенный движок'}
           </span>
@@ -134,7 +134,7 @@ export default function HRPanel() {
           <div className="mt-5 grid gap-5 lg:grid-cols-3">
             <Card className="p-5 lg:col-span-1">
               <div className="flex items-center justify-between">
-                <div className="font-display text-lg font-black">Воронка сезона</div>
+                <div className="font-display text-lg font-extrabold">Воронка сезона</div>
                 <span className="rounded bg-kraft px-1.5 py-0.5 font-mono text-[10px] font-bold">демо + живые</span>
               </div>
               <div className="mt-4">
@@ -142,12 +142,12 @@ export default function HRPanel() {
               </div>
             </Card>
             <Card className="p-5">
-              <div className="font-display text-lg font-black">Кандидаты по 3 приоритетным блокам</div>
+              <div className="font-display text-lg font-extrabold">Кандидаты по 3 приоритетным блокам</div>
               <div className="mt-1 text-xs text-ink-mute">+ бесплатная практика (IT, дизайн, оцифровка)</div>
               <div className="mt-4">
                 <HBars rows={stats.by_block.map((b) => ({ label: b.label, value: b.count, color: b.color }))} />
               </div>
-              <div className="mt-5 font-display text-sm font-black">Топ вузов</div>
+              <div className="mt-5 font-display text-sm font-extrabold">Топ вузов</div>
               <div className="mt-2 space-y-1">
                 {stats.by_university.slice(0, 4).map((u) => (
                   <div key={u.university} className="flex justify-between gap-2 text-xs">
@@ -158,12 +158,12 @@ export default function HRPanel() {
               </div>
             </Card>
             <Card className="p-5">
-              <div className="font-display text-lg font-black">Что волнует кандидатов</div>
+              <div className="font-display text-lg font-extrabold">Что волнует кандидатов</div>
               <div className="mt-1 text-xs text-ink-mute">темы вопросов к ИИ-маскоту «Крафти»</div>
               <div className="mt-4">
-                <HBars rows={stats.top_topics.map((t) => ({ label: t.label, value: t.count }))} color="#17110F" />
+                <HBars rows={stats.top_topics.map((t) => ({ label: t.label, value: t.count }))} color="#4A4A4A" />
               </div>
-              <div className="mt-4 flex items-start gap-2 rounded-xl bg-malt-light/40 p-3 text-xs font-semibold">
+              <div className="mt-4 flex items-start gap-2 rounded-sm bg-malt-light/40 p-3 text-xs font-semibold">
                 <Sparkles className="h-4 w-4 shrink-0 text-malt-dark" />
                 Чаще всего спрашивают про {stats.top_topics[0]?.label.toLowerCase() || 'общежитие'}: вынесите ответ в вакансию и в первое сообщение рекрутера.
               </div>
@@ -174,18 +174,18 @@ export default function HRPanel() {
 
       {/* таблица */}
       <Card className="mt-6 overflow-hidden">
-        <div className="flex flex-wrap items-center gap-2 border-b-2 border-ink bg-kraft-light p-3">
+        <div className="flex flex-wrap items-center gap-2 border-b-2 border-brand bg-kraft-light p-3">
           <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-mute" />
-            <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Поиск: ФИО, вакансия, специальность" className="w-full rounded-xl border-2 border-ink/20 bg-white py-2 pl-9 pr-3 text-sm font-semibold outline-none focus:border-ink" />
+            <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Поиск: ФИО, вакансия, специальность" className="w-full rounded-sm border-2 border-ink/20 bg-white py-2 pl-9 pr-3 text-sm font-semibold outline-none focus:border-brand" />
           </div>
-          <select value={filters.university} onChange={(e) => setFilters({ ...filters, university: e.target.value })} className="max-w-[240px] rounded-xl border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.university} onChange={(e) => setFilters({ ...filters, university: e.target.value })} className="max-w-[240px] rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
             <option value="">Все вузы и колледжи</option>
             {unis.map((u) => (
               <option key={u}>{u}</option>
             ))}
           </select>
-          <select value={filters.block} onChange={(e) => setFilters({ ...filters, block: e.target.value })} className="rounded-xl border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.block} onChange={(e) => setFilters({ ...filters, block: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
             <option value="">Все направления</option>
             {Object.entries(BLOCKS).map(([k, b]) => (
               <option key={k} value={k}>
@@ -193,7 +193,7 @@ export default function HRPanel() {
               </option>
             ))}
           </select>
-          <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="rounded-xl border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
             <option value="created">Сначала новые</option>
             <option value="retention">По прогнозу удержания</option>
             <option value="match">По мэтчу вакансии</option>
@@ -220,7 +220,7 @@ export default function HRPanel() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 font-extrabold">
                       {c.fio}
-                      {c.is_live && <span className="rounded bg-brand px-1.5 py-0.5 text-[10px] font-black uppercase text-white">новый</span>}
+                      {c.is_live && <span className="rounded bg-brand px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-white">новый</span>}
                     </div>
                     <div className="text-xs text-ink-mute">
                       {c.age} лет · {c.study_level || '—'} · {c.archetype}
@@ -241,7 +241,7 @@ export default function HRPanel() {
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-20 rounded-full bg-kraft">
-                        <div className="h-2 rounded-full" style={{ width: `${c.retention_score}%`, background: c.retention_score >= 75 ? '#7DBB2F' : c.retention_score >= 60 ? '#C9922E' : '#EC1A42' }} />
+                        <div className="h-2 rounded-full" style={{ width: `${c.retention_score}%`, background: c.retention_score >= 75 ? '#84BD00' : c.retention_score >= 60 ? '#A2AAAD' : '#D50032' }} />
                       </div>
                       <span className="font-mono text-xs font-bold">{c.retention_score}</span>
                     </div>

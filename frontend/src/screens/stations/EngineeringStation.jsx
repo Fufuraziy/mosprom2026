@@ -24,11 +24,11 @@ function Gauge({ value }) {
   }
   return (
     <svg viewBox="0 0 200 130" className="w-full">
-      <path d={arc(-120, -48, 78)} stroke="#EC1A42" strokeWidth="14" fill="none" />
+      <path d={arc(-120, -48, 78)} stroke="#D50032" strokeWidth="14" fill="none" />
       <path d={arc(-48, -24, 78)} stroke="#FFD21F" strokeWidth="14" fill="none" />
       <path d={arc(-24, 24, 78)} stroke="#3DD6A0" strokeWidth="14" fill="none" />
       <path d={arc(24, 48, 78)} stroke="#FFD21F" strokeWidth="14" fill="none" />
-      <path d={arc(48, 120, 78)} stroke="#EC1A42" strokeWidth="14" fill="none" />
+      <path d={arc(48, 120, 78)} stroke="#D50032" strokeWidth="14" fill="none" />
       {[-120, -60, 0, 60, 120].map((a, i) => (
         <text key={a} x={100 + 58 * Math.sin((a * Math.PI) / 180)} y={104 - 58 * Math.cos((a * Math.PI) / 180)} fontSize="10" fill="#9FB3C2" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
           {(1 + i * 0.5).toFixed(1)}
@@ -37,7 +37,7 @@ function Gauge({ value }) {
       <g style={{ transform: `rotate(${ang}deg)`, transformOrigin: '100px 100px', transition: 'transform .12s linear' }}>
         <path d="M97 100 L100 30 L103 100z" fill="#fff" />
       </g>
-      <circle cx="100" cy="100" r="8" fill="#fff" stroke="#17110F" strokeWidth="2" />
+      <circle cx="100" cy="100" r="8" fill="#fff" stroke="#4A4A4A" strokeWidth="2" />
       <text x="100" y="126" textAnchor="middle" fontSize="15" fontWeight="700" fill={zone === 'ok' ? '#3DD6A0' : zone === 'warn' ? '#FFD21F' : '#FF4D6D'} fontFamily="JetBrains Mono, monospace">
         {value.toFixed(2)} бар
       </text>
@@ -71,7 +71,7 @@ function Mnemo({ pressure, meaAlarm, valveOpen, onValve, inspect, onInspect, ins
       <style>{`@keyframes dash{to{stroke-dashoffset:-24}}`}</style>
       {/* трубы */}
       <path d="M150 300 H360" stroke="#FFD21F" strokeWidth="9" fill="none" />
-      <path d="M150 300 H360" stroke="#17110F" strokeWidth="3" strokeDasharray="8 16" fill="none" className={flow} />
+      <path d="M150 300 H360" stroke="#4A4A4A" strokeWidth="3" strokeDasharray="8 16" fill="none" className={flow} />
       <path d="M150 90 H260 V60 H560 V150" stroke="#3DD6A0" strokeWidth="9" fill="none" />
       <path d="M150 90 H260 V60 H560 V150" stroke="#0E1A24" strokeWidth="3" strokeDasharray="8 16" fill="none" className={flow} />
       <path d="M440 260 H520 M620 260 H680" stroke="#7FB6C9" strokeWidth="9" fill="none" />
@@ -84,8 +84,8 @@ function Mnemo({ pressure, meaAlarm, valveOpen, onValve, inspect, onInspect, ins
       <g onClick={onValve} style={{ cursor: meaAlarm ? 'pointer' : 'default' }}>
         <circle cx="64" cy="200" r="20" fill={meaAlarm ? '#FF4D6D33' : 'transparent'} className={meaAlarm ? 'animate-ping' : ''} style={{ transformOrigin: '64px 200px' }} />
         <g style={{ transform: `rotate(${valveOpen ? 90 : 0}deg)`, transformOrigin: '64px 200px', transition: 'transform .35s' }}>
-          <rect x="44" y="196" width="40" height="8" rx="4" fill="#EC1A42" stroke="#fff" strokeWidth="1.5" />
-          <circle cx="64" cy="200" r="7" fill="#EC1A42" stroke="#fff" strokeWidth="2" />
+          <rect x="44" y="196" width="40" height="8" rx="4" fill="#D50032" stroke="#fff" strokeWidth="1.5" />
+          <circle cx="64" cy="200" r="7" fill="#D50032" stroke="#fff" strokeWidth="2" />
         </g>
       </g>
 
@@ -111,8 +111,8 @@ function Mnemo({ pressure, meaAlarm, valveOpen, onValve, inspect, onInspect, ins
       <Node id="schenk" x={520} y={150} w={100} h={150} label="Резервуары SCHENK">
         <rect x="520" y="150" width="44" height="150" rx="18" fill="#1B3346" stroke="#9FB3C2" strokeWidth="3" />
         <rect x="576" y="150" width="44" height="150" rx="18" fill="#1B3346" stroke="#9FB3C2" strokeWidth="3" />
-        <rect x="526" y="185" width="32" height="108" rx="10" fill="#C9922E" opacity=".7" />
-        <rect x="582" y="200" width="32" height="93" rx="10" fill="#C9922E" opacity=".7" />
+        <rect x="526" y="185" width="32" height="108" rx="10" fill="#A2AAAD" opacity=".7" />
+        <rect x="582" y="200" width="32" height="93" rx="10" fill="#A2AAAD" opacity=".7" />
       </Node>
 
       {/* ЛЭП */}
@@ -222,7 +222,7 @@ function Panel({ onDone, onPhase }) {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="overflow-hidden rounded-2xl border-2 border-ink bg-[#0E1A24] shadow-pop">
+      <div className="overflow-hidden rounded-sm border border-line bg-[#0E1A24] shadow-pop">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#13283A] px-4 py-2 font-mono text-xs text-[#9FB3C2]">
           <span>SCADA · Участок получения CO₂ · Мнемосхема</span>
           <span className="flex items-center gap-3">
@@ -253,7 +253,7 @@ function Panel({ onDone, onPhase }) {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={turnValve}
-              className="absolute left-3 top-3 flex items-center gap-2 rounded-lg border-2 border-white bg-[#FF4D6D] px-3 py-2 text-xs font-extrabold text-white shadow-lg sm:text-sm"
+              className="absolute left-3 top-3 flex items-center gap-2 rounded-sm border-2 border-white bg-[#FF4D6D] px-3 py-2 text-xs font-extrabold text-white shadow-lg sm:text-sm"
             >
               <AlertTriangle className="h-4 w-4" /> Поверни красный вентиль МЭА!
             </motion.button>
@@ -275,20 +275,20 @@ function Panel({ onDone, onPhase }) {
       </div>
 
       <div className="space-y-4">
-        <div className="rounded-2xl border-2 border-ink bg-[#0E1A24] p-4 text-white shadow-pop">
+        <div className="rounded-sm border border-line bg-[#0E1A24] p-4 text-white shadow-pop">
           <div className="font-mono text-xs text-[#9FB3C2]">PI-101 · давление в абсорбере</div>
           <Gauge value={pressure} />
           {phase === 'run' && (
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <button onClick={() => adjust(-0.08)} className="flex items-center justify-center gap-1 rounded-xl border-2 border-white/80 bg-[#1B3346] py-3 font-extrabold active:scale-95">
+              <button onClick={() => adjust(-0.08)} className="flex items-center justify-center gap-1 rounded-sm border-2 border-white/80 bg-[#1B3346] py-3 font-extrabold active:scale-95">
                 <Minus className="h-5 w-5" /> Сброс
               </button>
-              <button onClick={() => adjust(0.08)} className="flex items-center justify-center gap-1 rounded-xl border-2 border-white/80 bg-[#1B3346] py-3 font-extrabold active:scale-95">
+              <button onClick={() => adjust(0.08)} className="flex items-center justify-center gap-1 rounded-sm border-2 border-white/80 bg-[#1B3346] py-3 font-extrabold active:scale-95">
                 <Plus className="h-5 w-5" /> Подача
               </button>
             </div>
           )}
-          <div className={cx('mt-3 rounded-lg px-3 py-2 text-center text-xs font-bold', zone === 'ok' ? 'bg-[#3DD6A0]/15 text-[#3DD6A0]' : zone === 'warn' ? 'bg-[#FFD21F]/15 text-[#FFD21F]' : 'bg-[#FF4D6D]/20 text-[#FF8FA3]')}>
+          <div className={cx('mt-3 rounded-sm px-3 py-2 text-center text-xs font-bold', zone === 'ok' ? 'bg-[#3DD6A0]/15 text-[#3DD6A0]' : zone === 'warn' ? 'bg-[#FFD21F]/15 text-[#FFD21F]' : 'bg-[#FF4D6D]/20 text-[#FF8FA3]')}>
             {zone === 'ok' ? 'Режим в норме' : zone === 'warn' ? 'Отклонение: корректируй' : 'Критично! Срочно корректируй'}
           </div>
         </div>
@@ -301,24 +301,24 @@ function Panel({ onDone, onPhase }) {
               <br />
               Реакция на аварию МЭА: <b>{result.mea_reaction_ms != null ? `${(result.mea_reaction_ms / 1000).toFixed(1)} с` : 'не успел, перекрыл наставник'}</b>
             </div>
-            <div className="mt-3 flex items-start gap-2 rounded-lg bg-malt-light/50 p-3 text-sm font-semibold">
+            <div className="mt-3 flex items-start gap-2 rounded-sm bg-malt-light/50 p-3 text-sm font-semibold">
               <Search className="mt-0.5 h-4 w-4 shrink-0" />
               Теперь обход: нажми на подсвеченные узлы на мнемосхеме (барботёр, SCHENK, чан ЛЭП) и прими решение.
             </div>
             {open && (
-              <div className="mt-3 rounded-xl border-2 border-ink p-3">
+              <div className="mt-3 rounded-sm border border-line p-3">
                 <div className="font-extrabold">{INSPECT[open].title}</div>
                 <p className="mt-1 text-sm text-ink-soft">{INSPECT[open].reading}</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setAnswers((a) => ({ ...a, [open]: 'ok' }))}
-                    className={cx('flex items-center justify-center gap-1 rounded-lg border-2 border-ink px-2 py-2 text-xs font-extrabold', answers[open] === 'ok' ? 'bg-lime text-white' : 'bg-white')}
+                    className={cx('flex items-center justify-center gap-1 rounded-sm border border-line px-2 py-2 text-xs font-extrabold', answers[open] === 'ok' ? 'bg-lime text-white' : 'bg-white')}
                   >
                     <CheckCircle2 className="h-4 w-4" /> Норма
                   </button>
                   <button
                     onClick={() => setAnswers((a) => ({ ...a, [open]: 'bad' }))}
-                    className={cx('flex items-center justify-center gap-1 rounded-lg border-2 border-ink px-2 py-2 text-xs font-extrabold', answers[open] === 'bad' ? 'bg-brand text-white' : 'bg-white')}
+                    className={cx('flex items-center justify-center gap-1 rounded-sm border border-line px-2 py-2 text-xs font-extrabold', answers[open] === 'bad' ? 'bg-brand text-white' : 'bg-white')}
                   >
                     <TriangleAlert className="h-4 w-4" /> Отклонение
                   </button>

@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { LOGO } from '../data/logo.js'
+import { PICTOS } from '../data/pictograms.js'
 import { motion } from 'framer-motion'
 import {
   Globe, GraduationCap, Wallet, Home, Users, FlaskConical, Gauge, Factory, Palette, Lock, Check, X,
@@ -13,35 +15,81 @@ export const Icon = ({ name, ...p }) => {
 export const cx = (...a) => a.filter(Boolean).join(' ')
 
 /* ------------------------------------------------------------------ логотип */
-// Реконструкция фирменного знака: красный квадрат-рамка + кольцо «О» + «ОЧАКОВО».
-// Рисуется inline, чтобы использовать загруженный Montserrat.
-export function Logo({ className = '', inverse = false, compact = false }) {
-  const c = inverse ? '#FFFFFF' : '#EC1A42'
-  const bg = inverse ? '#EC1A42' : '#FFFFFF'
-  if (compact) {
-    return (
-      <svg viewBox="0 0 64 64" className={className} role="img" aria-label="Очаково">
-        <rect x="5" y="5" width="54" height="54" fill="none" stroke={c} strokeWidth="5" />
-        <circle cx="34" cy="40" r="11" fill={bg} stroke={c} strokeWidth="8.5" />
-      </svg>
-    )
-  }
+// Фирменный блок ОЧАКОВО — векторные контуры из брендбука (ЛОГО БЕЗ КВАДРАТА / Лого_без квадрата.pdf).
+const [TX0, TY0, TX1, TY1] = LOGO.text_bbox
+const TW = TX1 - TX0
+const TH = TY1 - TY0
+
+/** Текстовый логотип «ОЧАКОВО / натуральные напитки». */
+export function Logo({ className = '', inverse = false }) {
   return (
-    <svg viewBox="0 0 480 240" className={className} role="img" aria-label="ОЧАКОВО — натуральные напитки">
-      <rect x="8" y="8" width="226" height="222" fill="none" stroke={c} strokeWidth="11" />
-      <rect x="196" y="128" width="60" height="58" fill={bg} />
-      <circle cx="150" cy="156" r="38" fill="none" stroke={c} strokeWidth="29" />
-      <text x="203" y="172" fontFamily="Montserrat, 'Arial Black', Arial, sans-serif" fontWeight="800" fontSize="47" fill={c} letterSpacing="0.5">
-        ОЧАКОВО
-      </text>
-      <text x="246" y="204" fontFamily="Montserrat, Arial, sans-serif" fontWeight="600" fontSize="19" fill={c}>
-        НАТУРАЛЬНЫЕ
-      </text>
-      <text x="246" y="228" fontFamily="Montserrat, Arial, sans-serif" fontWeight="600" fontSize="19" fill={c}>
-        НАПИТКИ
-      </text>
+    <svg viewBox={LOGO.text_vb} className={className} role="img" aria-label="ОЧАКОВО — натуральные напитки">
+      {LOGO.text.map((d, i) => (
+        <path key={i} d={d} fill={inverse ? '#FFFFFF' : '#D50032'} />
+      ))}
     </svg>
   )
+}
+
+/** Логотип на красной плашке (основной вариант для шапки). */
+export function LogoPlate({ className = '' }) {
+  return (
+    <svg viewBox={LOGO.plate_vb} className={className} role="img" aria-label="ОЧАКОВО — натуральные напитки">
+      <path d={LOGO.plate_bg} fill="#D50032" />
+      <g transform={`translate(${+LOGO.plate_vb.split(' ')[0] + 6.1} ${+LOGO.plate_vb.split(' ')[1] + 6.1})`}>
+        <g transform={`scale(${96.2 / TW}) translate(${-TX0} ${-TY0})`}>
+          {LOGO.text.map((d, i) => (
+            <path key={i} d={d} fill="#FFFFFF" />
+          ))}
+        </g>
+      </g>
+    </svg>
+  )
+}
+
+/** Логотип с квадратом: рамка + кольцо «О» + надпись (по образцу брендбука, раздел «Призвание»). */
+export function LogoSquare({ className = '', inverse = false, withText = true }) {
+  const bg = inverse ? '#FFFFFF' : '#D50032'
+  const fg = inverse ? '#D50032' : '#FFFFFF'
+  const k = 62 / TW
+  return (
+    <svg viewBox="0 0 100 100" className={className} role="img" aria-label="ОЧАКОВО">
+      <rect width="100" height="100" fill={bg} />
+      <rect x="15" y={withText ? 12 : 19} width={withText ? 50 : 62} height={withText ? 50 : 62} fill="none" stroke={fg} strokeWidth="4.5" />
+      <circle cx={withText ? 40 : 50} cy={withText ? 42 : 55} r={withText ? 10 : 12.5} fill="none" stroke={fg} strokeWidth={withText ? 6.5 : 8} />
+      {withText && (
+        <g transform={`translate(15 70) scale(${k}) translate(${-TX0} ${-TY0})`}>
+          {LOGO.text.map((d, i) => (
+            <path key={i} d={d} fill={fg} />
+          ))}
+        </g>
+      )}
+    </svg>
+  )
+}
+
+/** Фирменная пиктограмма (брендбук, стр. 50). Цвет — через text-*. */
+export function Picto({ name, className = 'h-8 w-8', title }) {
+  const p = PICTOS[name]
+  if (!p) return null
+  return (
+    <svg viewBox={p.vb} className={className} role={title ? 'img' : undefined} aria-hidden={title ? undefined : true} aria-label={title}>
+      <path d={p.d} fill="currentColor" />
+    </svg>
+  )
+}
+
+/** Квадратный модуль (брендбук, стр. 57): красная/серая/белая заливка, внутри — пиктограмма или текст. */
+export function Module({ tone = 'red', className = '', children }) {
+  const tones = {
+    red: 'bg-brand text-white',
+    dark: 'bg-brand-700 text-white',
+    gray: 'bg-steel text-white',
+    light: 'bg-kraft-light text-brand',
+    white: 'bg-white text-brand',
+    graphite: 'bg-graphite text-white',
+  }
+  return <div className={cx('relative grid aspect-square place-items-center overflow-hidden', tones[tone], className)}>{children}</div>
 }
 
 /* -------------------------------------------------------- рваная бумага */
@@ -52,7 +100,7 @@ function rng(seed) {
 }
 
 /** Рваный край между секциями. color — цвет «бумаги», которая наползает. */
-export function TornEdge({ color = '#FBF6EE', flip = false, seed = 7, height = 28, className = '' }) {
+export function TornEdge({ color = '#F5F6F7', flip = false, seed = 7, height = 28, className = '' }) {
   const d = useMemo(() => {
     const r = rng(seed)
     const n = 46
@@ -92,7 +140,7 @@ export function TornPhoto({ src, alt = '', seed = 3, rec = false, recLabel = 'RE
   const clip = useMemo(() => tornPolygon(seed), [seed])
   return (
     <div className={cx('relative outline-white', className)} style={{ transform: rotate ? `rotate(${rotate}deg)` : undefined }}>
-      <div className="relative h-full w-full bg-ink" style={{ clipPath: clip, WebkitClipPath: clip }}>
+      <div className="relative h-full w-full bg-graphite" style={{ clipPath: clip, WebkitClipPath: clip }}>
         <img src={src} alt={alt} loading="lazy" className={cx('h-full w-full object-cover', imgClassName)} />
         {children}
       </div>
@@ -116,62 +164,41 @@ export function RecBadge({ label = 'REC', className = '', dark = true }) {
   )
 }
 
-/* ---------------------------------------------------------- поп-арт бейдж */
-export function Burst({ children, color = '#EC1A42', text = '#fff', size = 96, className = '', spin = false }) {
-  const pts = useMemo(() => {
-    const n = 14
-    const a = []
-    for (let i = 0; i < n * 2; i++) {
-      const ang = (Math.PI * i) / n - Math.PI / 2
-      const rad = i % 2 ? 38 : 50
-      a.push(`${50 + Math.cos(ang) * rad},${50 + Math.sin(ang) * rad}`)
-    }
-    return a.join(' ')
-  }, [])
+/* ------------------------------------------------- квадратный бейдж-модуль */
+// Вместо поп-арт «звёзд» — квадратный модуль фирменного стиля (брендбук, стр. 57).
+export function Burst({ children, color = '#D50032', text = '#fff', size = 96, className = '' }) {
   return (
-    <div className={cx('relative inline-grid place-items-center', className)} style={{ width: size, height: size }}>
-      <svg viewBox="0 0 100 100" className={cx('absolute inset-0 h-full w-full', spin && 'animate-spinslow')} aria-hidden>
-        <polygon points={pts} fill="#17110F" transform="translate(3 3)" />
-        <polygon points={pts} fill={color} stroke="#17110F" strokeWidth="2.5" strokeLinejoin="round" />
-      </svg>
-      <div className="relative z-10 px-2 text-center font-display font-black leading-[0.95]" style={{ color: text, fontSize: size * 0.13 }}>
+    <div className={cx('relative inline-grid place-items-center', className)} style={{ width: size, height: size, background: color }}>
+      <span className="absolute inset-[8%] border" style={{ borderColor: text, opacity: 0.55 }} />
+      <div className="relative z-10 px-2 text-center font-display font-extrabold uppercase leading-[1.05]" style={{ color: text, fontSize: size * 0.13 }}>
         {children}
       </div>
     </div>
   )
 }
 
-export function Sticker({ children, className = '', color = 'bg-malt-light', rotate = -3 }) {
+export function Sticker({ children, className = '', color = 'bg-white text-brand' }) {
   return (
-    <span
-      className={cx('inline-block rounded-md border-2 border-ink px-2.5 py-1 text-xs font-extrabold uppercase tracking-wide text-ink shadow-pop-sm', color, className)}
-      style={{ transform: `rotate(${rotate}deg)` }}
-    >
-      {children}
-    </span>
+    <span className={cx('inline-block border border-current px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider', color, className)}>{children}</span>
   )
 }
 
-/** Плашка-глагол как в роликах: «НАДЕНЬ ФОРМУ», «СЛЕДИ ЗА РАБОТОЙ». */
+/** Плашка-глагол как в роликах: «НАДЕНЬ ФОРМУ», «СЛЕДИ ЗА РАБОТОЙ» — красная заливка, белый текст. */
 export function VerbTag({ children, className = '' }) {
-  return (
-    <span className={cx('inline-block bg-gradient-to-r from-brand to-brand-600 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide text-white sm:text-sm', className)}>
-      {children}
-    </span>
-  )
+  return <span className={cx('inline-block bg-brand px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white sm:text-sm', className)}>{children}</span>
 }
 
 /* --------------------------------------------------------------- кнопки */
 export function Button({ as: Tag = 'button', variant = 'primary', size = 'md', className = '', children, ...p }) {
   const base =
-    'group relative inline-flex select-none items-center justify-center gap-2 rounded-xl font-extrabold tracking-tight transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none'
-  const sizes = { sm: 'px-3 py-2 text-sm', md: 'px-5 py-3 text-[15px]', lg: 'px-7 py-4 text-base sm:text-lg' }
+    'group relative inline-flex select-none items-center justify-center gap-2 font-bold uppercase tracking-wide transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40'
+  const sizes = { sm: 'px-3.5 py-2 text-xs', md: 'px-5 py-3 text-[13px]', lg: 'px-7 py-4 text-sm sm:text-[15px]' }
   const variants = {
-    primary: 'border-2 border-ink bg-brand text-white shadow-pop hover:bg-brand-600',
-    dark: 'border-2 border-ink bg-ink text-white shadow-pop-red hover:bg-ink-2',
-    light: 'border-2 border-ink bg-white text-ink shadow-pop hover:bg-cream',
-    malt: 'border-2 border-ink bg-malt-light text-ink shadow-pop hover:bg-malt',
-    ghost: 'border-2 border-transparent bg-transparent text-ink hover:border-ink/15 hover:bg-ink/5 shadow-none active:translate-x-0 active:translate-y-0',
+    primary: 'bg-brand text-white hover:bg-brand-600',
+    dark: 'bg-white text-brand hover:bg-brand-50',
+    light: 'border border-brand bg-transparent text-brand hover:bg-brand hover:text-white',
+    malt: 'bg-kraft text-ink hover:bg-kraft-dark',
+    ghost: 'bg-transparent px-2 text-ink-soft normal-case tracking-normal hover:text-brand',
   }
   return (
     <Tag className={cx(base, sizes[size], variants[variant], className)} {...p}>
@@ -182,7 +209,7 @@ export function Button({ as: Tag = 'button', variant = 'primary', size = 'md', c
 
 export function Card({ className = '', children, ...p }) {
   return (
-    <div className={cx('rounded-2xl border-2 border-ink bg-paper shadow-pop', className)} {...p}>
+    <div className={cx('border border-line bg-paper', className)} {...p}>
       {children}
     </div>
   )
@@ -192,19 +219,19 @@ export function SectionTitle({ kicker, title, sub, className = '', light = false
   return (
     <div className={cx('mb-6', className)}>
       {kicker && (
-        <div className={cx('mb-2 font-mono text-xs font-bold uppercase tracking-[0.2em]', light ? 'text-white/80' : 'text-brand')}>{kicker}</div>
+        <div className={cx('mb-2 text-[11px] font-bold uppercase tracking-[0.18em]', light ? 'text-white/80' : 'text-ink-soft')}>{kicker}</div>
       )}
-      <h2 className={cx('font-display text-2xl font-black leading-[1.05] tracking-tight sm:text-4xl', light ? 'text-white' : 'text-ink')}>{title}</h2>
+      <h2 className={cx('font-display text-2xl font-light uppercase leading-[1.08] tracking-tight sm:text-4xl', light ? 'text-white' : 'text-brand')}>{title}</h2>
       {sub && <p className={cx('mt-2 max-w-2xl text-sm sm:text-base', light ? 'text-white/85' : 'text-ink-soft')}>{sub}</p>}
     </div>
   )
 }
 
-export function Progress({ value, className = '', color = '#EC1A42', track = 'bg-kraft' }) {
+export function Progress({ value, className = '', color = '#D50032', track = 'bg-kraft' }) {
   return (
-    <div className={cx('h-2.5 w-full overflow-hidden rounded-full', track, className)}>
+    <div className={cx('h-2 w-full overflow-hidden', track, className)}>
       <motion.div
-        className="h-full rounded-full"
+        className="h-full"
         style={{ background: color }}
         initial={{ width: 0 }}
         animate={{ width: `${Math.max(0, Math.min(100, value))}%` }}
@@ -219,7 +246,7 @@ export function Steps({ steps, current, className = '' }) {
     <ol className={cx('flex items-center gap-1.5', className)}>
       {steps.map((s, i) => (
         <li key={s} className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className={cx('h-1.5 rounded-full transition-colors', i < current ? 'bg-ink' : i === current ? 'bg-brand' : 'bg-ink/15')} />
+          <div className={cx('h-1 transition-colors', i < current ? 'bg-graphite' : i === current ? 'bg-brand' : 'bg-line')} />
           <span className={cx('truncate text-[10px] font-bold uppercase tracking-wide sm:text-[11px]', i === current ? 'text-brand' : 'text-ink-mute')}>
             {s}
           </span>

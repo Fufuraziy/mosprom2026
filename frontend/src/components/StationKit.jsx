@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, BookOpen, Check, X, FastForward, Map } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
 import { STATIONS, PHOTO } from '../data/content.js'
-import { Button, Card, Icon, RecBadge, Steps, TornPhoto, VerbTag, cx } from './ui.jsx'
+import { Button, Card, Picto, RecBadge, Steps, TornPhoto, VerbTag, cx } from './ui.jsx'
 import Krafty from './Krafty.jsx'
 
 export function StationShell({ id, steps, step, onSkip, children, tip }) {
@@ -17,15 +17,15 @@ export function StationShell({ id, steps, step, onSkip, children, tip }) {
       <div className="mb-6 grid items-end gap-5 md:grid-cols-[1fr_auto]">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="rounded border-2 border-ink bg-ink px-2 py-0.5 font-mono text-xs font-bold text-white">СТАНЦИЯ {s.n}/4</span>
-            <span className="rounded border-2 border-ink px-2 py-0.5 text-xs font-extrabold" style={{ background: s.color, color: '#fff' }}>
+            <span className="bg-graphite px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">Станция {s.n}/4</span>
+            <span className="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white" style={{ background: s.color }}>
               {s.salary}
             </span>
             <RecBadge label={`REC · ${s.role.toUpperCase()}`} className="max-w-full truncate" />
           </div>
-          <h1 className="flex items-center gap-3 font-display text-3xl font-black leading-none tracking-tight sm:text-5xl">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 border-ink text-white shadow-pop-sm sm:h-14 sm:w-14" style={{ background: s.color }}>
-              <Icon name={s.icon} className="h-7 w-7" />
+          <h1 className="flex items-center gap-4 font-display text-3xl font-light uppercase leading-none tracking-tight text-brand sm:text-5xl">
+            <span className="grid h-14 w-14 shrink-0 place-items-center text-white sm:h-16 sm:w-16" style={{ background: s.color }}>
+              <Picto name={s.picto} className="h-9 w-9 sm:h-10 sm:w-10" />
             </span>
             {s.title}
           </h1>
@@ -42,7 +42,7 @@ export function StationShell({ id, steps, step, onSkip, children, tip }) {
         )}
       </div>
       {tip && (
-        <div className="mb-5 flex items-start gap-3 rounded-2xl border-2 border-ink bg-white p-3 shadow-pop-sm">
+        <div className="mb-5 flex items-start gap-3 rounded-sm border border-line bg-white p-3 shadow-pop-sm">
           <Krafty size={44} mood="think" className="shrink-0" />
           <p className="pt-1 text-sm font-semibold leading-snug">{tip}</p>
         </div>
@@ -76,8 +76,8 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b-2 border-ink bg-kraft-light px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2 font-display text-sm font-black uppercase sm:text-base">
+      <div className="flex items-center justify-between border-b-2 border-brand bg-kraft-light px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-2 font-display text-sm font-extrabold uppercase sm:text-base">
           <BookOpen className="h-5 w-5 text-brand" /> Историческая справка · мини-квиз
         </div>
         <span className="font-mono text-sm font-bold">
@@ -87,7 +87,7 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
       <div className="p-4 sm:p-6">
         <AnimatePresence mode="wait">
           <motion.div key={i} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}>
-            <p className="font-display text-lg font-black leading-snug sm:text-xl">{q.q}</p>
+            <p className="font-display text-lg font-extrabold leading-snug sm:text-xl">{q.q}</p>
             <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
               {q.options.map((o, k) => {
                 const isRight = answered && k === q.answer
@@ -98,14 +98,14 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
                     onClick={() => choose(k)}
                     disabled={answered}
                     className={cx(
-                      'flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm font-bold transition',
-                      !answered && 'border-ink/25 bg-white hover:border-ink hover:shadow-pop-sm',
-                      isRight && 'border-ink bg-lime text-white shadow-pop-sm',
-                      isWrong && 'border-ink bg-brand text-white',
+                      'flex items-center gap-3 rounded-sm border-2 px-4 py-3 text-left text-sm font-bold transition',
+                      !answered && 'border-ink/25 bg-white hover:border-brand hover:shadow-pop-sm',
+                      isRight && 'border-brand bg-lime text-white shadow-pop-sm',
+                      isWrong && 'border-brand bg-brand text-white',
                       answered && !isRight && !isWrong && 'border-ink/10 bg-white opacity-60',
                     )}
                   >
-                    <span className={cx('grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 font-mono text-xs', isRight || isWrong ? 'border-white' : 'border-ink/30')}>
+                    <span className={cx('grid h-7 w-7 shrink-0 place-items-center rounded-sm border-2 font-mono text-xs', isRight || isWrong ? 'border-white' : 'border-ink/30')}>
                       {isRight ? <Check className="h-4 w-4" /> : isWrong ? <X className="h-4 w-4" /> : 'АБВГ'[k]}
                     </span>
                     {o}
@@ -114,7 +114,7 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
               })}
             </div>
             {answered && (
-              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4 flex flex-col gap-3 rounded-xl bg-cream p-4 sm:flex-row sm:items-center">
+              <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4 flex flex-col gap-3 rounded-sm bg-cream p-4 sm:flex-row sm:items-center">
                 <p className="flex-1 text-sm leading-relaxed">
                   <b className={chosen === q.answer ? 'text-lime' : 'text-brand'}>{chosen === q.answer ? `Верно! +${pointsPer}. ` : 'Не совсем. '}</b>
                   {q.fact}
@@ -143,19 +143,19 @@ export function StationReward({ id, breakdown, total }) {
         initial={{ rotateY: 180, scale: 0.6 }}
         animate={{ rotateY: 0, scale: 1 }}
         transition={{ type: 'spring', stiffness: 120, damping: 12 }}
-        className="relative mx-auto grid h-64 w-52 place-items-center rounded-3xl border-[3px] border-ink bg-ink shadow-pop-red"
+        className="relative mx-auto grid h-64 w-52 place-items-center bg-brand"
         style={{ transformStyle: 'preserve-3d' }}
       >
-        <div className="halftone-red absolute inset-0 rounded-3xl opacity-40" />
+        <div className="halftone-red absolute inset-0 rounded-sm opacity-40" />
         <div className="relative text-center">
           <div className="font-mono text-xs font-bold uppercase tracking-widest text-white/70">Цифра {s.n} из 4</div>
-          <div className="font-display text-[150px] font-black leading-none text-white">{s.digit}</div>
-          <div className="font-mono text-xs font-bold text-brand-300">КОД КАПСУЛЫ</div>
+          <div className="font-display text-[150px] font-extrabold leading-none text-white">{s.digit}</div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/80">Код капсулы</div>
         </div>
       </motion.div>
       <Card className="p-5 sm:p-6">
         <VerbTag>Твоя точность — наш успех</VerbTag>
-        <h2 className="mt-3 font-display text-2xl font-black sm:text-3xl">Станция «{s.title}» пройдена!</h2>
+        <h2 className="mt-3 font-display text-2xl font-extrabold sm:text-3xl">Станция «{s.title}» пройдена!</h2>
         <p className="mt-1 text-sm text-ink-soft">Результаты мини-игры ушли в твой профиль компетенций. HR увидит их только если ты сам(а) отправишь анкету.</p>
         <ul className="mt-4 divide-y-2 divide-dashed divide-ink/10">
           {breakdown.map((b) => (
@@ -169,7 +169,7 @@ export function StationReward({ id, breakdown, total }) {
           ))}
           <li className="flex items-center justify-between py-3 text-base">
             <span className="font-extrabold">Итого</span>
-            <span className="rounded-lg bg-malt-light px-2 font-mono text-lg font-black">+{total}</span>
+            <span className="rounded-sm bg-malt-light px-2 font-mono text-lg font-extrabold">+{total}</span>
           </li>
         </ul>
         <div className="mt-4 flex flex-wrap gap-3">

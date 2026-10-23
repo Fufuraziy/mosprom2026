@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, useSpring, useMotionValueEvent } from 'framer-motion'
 import { Gamepad2, BarChart3, Coins, KeyRound } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
-import { Logo, cx } from './ui.jsx'
+import { LogoPlate, cx } from './ui.jsx'
 
 function AnimatedNumber({ value }) {
   const spring = useSpring(value, { stiffness: 90, damping: 18 })
@@ -27,16 +27,16 @@ function PointsPill({ points }) {
       initial={bump ? { scale: 1.18 } : false}
       animate={{ scale: 1 }}
       transition={{ type: 'spring', stiffness: 400, damping: 14 }}
-      className="flex items-center gap-1.5 rounded-full border-2 border-ink bg-malt-light py-1 pl-1 pr-3 shadow-pop-sm"
+      className="flex items-center gap-1.5 border border-line bg-white py-1 pl-1 pr-3"
       title="Крафт-баллы (Очакоины)"
     >
-      <span className="grid h-7 w-7 place-items-center rounded-full border-2 border-ink bg-malt text-ink">
-        <Coins className="h-4 w-4" strokeWidth={2.6} />
+      <span className="grid h-7 w-7 place-items-center bg-brand text-white">
+        <Coins className="h-4 w-4" strokeWidth={2.2} />
       </span>
       <span className="font-mono text-sm font-bold text-ink sm:text-base">
         <AnimatedNumber value={points} />
       </span>
-      <span className="hidden text-[10px] font-extrabold uppercase leading-none text-ink/70 lg:block">
+      <span className="hidden text-[10px] font-semibold uppercase leading-none text-ink-soft lg:block">
         крафт-
         <br />
         баллов
@@ -53,8 +53,8 @@ function CodeSlots({ digits }) {
         <div
           key={i}
           className={cx(
-            'relative grid h-8 w-6 place-items-center overflow-hidden rounded-md border-2 font-mono text-base font-bold sm:h-9 sm:w-7 sm:text-lg',
-            d ? 'border-ink bg-ink text-white' : 'border-dashed border-ink/35 bg-white text-ink/35',
+            'relative grid h-8 w-6 place-items-center overflow-hidden border font-mono text-base font-bold sm:h-9 sm:w-7 sm:text-lg',
+            d ? 'border-brand bg-brand text-white' : 'border-dashed border-steel bg-white text-steel',
           )}
         >
           <AnimatePresence mode="wait">
@@ -77,13 +77,14 @@ export default function Header() {
   const { state, balance, actions, apiStatus } = useGame()
   const isHR = state.mode === 'hr'
   return (
-    <header className="sticky top-0 z-40 border-b-2 border-ink bg-paper/95 backdrop-blur supports-[backdrop-filter]:bg-paper/85">
+    <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
       <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2 sm:gap-4 sm:px-6">
         <button onClick={() => actions.go('home')} className="flex shrink-0 items-center gap-2" aria-label="На главную">
-          <Logo className="hidden h-11 w-auto sm:block" />
-          <Logo compact className="h-9 w-9 sm:hidden" />
-          <span className="hidden -rotate-3 rounded border-2 border-ink bg-ink px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white shadow-pop-red md:inline-block">
-            Крафт-код 1978
+          <LogoPlate className="h-9 w-auto sm:h-11" />
+          <span className="hidden border-l border-line pl-3 text-[10px] font-bold uppercase leading-tight tracking-[0.16em] text-ink-soft md:block">
+            Крафт-код
+            <br />
+            <span className="text-brand">1978</span>
           </span>
         </button>
 
@@ -91,12 +92,12 @@ export default function Header() {
           {!isHR && <CodeSlots digits={state.digits} />}
           {!isHR && <PointsPill points={balance} />}
 
-          <div className="flex rounded-xl border-2 border-ink bg-white p-0.5 shadow-pop-sm" role="tablist" aria-label="Режим">
+          <div className="flex border border-line bg-white p-0.5" role="tablist" aria-label="Режим">
             <button
               role="tab"
               aria-selected={!isHR}
               onClick={() => actions.setMode('student')}
-              className={cx('flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-extrabold transition sm:px-3', !isHR ? 'bg-brand text-white' : 'text-ink hover:bg-cream')}
+              className={cx('flex items-center gap-1.5 px-2 py-1.5 text-xs font-bold uppercase tracking-wide transition sm:px-3', !isHR ? 'bg-brand text-white' : 'text-ink hover:bg-cream')}
             >
               <Gamepad2 className="h-4 w-4" />
               <span className="hidden xl:inline">Режим студента</span>
@@ -106,15 +107,15 @@ export default function Header() {
               role="tab"
               aria-selected={isHR}
               onClick={() => actions.setMode('hr')}
-              className={cx('flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-extrabold transition sm:px-3', isHR ? 'bg-ink text-white' : 'text-ink hover:bg-cream')}
+              className={cx('flex items-center gap-1.5 px-2 py-1.5 text-xs font-bold uppercase tracking-wide transition sm:px-3', isHR ? 'bg-graphite text-white' : 'text-ink hover:bg-cream')}
             >
               <BarChart3 className="h-4 w-4" />
-              <span className="hidden xl:inline">Панель HR Очаково</span>
+              <span className="hidden xl:inline">Панель HR</span>
               <span className="hidden sm:inline xl:hidden">HR</span>
             </button>
           </div>
           <span
-            className={cx('hidden h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white sm:block', apiStatus.online ? 'bg-lime' : 'bg-malt')}
+            className={cx('hidden h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white sm:block', apiStatus.online ? 'bg-lime' : 'bg-steel')}
             title={apiStatus.online ? `API онлайн: ${apiStatus.url}` : 'Автономный режим: встроенный движок'}
           />
         </div>

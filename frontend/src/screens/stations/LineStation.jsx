@@ -24,29 +24,29 @@ function Can({ type, dented, onClick, x, removed }) {
       style={{ left: `${x}%`, transform: removed ? 'translateY(70px) rotate(35deg)' : dented ? 'rotate(-7deg)' : undefined, opacity: removed ? 0 : 1 }}
       aria-label={`${t.label}${dented ? ', мятая' : ''}`}
     >
-      <svg viewBox="0 0 40 70" className="h-[68px] w-10 drop-shadow-[2px_2px_0_#17110F]">
-        <rect x="6" y="2" width="28" height="5" rx="2" fill="#C8CDD2" stroke="#17110F" strokeWidth="1.5" />
+      <svg viewBox="0 0 40 70" className="h-[68px] w-10 drop-shadow">
+        <rect x="6" y="2" width="28" height="5" rx="2" fill="#C8CDD2" stroke="#4A4A4A" strokeWidth="1.5" />
         <path
           d={dented ? 'M5 8 h30 v20 l-6 6 6 6 v24 q0 4 -4 4 h-22 q-4 0 -4 -4 v-22 l5 -5 -5 -7z' : 'M5 8 h30 v56 q0 4 -4 4 h-22 q-4 0 -4 -4z'}
           fill={t.body}
-          stroke="#17110F"
+          stroke="#4A4A4A"
           strokeWidth="2"
         />
         <rect x="5" y="26" width="30" height="16" fill={t.band} opacity={dented ? 0.7 : 1} />
-        <text x="20" y="37" textAnchor="middle" fontSize="6.4" fontWeight="900" fill="#17110F" fontFamily="Montserrat, Arial">
+        <text x="20" y="37" textAnchor="middle" fontSize="6.4" fontWeight="900" fill="#4A4A4A" fontFamily="Montserrat, Arial">
           {t.text}
         </text>
         <text x="20" y="56" textAnchor="middle" fontSize="5" fontWeight="800" fill="#fff" fontFamily="Montserrat, Arial">
           ОЧАКОВО
         </text>
-        {dented && <path d="M12 14 l8 6 -4 4 8 4" stroke="#17110F" strokeWidth="1.5" fill="none" />}
+        {dented && <path d="M12 14 l8 6 -4 4 8 4" stroke="#4A4A4A" strokeWidth="1.5" fill="none" />}
       </svg>
     </button>
   )
 }
 
 function Light({ color, on }) {
-  return <span className="block h-5 w-5 rounded-full border-2 border-ink transition" style={{ background: on ? color : '#3a3330', boxShadow: on ? `0 0 14px ${color}` : 'none' }} />
+  return <span className="block h-5 w-5 rounded-full border border-line transition" style={{ background: on ? color : '#4A4A4A', boxShadow: on ? `0 0 14px ${color}` : 'none' }} />
 }
 
 function LineGame({ onFinish }) {
@@ -116,8 +116,8 @@ function LineGame({ onFinish }) {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="overflow-hidden rounded-2xl border-2 border-ink bg-[#E9EEF1] shadow-pop">
-        <div className="flex items-center justify-between border-b-2 border-ink bg-white px-4 py-2 font-mono text-xs">
+      <div className="overflow-hidden rounded-sm border border-line bg-[#E9EEF1] shadow-pop">
+        <div className="flex items-center justify-between border-b-2 border-brand bg-white px-4 py-2 font-mono text-xs">
           <span className="font-bold">ЛИНИЯ №3 · SMI SK 500 P · термоусадочный туннель</span>
           <span className="font-bold text-brand">{status === 'run' || status === 'pause' ? `${remaining.toFixed(1)} c` : ''}</span>
         </div>
@@ -126,20 +126,20 @@ function LineGame({ onFinish }) {
           <div className="absolute inset-0 bg-[linear-gradient(180deg,#DDE4E8_0,#C9D2D8_70%,#9AA5AD_100%)]" />
           <div className="absolute left-0 right-0 top-8 h-2 bg-[#7FB6C9]/60" />
           {/* конвейер */}
-          <div className="absolute bottom-[22px] left-0 right-[92px] h-[14px] border-y-2 border-ink bg-[#2B6CB0]">
+          <div className="absolute bottom-[22px] left-0 right-[92px] h-[14px] border-y-2 border-brand bg-[#2B6CB0]">
             <div
               className="h-full w-full opacity-60"
               style={{
-                backgroundImage: 'repeating-linear-gradient(90deg,#17110F 0 3px,transparent 3px 26px)',
+                backgroundImage: 'repeating-linear-gradient(90deg,#4A4A4A 0 3px,transparent 3px 26px)',
                 backgroundPositionX: `${(now / 12) % 26}px`,
               }}
             />
           </div>
-          <div className="absolute bottom-0 left-0 right-[92px] h-[22px] bg-[repeating-linear-gradient(90deg,#4B403B_0_10px,#7D716B_10px_40px)]" />
+          <div className="absolute bottom-0 left-0 right-[92px] h-[22px] bg-[repeating-linear-gradient(90deg,#626262_0_10px,#8A8F92_10px_40px)]" />
           {/* туннель */}
-          <div className="absolute bottom-[12px] right-0 top-[52px] w-[110px] rounded-tl-3xl border-2 border-ink bg-[#3a3330]">
-            <div className="absolute inset-x-2 top-3 rounded bg-[#EC1A42] py-0.5 text-center font-mono text-[9px] font-bold text-white">185 °C</div>
-            <div className="absolute bottom-3 left-0 top-10 w-4 bg-[repeating-linear-gradient(90deg,#EC1A42_0_3px,#AA0B2E_3px_6px)]" />
+          <div className="absolute bottom-[12px] right-0 top-[52px] w-[110px] rounded-tl-sm border border-line bg-[#4A4A4A]">
+            <div className="absolute inset-x-2 top-3 rounded bg-[#D50032] py-0.5 text-center font-mono text-[9px] font-bold text-white">185 °C</div>
+            <div className="absolute bottom-3 left-0 top-10 w-4 bg-[repeating-linear-gradient(90deg,#D50032_0_3px,#AB2328_3px_6px)]" />
             <div className="absolute bottom-3 left-6 right-2 top-10 rounded bg-[radial-gradient(circle,#ff9a3c55,transparent_70%)]" />
           </div>
           {/* банки */}
@@ -156,11 +156,11 @@ function LineGame({ onFinish }) {
               </div>
             </div>
           )}
-          {status === 'pause' && <div className="absolute inset-0 grid place-items-center bg-brand/20 font-display text-2xl font-black text-brand">АВАРИЙНЫЙ СТОП</div>}
+          {status === 'pause' && <div className="absolute inset-0 grid place-items-center bg-brand/20 font-display text-2xl font-extrabold text-brand">АВАРИЙНЫЙ СТОП</div>}
           {status === 'done' && (
             <div className="absolute inset-0 grid place-items-center bg-white/80 p-4 text-center">
               <div>
-                <div className="font-display text-2xl font-black">Смена на линии завершена</div>
+                <div className="font-display text-2xl font-extrabold">Смена на линии завершена</div>
                 <div className="mt-1 text-sm">
                   Отбраковано {stats.caught} · пропущено {stats.missed} · ложных снятий {stats.falseRejects}
                 </div>
@@ -174,16 +174,16 @@ function LineGame({ onFinish }) {
       </div>
 
       {/* HMI */}
-      <div className="rounded-2xl border-2 border-ink bg-[#2A211D] p-4 text-white shadow-pop">
+      <div className="rounded-sm border border-line bg-[#575757] p-4 text-white shadow-pop">
         <div className="flex items-start gap-4">
-          <div className="flex flex-col gap-1.5 rounded-lg border-2 border-ink bg-[#17110F] p-1.5">
+          <div className="flex flex-col gap-1.5 rounded-sm border border-line bg-[#4A4A4A] p-1.5">
             <Light color="#FF3B57" on={status !== 'run'} />
             <Light color="#FFD21F" on={warn} />
             <Light color="#3DD68C" on={status === 'run'} />
           </div>
           <div className="flex-1">
             <div className="font-mono text-[10px] text-white/60">HMI · SK 500 P</div>
-            <div className="mt-1 rounded-lg bg-[#0D2236] p-2 font-mono text-xs leading-relaxed text-[#BFF3FF]">
+            <div className="mt-1 rounded-sm bg-[#0D2236] p-2 font-mono text-xs leading-relaxed text-[#BFF3FF]">
               <div className="text-[10px] text-[#7FB6C9]">СЧЁТЧИК ТУННЕЛЯ</div>
               <div>MOJITO FRESH: {stats.passed.mohito}</div>
               <div>GIN&GRAPEFRUIT: {stats.passed.gin}</div>
@@ -195,11 +195,11 @@ function LineGame({ onFinish }) {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {status === 'idle' || status === 'pause' ? (
-            <button onClick={() => setStatus('run')} className="flex items-center justify-center gap-1 rounded-xl border-2 border-white bg-[#3DD68C] py-3 font-extrabold text-ink active:scale-95">
+            <button onClick={() => setStatus('run')} className="flex items-center justify-center gap-1 rounded-sm border-2 border-white bg-[#3DD68C] py-3 font-extrabold text-ink active:scale-95">
               <Play className="h-5 w-5" /> ПУСК
             </button>
           ) : (
-            <button disabled className="flex items-center justify-center gap-1 rounded-xl border-2 border-white/40 bg-white/10 py-3 font-extrabold text-white/50">
+            <button disabled className="flex items-center justify-center gap-1 rounded-sm border-2 border-white/40 bg-white/10 py-3 font-extrabold text-white/50">
               <Pause className="h-5 w-5" /> РАБОТА
             </button>
           )}
@@ -210,7 +210,7 @@ function LineGame({ onFinish }) {
                 setStats((s) => ({ ...s, estop: s.estop + 1 }))
               }
             }}
-            className="flex items-center justify-center gap-1 rounded-xl border-2 border-white bg-[#FF3B57] py-3 text-xs font-extrabold active:scale-95"
+            className="flex items-center justify-center gap-1 rounded-sm border-2 border-white bg-[#FF3B57] py-3 text-xs font-extrabold active:scale-95"
           >
             <OctagonX className="h-5 w-5" /> E-STOP
           </button>
@@ -246,23 +246,23 @@ function TTN({ stats, onDone }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <Card className="paper-grain overflow-hidden bg-paper">
-        <div className="flex items-center justify-between border-b-2 border-ink bg-kraft-light px-4 py-3">
-          <div className="flex items-center gap-2 font-display font-black uppercase">
+        <div className="flex items-center justify-between border-b-2 border-brand bg-kraft-light px-4 py-3">
+          <div className="flex items-center gap-2 font-display font-extrabold uppercase">
             <FileText className="h-5 w-5 text-brand" /> Товарно-транспортная накладная
           </div>
           <span className="font-mono text-xs font-bold">{number.current}</span>
         </div>
         <div className="space-y-4 p-4 sm:p-6">
-          <div className="rounded-xl bg-malt-light/40 p-3 text-sm font-semibold">
+          <div className="rounded-sm bg-malt-light/40 p-3 text-sm font-semibold">
             Заявка от отдела логистики: экспортная паллета уходит в Казахстан. Внеси получателя и количество целых банок по счётчику туннеля.
           </div>
           <label className="block">
             <span className="text-xs font-extrabold uppercase text-ink-mute">Грузоотправитель</span>
-            <div className="mt-1 rounded-lg border-2 border-ink/15 bg-cream px-3 py-2 text-sm font-semibold">АО «МПБК „Очаково“», Москва, ул. Рябиновая, 44</div>
+            <div className="mt-1 rounded-sm border-2 border-ink/15 bg-cream px-3 py-2 text-sm font-semibold">АО МПБК «ОЧАКОВО», Москва, ул. Рябиновая, 44</div>
           </label>
           <label className="block">
             <span className="text-xs font-extrabold uppercase text-ink-mute">Грузополучатель</span>
-            <select value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} className={cx('mt-1 w-full rounded-lg border-2 bg-white px-3 py-2.5 text-sm font-semibold', field('to'))}>
+            <select value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} className={cx('mt-1 w-full rounded-sm border-2 bg-white px-3 py-2.5 text-sm font-semibold', field('to'))}>
               <option value="">Выбери получателя…</option>
               {RECIPIENTS.map((r) => (
                 <option key={r}>{r}</option>
@@ -282,7 +282,7 @@ function TTN({ stats, onDone }) {
                   inputMode="numeric"
                   value={form[k]}
                   onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-                  className={cx('mt-1 w-full rounded-lg border-2 bg-white px-3 py-2.5 font-mono text-lg font-bold', field(k))}
+                  className={cx('mt-1 w-full rounded-sm border-2 bg-white px-3 py-2.5 font-mono text-lg font-bold', field(k))}
                 />
               </label>
             ))}
@@ -292,7 +292,7 @@ function TTN({ stats, onDone }) {
               Подписать ТТН
             </Button>
           ) : (
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-ink bg-white p-3">
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-white p-3">
               <span className="text-sm font-bold">
                 Верно заполнено полей: {correct}/3.{' '}
                 {correct < 3 && (
@@ -309,13 +309,13 @@ function TTN({ stats, onDone }) {
         </div>
       </Card>
       <div className="space-y-3">
-        <div className="rounded-2xl border-2 border-ink bg-[#0D2236] p-4 font-mono text-sm text-[#BFF3FF] shadow-pop">
+        <div className="rounded-sm border border-line bg-[#0D2236] p-4 font-mono text-sm text-[#BFF3FF] shadow-pop">
           <div className="text-[10px] text-[#7FB6C9]">СЧЁТЧИК ТУННЕЛЯ (итог смены)</div>
           <div>MOJITO FRESH: {stats.passed.mohito}</div>
           <div>GIN&GRAPEFRUIT: {stats.passed.gin}</div>
         </div>
         <Card className="p-4 text-sm text-ink-soft">
-          <b className="text-ink">Склад и логистика.</b> Оператор склада работает с программой, документацией и ТТН, кладовщик управляет комплектовщиками. Продукция «Очаково» уходит в 60 регионов России и 30+ стран.
+          <b className="text-ink">Склад и логистика.</b> Оператор склада работает с программой, документацией и ТТН, кладовщик управляет комплектовщиками. Продукция ОЧАКОВО уходит в 60 регионов России и 30+ стран.
         </Card>
       </div>
     </div>

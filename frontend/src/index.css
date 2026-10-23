@@ -6,27 +6,28 @@
    Фирменные токены «Очаково» (дублируют tailwind.config.js для CSS/SVG)
 ------------------------------------------------------------------- */
 :root {
-  --och-red: #ec1a42;
-  --och-red-dark: #aa0b2e;
-  --och-ink: #17110f;
-  --och-ink-2: #2a211d;
-  --och-malt: #c9922e;
-  --och-malt-light: #ebc779;
-  --och-kraft: #e9dcc6;
-  --och-kraft-light: #f5eee2;
-  --och-cream: #fbf6ee;
-  --och-paper: #fffdf9;
-  --och-mint: #1e9e8c;
-  --och-lime: #7dbb2f;
+  /* брендбук, стр. 58: основные и дополнительные цвета */
+  --och-red: #d50032;        /* Pantone 199 */
+  --och-red-dark: #ab2328;   /* Pantone 7621 */
+  --och-graphite: #626262;   /* Pantone Cool Gray 10 */
+  --och-gray: #a2aaad;       /* Pantone 429 */
+  --och-white: #ffffff;
+  --och-green: #84bd00;      /* Retail: Pantone 376 C */
+  --och-blue: #0086d6;       /* Retail: Pantone 2194 */
+  --och-ink: #1f1f1f;
+  --och-line: #dde0e2;
+  --och-bg-soft: #f5f6f7;
   color-scheme: light;
 }
 
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: var(--och-cream);
+  background: var(--och-white);
   color: var(--och-ink);
-  font-family: Montserrat, Inter, system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  /* Фирменная гарнитура — Proxima Nova (стр. 59). Если лицензия есть — положите файлы в public/fonts
+     и подключите @font-face; иначе используется открытая замена Montserrat. */
+  font-family: 'Proxima Nova', Montserrat, Tahoma, system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
@@ -34,28 +35,36 @@ body {
 button { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 3px solid var(--och-red); outline-offset: 2px; border-radius: 6px; }
 
-/* --- бумажная фактура (шум) ---------------------------------------------------- */
-.paper-grain {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 0.15 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
+/* --- фактуры отключены: бренд требует чистых заливок (стр. 56) --- */
+.paper-grain { background-image: none; }
 
-/* --- поп-арт полутон (справочник студента) ------------------------------------ */
-.halftone {
-  background-image: radial-gradient(rgba(23, 17, 15, 0.18) 1.2px, transparent 1.4px);
-  background-size: 9px 9px;
+/* --- фирменный паттерн (стр. 52): пиктограммы + серые геометрические фигуры.
+       Классы halftone* оставлены для совместимости разметки. --- */
+.halftone { background-image: none; }
+.halftone-red { background-image: none; }
+.halftone-white { background-image: none; }
+.och-pattern-muted {
+  background-image: url('./assets/pattern-red-muted.svg');
+  background-repeat: no-repeat;
+  background-position: right -40px bottom -10px;
+  background-size: auto 115%;
 }
-.halftone-red {
-  background-image: radial-gradient(rgba(236, 26, 66, 0.35) 1.4px, transparent 1.6px);
-  background-size: 10px 10px;
+.och-pattern-red {
+  background-image: url('./assets/pattern-red.svg');
+  background-repeat: no-repeat;
+  background-position: right bottom;
+  background-size: auto 100%;
 }
-.halftone-white {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.22) 1.4px, transparent 1.6px);
-  background-size: 10px 10px;
+.och-pattern-white {
+  background-image: url('./assets/pattern-white.svg');
+  background-repeat: no-repeat;
+  background-position: right bottom;
+  background-size: auto 100%;
 }
 
 /* --- белая контурная обводка (ролик «Процесс создания нового вкуса») --------- */
 .outline-white { filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff); }
-.outline-ink { filter: drop-shadow(2px 0 0 #17110f) drop-shadow(-2px 0 0 #17110f) drop-shadow(0 2px 0 #17110f) drop-shadow(0 -2px 0 #17110f); }
+.outline-ink { filter: drop-shadow(0 1px 2px rgba(98,98,98,.4)); }
 .text-stroke-white { -webkit-text-stroke: 2px #fff; paint-order: stroke fill; }
 .text-outline { color: transparent; -webkit-text-stroke: 2px var(--stroke, #fff); paint-order: stroke fill; }
 
@@ -69,9 +78,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .no-scrollbar { scrollbar-width: none; }
 
 /* --- range-слайдер в фирменных цветах ----------------------------------------- */
-input[type='range'].och-range { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; background: var(--och-kraft); outline: none; }
-input[type='range'].och-range::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 999px; background: var(--och-red); border: 4px solid #fff; box-shadow: 0 0 0 2px var(--och-ink); cursor: grab; }
-input[type='range'].och-range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 999px; background: var(--och-red); border: 4px solid #fff; box-shadow: 0 0 0 2px var(--och-ink); cursor: grab; }
+input[type='range'].och-range { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 0; background: var(--och-line); outline: none; }
+input[type='range'].och-range::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 999px; background: var(--och-red); border: 4px solid #fff; box-shadow: 0 1px 4px rgba(98,98,98,.5); cursor: grab; }
+input[type='range'].och-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 999px; background: var(--och-red); border: 4px solid #fff; box-shadow: 0 1px 4px rgba(98,98,98,.5); cursor: grab; }
 
 /* --- бегущая строка -------------------------------------------------------------- */
 .marquee-track { display: flex; width: max-content; }

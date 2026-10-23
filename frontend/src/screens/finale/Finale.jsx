@@ -20,7 +20,7 @@ export default function Finale() {
   if (done < 4) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16 text-center">
-        <h1 className="font-display text-3xl font-black">Капсула пока закрыта</h1>
+        <h1 className="font-display text-3xl font-extrabold">Капсула пока закрыта</h1>
         <p className="mt-2 text-ink-soft">Собери все 4 цифры на станциях: осталось {4 - done}.</p>
         <Button className="mt-6" onClick={() => actions.go('hub')}>
           <MapIcon className="h-4 w-4" /> К карте станций
@@ -53,9 +53,9 @@ export default function Finale() {
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={cx('flex shrink-0 items-center gap-2 rounded-xl border-2 border-ink px-4 py-2.5 text-sm font-extrabold transition', tab === id ? 'bg-brand text-white shadow-pop' : 'bg-white hover:bg-paper')}
+              className={cx('flex shrink-0 items-center gap-2 rounded-sm border border-line px-4 py-2.5 text-sm font-extrabold transition', tab === id ? 'bg-brand text-white shadow-pop' : 'bg-white hover:bg-paper')}
             >
-              <span className={cx('grid h-5 w-5 place-items-center rounded-full font-mono text-[11px]', tab === id ? 'bg-white text-brand' : 'bg-ink text-white')}>{i + 1}</span>
+              <span className={cx('grid h-5 w-5 place-items-center rounded-full font-mono text-[11px]', tab === id ? 'bg-white text-brand' : 'bg-graphite text-white')}>{i + 1}</span>
               <I className="h-4 w-4" />
               {label}
             </button>

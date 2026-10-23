@@ -50,7 +50,7 @@ export default function Locker() {
                 Раздевалка и техника безопасности
               </>
             }
-            sub="Перед входом в цех выбери ровно то, что разрешено правилами охраны труда. Безопасность — приоритет «Очаково»: в цехе шумно, вокруг движущиеся механизмы и химия."
+            sub="Перед входом в цех выбери ровно то, что разрешено правилами охраны труда. Безопасность — приоритет ОЧАКОВО: в цехе шумно, вокруг движущиеся механизмы и химия."
           />
 
           <motion.div key={shake} animate={shake ? { x: [0, -10, 10, -6, 6, 0] } : {}} transition={{ duration: 0.4 }} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -63,15 +63,15 @@ export default function Locker() {
                   onClick={() => toggle(it.id)}
                   disabled={done}
                   className={cx(
-                    'relative flex flex-col items-center gap-2 rounded-2xl border-2 p-3 text-center transition-all',
-                    on ? 'border-ink bg-white shadow-pop -translate-y-0.5' : 'border-ink/20 bg-paper hover:border-ink/60',
+                    'relative flex flex-col items-center gap-2 rounded-sm border-2 p-3 text-center transition-all',
+                    on ? 'border-brand bg-white shadow-pop -translate-y-0.5' : 'border-ink/20 bg-paper hover:border-ink/60',
                     isWrong && 'border-brand bg-brand-50',
                     done && !it.ok && 'opacity-40',
                   )}
                   aria-pressed={on}
                 >
                   {on && (
-                    <span className={cx('absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full border-2 border-ink text-white', isWrong ? 'bg-brand' : 'bg-ink')}>
+                    <span className={cx('absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full border border-line text-white', isWrong ? 'bg-brand' : 'bg-graphite')}>
                       <Check className="h-3.5 w-3.5" strokeWidth={3.5} />
                     </span>
                   )}
@@ -85,7 +85,7 @@ export default function Locker() {
 
           <AnimatePresence>
             {feedback && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex gap-3 rounded-xl border-2 border-brand bg-brand-50 p-4 text-sm">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex gap-3 rounded-sm border-2 border-brand bg-brand-50 p-4 text-sm">
                 <AlertTriangle className="h-5 w-5 shrink-0 text-brand" />
                 <div>
                   <div className="font-extrabold text-brand-700">Охрана труда не пропускает в цех</div>
@@ -111,7 +111,7 @@ export default function Locker() {
           <AnimatePresence>
             {done && (
               <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="mt-6">
-                <div className="relative overflow-hidden rounded-2xl border-2 border-ink bg-brand p-6 text-white shadow-pop-lg">
+                <div className="relative overflow-hidden rounded-sm border border-line bg-brand p-6 text-white shadow-pop-lg">
                   <div className="halftone-white absolute inset-0 opacity-50" />
                   <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
                     <Krafty size={88} mood="happy" />
@@ -119,15 +119,15 @@ export default function Locker() {
                       <div className="font-mono text-xs font-bold uppercase tracking-widest text-white/80">
                         Допуск получен · +100 баллов · {attempts === 1 ? 'с первой попытки!' : `попыток: ${attempts}`}
                       </div>
-                      <div className="mt-1 font-display text-2xl font-black">Ценности «Очаково»</div>
+                      <div className="mt-1 font-display text-2xl font-light uppercase">Принципы работы <b className="font-extrabold">ОЧАКОВО</b></div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {VALUES.map((v, i) => (
                           <motion.span
                             key={v}
                             initial={{ opacity: 0, y: 10, rotate: -4 }}
-                            animate={{ opacity: 1, y: 0, rotate: i % 2 ? 2 : -2 }}
+                            animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.15 * i + 0.2 }}
-                            className="rounded-lg border-2 border-ink bg-white px-3 py-1.5 font-display text-sm font-black text-ink shadow-pop-sm"
+                            className="rounded-sm border border-line bg-white px-3 py-1.5 font-display text-sm font-extrabold text-ink shadow-pop-sm"
                           >
                             {v}
                           </motion.span>

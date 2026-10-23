@@ -190,7 +190,7 @@ export function GameProvider({ children }) {
       viewWhy: (id, isNew) => {
         dispatch({ type: 'WHY_VIEW', id })
         if (isNew) {
-          toast('+20 Крафт-баллов · Почему Очаково')
+          toast('+20 Крафт-баллов · Почему ОЧАКОВО')
           track('why_ochakovo_cards_viewed', { id })
         }
       },

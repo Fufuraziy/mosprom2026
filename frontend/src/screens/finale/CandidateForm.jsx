@@ -26,7 +26,7 @@ function Field({ label, error, required, children, hint }) {
 }
 
 const inputCls = (err) =>
-  cx('w-full rounded-xl border-2 bg-white px-3 py-2.5 text-[15px] font-semibold outline-none transition focus:border-ink focus:shadow-glow', err ? 'border-brand' : 'border-ink/25')
+  cx('w-full rounded-sm border-2 bg-white px-3 py-2.5 text-[15px] font-semibold outline-none transition focus:border-brand focus:shadow-glow', err ? 'border-brand' : 'border-ink/25')
 
 export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
   const { state, balance, actions } = useGame()
@@ -67,8 +67,8 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-ink bg-ink px-5 py-3 text-white">
-        <div className="font-display font-black uppercase">Анкета кандидата · 18+</div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-brand bg-graphite px-5 py-3 text-white">
+        <div className="font-display font-extrabold uppercase">Анкета кандидата · 18+</div>
         <span className="font-mono text-xs text-white/70">приложим твой игровой профиль: {balance} баллов</span>
       </div>
       <form onSubmit={submit} className="grid gap-4 p-5 sm:grid-cols-2" noValidate>
@@ -127,10 +127,10 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
           <input className={inputCls()} value={form.specialty} onChange={set('specialty')} placeholder="Например, технология продуктов брожения" />
         </Field>
         <div className="sm:col-span-2">
-          <label className={cx('flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 text-sm', errors.consent ? 'border-brand bg-brand-50' : 'border-ink/15')}>
+          <label className={cx('flex cursor-pointer items-start gap-3 rounded-sm border-2 p-3 text-sm', errors.consent ? 'border-brand bg-brand-50' : 'border-ink/15')}>
             <input type="checkbox" checked={form.consent} onChange={set('consent')} className="mt-1 h-4 w-4 accent-brand" />
             <span>
-              Даю согласие АО «МПБК „Очаково“» на обработку персональных данных (152-ФЗ) для подбора на практику и стажировку, включая результаты игры. Подтверждаю, что мне есть 18 лет.
+              Даю согласие АО МПБК «ОЧАКОВО» на обработку персональных данных (152-ФЗ) для подбора на практику и стажировку, включая результаты игры. Подтверждаю, что мне есть 18 лет.
             </span>
           </label>
           {errors.consent && <span className="mt-1 block text-xs font-bold text-brand-700">{errors.consent}</span>}
@@ -139,7 +139,7 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
           <Button type="submit" size="lg" disabled={sending}>
             {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-            Отправить анкету в «Очаково»
+            Отправить анкету в ОЧАКОВО
           </Button>
           <span className="flex items-center gap-1.5 text-xs font-semibold text-ink-mute">
             <ShieldCheck className="h-4 w-4 text-lime" /> Принимаем на работу и практику строго с 18 лет
@@ -152,8 +152,8 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
 
 export function Submitted({ candidate }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border-2 border-ink bg-lime/15 p-5">
-      <div className="font-display text-xl font-black">Анкета у HR! Номер: {candidate.id.slice(-6).toUpperCase()}</div>
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-sm border border-line bg-lime/15 p-5">
+      <div className="font-display text-xl font-extrabold">Анкета у HR! Номер: {candidate.id.slice(-6).toUpperCase()}</div>
       <p className="mt-1 text-sm">
         Отдел подбора свяжется с тобой. Ниже — интерактивный справочник первого дня: маршрут, чек-лист заселения и все телефоны.
       </p>
