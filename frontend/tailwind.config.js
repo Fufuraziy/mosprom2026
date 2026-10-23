@@ -1,0 +1,88 @@
+/**
+ * Дизайн-токены ОЧАКОВО — по брендбуку (папка brandbook/, стр. 58 «Фирменная цветовая палитра»,
+ * стр. 59 «Фирменные шрифты», Retail стр. 33–34 «Дополнительные цвета»).
+ *   красный       Pantone 199          RGB 213.0.50    #D50032  — основной цвет
+ *   белый                               #FFFFFF          — основной цвет
+ *   тёмно-серый   Pantone Cool Gray 10 RGB 98.98.98    #626262  — текстовые блоки
+ *   серый         Pantone 429          RGB 162.170.173 #A2AAAD  — паттерн, заливки
+ *   тёмно-красный Pantone 7621         RGB 171.35.40   #AB2328  — пиктограммы на красном, заливки
+ *   Retail: зелёный 376 C #84BD00, голубой 2194 #0086D6, тёмно-зелёный 362 #509E2F
+ * Шрифт бренда — Proxima Nova (платный, ставится первым в стеке); открытая замена — Montserrat.
+ */
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,jsx}'],
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          DEFAULT: '#D50032',
+          50: '#FCEBEF',
+          100: '#F9D3DC',
+          200: '#F2A6B8',
+          300: '#E86F8C',
+          400: '#DE3961',
+          500: '#D50032',
+          600: '#BF002D',
+          700: '#AB2328',
+          800: '#8C1D21',
+          900: '#5F1416',
+        },
+        ink: {
+          DEFAULT: '#1F1F1F',
+          2: '#4A4A4A',
+          soft: '#626262',
+          mute: '#83898C',
+        },
+        graphite: { DEFAULT: '#626262', 2: '#575757' },
+        steel: { DEFAULT: '#A2AAAD', light: '#D4D8DA' },
+        line: '#DDE0E2',
+        // бывшие «солод» и «крафт» → серая шкала Pantone 429
+        malt: { DEFAULT: '#A2AAAD', light: '#E8EBEC', dark: '#626262' },
+        kraft: { DEFAULT: '#E8EBEC', light: '#F4F5F6', dark: '#C9CED0' },
+        cream: '#F5F6F7',
+        paper: '#FFFFFF',
+        mint: '#0086D6',
+        lime: '#84BD00',
+        leaf: '#509E2F',
+        // цвета интерфейса ВКонтакте — только в симуляторе бота и кнопке VK ID
+        vk: { DEFAULT: '#0077FF', dark: '#0066DB', light: '#E5F0FF', bubble: '#CCE4FF', bg: '#EBEDF0', gray: '#818C99', green: '#4BB34B', red: '#E64646' },
+      },
+      fontFamily: {
+        sans: ['"Proxima Nova"', 'Montserrat', 'Tahoma', 'system-ui', '-apple-system', 'Segoe UI', 'Arial', 'sans-serif'],
+        display: ['"Proxima Nova"', 'Montserrat', 'Tahoma', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
+      boxShadow: {
+        // бренд — плоский и «чистый»: мягкие тени вместо поп-арт обводок
+        pop: '0 1px 2px rgba(98,98,98,.10), 0 10px 26px -16px rgba(98,98,98,.40)',
+        'pop-sm': '0 1px 2px rgba(98,98,98,.14)',
+        'pop-lg': '0 2px 4px rgba(98,98,98,.10), 0 22px 44px -22px rgba(98,98,98,.50)',
+        'pop-red': '0 12px 30px -14px rgba(213,0,50,.55)',
+        card: '0 1px 2px rgba(98,98,98,.10), 0 10px 26px -16px rgba(98,98,98,.40)',
+        glow: '0 0 0 4px rgba(213,0,50,.15)',
+      },
+      keyframes: {
+        blink: { '0%,100%': { opacity: '1' }, '50%': { opacity: '0.15' } },
+        floaty: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-6px)' } },
+        wiggle: { '0%,100%': { transform: 'rotate(-3deg)' }, '50%': { transform: 'rotate(3deg)' } },
+        shake: {
+          '0%,100%': { transform: 'translateX(0)' },
+          '20%,60%': { transform: 'translateX(-8px)' },
+          '40%,80%': { transform: 'translateX(8px)' },
+        },
+        marquee: { from: { transform: 'translateX(0)' }, to: { transform: 'translateX(-50%)' } },
+        spinslow: { to: { transform: 'rotate(360deg)' } },
+      },
+      animation: {
+        blink: 'blink 1.1s steps(2, start) infinite',
+        floaty: 'floaty 3.2s ease-in-out infinite',
+        wiggle: 'wiggle 1.4s ease-in-out infinite',
+        shake: 'shake .45s ease-in-out',
+        marquee: 'marquee 28s linear infinite',
+        spinslow: 'spinslow 18s linear infinite',
+      },
+    },
+  },
+  plugins: [],
+}
