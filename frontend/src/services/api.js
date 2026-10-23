@@ -11,6 +11,7 @@ export const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:8000'
 
 const HEALTH_TTL = 20000 // мс: как часто перепроверяем доступность бэкенда
 const TIMEOUT = 3500
+const LLM_TIMEOUT = 15000 // ответы ИИ-агентов (маскот, рекомендация, приглашение, бот) могут генерироваться дольше
 
 const state = {
   online: null, // null — ещё не проверяли
@@ -81,15 +82,19 @@ export async function checkHealth(force = false) {
  * Выполнить запрос к бэкенду, а при недоступности — локальный fallback.
  * Ошибки валидации (4xx) пробрасываются как есть, чтобы форма показала их пользователю.
  */
-async function call(method, path, body, fallback) {
+async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = false } = {}) {
   const online = await checkHealth()
   if (online) {
     try {
-      const r = await timedFetch(API_URL + path, {
-        method,
-        headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-        body: body !== undefined ? JSON.stringify(body) : undefined,
-      })
+      const r = await timedFetch(
+        API_URL + path,
+        {
+          method,
+          headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+          body: body !== undefined ? JSON.stringify(body) : undefined,
+        },
+        timeout,
+      )
       if (r.status === 422 || r.status === 400) {
         const data = await r.json().catch(() => ({}))
         const err = new Error('validation')
@@ -108,7 +113,8 @@ async function call(method, path, body, fallback) {
       throw new Error(`HTTP ${r.status}`)
     } catch (e) {
       if (e.status === 422 || e.status === 400) throw e
-      setOnline(false)
+      // медленный ответ ИИ — не повод считать бэкенд упавшим
+      if (!(slow && e.name === 'AbortError')) setOnline(false)
     }
   }
   return fallback()
@@ -149,14 +155,14 @@ export const api = {
 
   /** ИИ-агент №1 — маскот «Крафти». */
   chat: (session_id, message, history = []) =>
-    call('POST', '/api/mascot/chat', { session_id, message, history: history.slice(-8) }, () => local.mascotReply(message)).then((r) =>
+    call('POST', '/api/mascot/chat', { session_id, message, history: history.slice(-8) }, () => local.mascotReply(message), { timeout: LLM_TIMEOUT, slow: true }).then((r) =>
       // если бэкенд вернул только текст — дополним тему локальным классификатором
       r && !r.topic ? { ...local.mascotReply(message), ...r } : r,
     ),
 
   /** ИИ-агент №2 — архетип, мэтч вакансий, вердикт. */
   recommendation: (session_id, telemetry) =>
-    call('POST', '/api/recommendation', { session_id, telemetry }, () => local.buildRecommendation(telemetry)).then((r) =>
+    call('POST', '/api/recommendation', { session_id, telemetry }, () => local.buildRecommendation(telemetry), { timeout: LLM_TIMEOUT, slow: true }).then((r) =>
       r?.archetype && r?.matches ? r : local.buildRecommendation(telemetry),
     ),
 
@@ -185,13 +191,13 @@ export const api = {
 
   /** Сообщение пользователя боту (кнопка payload или текст). На проде бот живёт на бэкенде (VK Callback API). */
   botMessage: (session_id, input, ctx) =>
-    call('POST', '/api/bot/message', { session_id, ...input, ctx }, () => ({ messages: botLocal.botRespond(input, ctx) })).then((r) =>
+    call('POST', '/api/bot/message', { session_id, ...input, ctx }, () => ({ messages: botLocal.botRespond(input, ctx) }), { timeout: LLM_TIMEOUT, slow: true }).then((r) =>
       Array.isArray(r?.messages) ? r : { messages: botLocal.botRespond(input, ctx) },
     ),
 
   /** Черновик персонального ИИ-приглашения для кандидата (ИИ-агент на бэкенде, офлайн — шаблон по телеметрии). */
   inviteDraft: (candidate) =>
-    call('POST', '/api/bot/invite-draft', { candidate_id: candidate.id }, () => botLocal.inviteDraft(candidate)).then((r) =>
+    call('POST', '/api/bot/invite-draft', { candidate_id: candidate.id }, () => botLocal.inviteDraft(candidate), { timeout: LLM_TIMEOUT, slow: true }).then((r) =>
       r?.text ? { keyboard: botLocal.INVITE_KEYBOARD, ...r } : botLocal.inviteDraft(candidate),
     ),
 
