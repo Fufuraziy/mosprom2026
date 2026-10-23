@@ -5,6 +5,7 @@
 // метод мгновенно отрабатывает на встроенном локальном движке (./localEngine.js)
 // с теми же структурами данных. Контракт эндпоинтов: frontend/API_CONTRACT.md.
 import * as local from './localEngine.js'
+import * as botLocal from './botEngine.js'
 
 export const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
@@ -179,6 +180,29 @@ export const api = {
 
   exportMirapolis: (id, candidate) =>
     call('POST', `/api/candidates/${encodeURIComponent(id)}/mirapolis`, {}, () => local.mirapolisExport(candidate || id)),
+
+  /* ---------------------------------------------------------------- ВК-бот */
+
+  /** Сообщение пользователя боту (кнопка payload или текст). На проде бот живёт на бэкенде (VK Callback API). */
+  botMessage: (session_id, input, ctx) =>
+    call('POST', '/api/bot/message', { session_id, ...input, ctx }, () => ({ messages: botLocal.botRespond(input, ctx) })).then((r) =>
+      Array.isArray(r?.messages) ? r : { messages: botLocal.botRespond(input, ctx) },
+    ),
+
+  /** Черновик персонального ИИ-приглашения для кандидата (ИИ-агент на бэкенде, офлайн — шаблон по телеметрии). */
+  inviteDraft: (candidate) =>
+    call('POST', '/api/bot/invite-draft', { candidate_id: candidate.id }, () => botLocal.inviteDraft(candidate)).then((r) =>
+      r?.text ? { keyboard: botLocal.INVITE_KEYBOARD, ...r } : botLocal.inviteDraft(candidate),
+    ),
+
+  /** Отправка сообщения кандидату от имени сообщества через ВК-бота. */
+  botSend: (candidate, text) =>
+    call('POST', '/api/bot/send', { candidate_id: candidate.id, vk_user_id: candidate.vk_user_id || null, text }, () => ({
+      ok: true,
+      delivered: true,
+      channel: candidate.vk_user_id ? 'vk' : 'vk_demo',
+      message_id: local.uid('msg'),
+    })),
 
   /** CSV формируем на клиенте из уже загруженного списка — так работает и офлайн. */
   csv: (list) => local.toCSV(list),

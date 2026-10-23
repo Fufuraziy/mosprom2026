@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { api, onStatusChange } from '../services/api.js'
 import { uid } from '../services/localEngine.js'
 import { CODE } from '../data/content.js'
+import { initVK } from '../services/vk.js'
 
 const LS_KEY = 'ochakovo1978_game_v1'
 
@@ -19,7 +20,7 @@ const emptyTelemetry = () => ({
 })
 
 const initialState = () => ({
-  mode: 'student', // student | hr
+  mode: 'student', // student | bot | hr
   screen: 'home', // home | locker | hub | station | finale
   stationId: null,
   sessionId: uid('sess'),
@@ -33,14 +34,26 @@ const initialState = () => ({
   telemetry: emptyTelemetry(),
   demoFast: false,
   chatHistory: [],
+  storyShared: false,
+  vkProfile: null,
+  bot: emptyBot(),
 })
+
+function emptyBot() {
+  // переписка с сообществом ОЧАКОВО во ВКонтакте (симулятор ВК-бота)
+  return {
+    threads: { me: { id: 'me', name: 'Вы (демо-кандидат)', candidateId: null, messages: [], unread: 0 } },
+    order: ['me'],
+    active: 'me',
+  }
+}
 
 function load() {
   try {
     const raw = window.localStorage.getItem(LS_KEY)
     if (!raw) return initialState()
     const s = JSON.parse(raw)
-    return { ...initialState(), ...s, telemetry: { ...emptyTelemetry(), ...(s.telemetry || {}) } }
+    return { ...initialState(), ...s, telemetry: { ...emptyTelemetry(), ...(s.telemetry || {}) }, bot: s.bot?.threads ? s.bot : emptyBot() }
   } catch {
     return initialState()
   }
@@ -51,6 +64,30 @@ function reducer(state, a) {
   switch (a.type) {
     case 'MODE':
       return { ...state, mode: a.mode }
+    case 'LOAD':
+      // синхронизация с другой вкладкой / рамкой телефона: режим просмотра у каждой вкладки свой
+      return { ...state, ...a.state, mode: state.mode, telemetry: { ...emptyTelemetry(), ...(a.state.telemetry || {}) } }
+    case 'BOT_PUSH': {
+      const b = state.bot
+      const prev = b.threads[a.threadId] || { id: a.threadId, name: a.name || 'Кандидат', candidateId: a.candidateId || null, messages: [], unread: 0 }
+      const msgs = a.messages.map((m) => ({ id: Math.random().toString(36).slice(2), ts: new Date().toISOString(), ...m }))
+      const incoming = msgs.filter((m) => m.from !== 'user').length
+      const thread = { ...prev, name: a.name || prev.name, messages: [...prev.messages, ...msgs].slice(-80), unread: a.markUnread ? prev.unread + incoming : prev.unread }
+      return {
+        ...state,
+        bot: { ...b, threads: { ...b.threads, [a.threadId]: thread }, order: [a.threadId, ...b.order.filter((x) => x !== a.threadId)] },
+      }
+    }
+    case 'BOT_ACTIVE': {
+      const b = state.bot
+      const th = b.threads[a.threadId]
+      if (!th) return state
+      return { ...state, bot: { ...b, active: a.threadId, threads: { ...b.threads, [a.threadId]: { ...th, unread: 0 } } } }
+    }
+    case 'STORY_SHARED':
+      return state.storyShared ? state : { ...state, storyShared: true, points: state.points + 100 }
+    case 'VK_PROFILE':
+      return { ...state, vkProfile: a.profile }
     case 'GO':
       return { ...state, screen: a.screen, stationId: a.stationId ?? null, mode: 'student' }
     case 'AWARD':
@@ -155,6 +192,26 @@ export function GameProvider({ children }) {
 
   useEffect(() => onStatusChange(setApiStatus), [])
 
+  // VK Mini App: VKWebAppInit при старте (в обычном браузере — no-op)
+  useEffect(() => {
+    initVK().then((r) => r.mode === 'vk' && api.track(state.sessionId, 'vk_init', r))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // синхронизация состояния между вкладкой и «рамкой телефона» (iframe того же сайта)
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key !== LS_KEY || !e.newValue) return
+      try {
+        dispatch({ type: 'LOAD', state: JSON.parse(e.newValue) })
+      } catch {
+        /* ignore */
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   useEffect(() => {
     if (sessionStarted.current) return
     sessionStarted.current = true
@@ -238,6 +295,17 @@ export function GameProvider({ children }) {
         track('candidate_submitted', { id: candidate?.id })
       },
       setDemo: (value) => dispatch({ type: 'DEMO', value }),
+      botPush: (threadId, messages, meta = {}) => dispatch({ type: 'BOT_PUSH', threadId, messages, ...meta }),
+      botActive: (threadId) => dispatch({ type: 'BOT_ACTIVE', threadId }),
+      storyShared: (source) => {
+        dispatch({ type: 'STORY_SHARED' })
+        toast('+100 Крафт-баллов · История ВКонтакте')
+        track('vk_story_share', { source })
+      },
+      setVkProfile: (profile, source) => {
+        dispatch({ type: 'VK_PROFILE', profile: { ...profile, source } })
+        track('vk_autofill', { source })
+      },
       reset: () => {
         dispatch({ type: 'RESET' })
         window.scrollTo?.({ top: 0 })

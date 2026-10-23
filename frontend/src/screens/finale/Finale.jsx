@@ -9,6 +9,7 @@ import { AIVerdict, SalaryCalculator } from './Verdict.jsx'
 import MerchShop from './MerchShop.jsx'
 import CandidateForm, { Submitted } from './CandidateForm.jsx'
 import FirstDayGuide from './FirstDayGuide.jsx'
+import StoryShare from '../../components/StoryShare.jsx'
 
 export default function Finale() {
   const { state, actions } = useGame()
@@ -87,6 +88,7 @@ export default function Finale() {
       </AnimatePresence>
 
       <div className="mt-12 flex flex-wrap items-center gap-3 border-t-2 border-dashed border-ink/15 pt-6 text-sm">
+        <StoryShare />
         <Button variant="ghost" size="sm" onClick={() => actions.setMode('hr')}>
           Посмотреть, что увидит HR →
         </Button>

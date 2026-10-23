@@ -45,6 +45,8 @@ export default {
         mint: '#0086D6',
         lime: '#84BD00',
         leaf: '#509E2F',
+        // цвета интерфейса ВКонтакте — только в симуляторе бота и кнопке VK ID
+        vk: { DEFAULT: '#0077FF', dark: '#0066DB', light: '#E5F0FF', bubble: '#CCE4FF', bg: '#EBEDF0', gray: '#818C99', green: '#4BB34B', red: '#E64646' },
       },
       fontFamily: {
         sans: ['"Proxima Nova"', 'Montserrat', 'Tahoma', 'system-ui', '-apple-system', 'Segoe UI', 'Arial', 'sans-serif'],

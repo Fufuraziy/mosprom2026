@@ -143,3 +143,38 @@
 ```
 
 CSV формируется на клиенте из загруженного списка (разделитель `;`, UTF-8 с BOM для Excel).
+
+## ВК-бот сообщества (симулятор во вкладке «ВК-бот»)
+
+На проде бот работает на бэкенде через VK Callback API / Long Poll и использует те же ответы.
+Фронт-симулятор вызывает эти эндпоинты, а без бэкенда — встроенный `src/services/botEngine.js`.
+
+`POST /api/bot/message` — сообщение пользователя боту
+```json
+{"session_id": "sess_…", "payload": "dorm", "text": null,
+ "ctx": {"stationsDone": 2, "points": 540, "capsuleOpened": false, "hasCandidate": false, "tickets": 0}}
+```
+→ `{"messages": [{"from": "bot", "text": "…", "topic": "dorm",
+     "keyboard": [[{"label": "Общежитие за 3 400 ₽", "payload": "dorm", "color": "secondary"}]],
+     "attachment": {"type": "miniapp", "title": "Секретный код 1978", "sub": "…"}}]}`
+
+`color` кнопок — как в клавиатурах ВК-ботов: `primary | secondary | positive | negative`.
+Payload кнопок: `start, open_app, continue, dorm, session, salary, vacancies, subscribe, stop,
+iv_yes, iv_question, iv_later, season_yes, excursion_yes`.
+
+`POST /api/bot/invite-draft` `{candidate_id}` → персональное ИИ-приглашение
+```json
+{"text": "Алина, привет! Это HR ОЧАКОВО…", "based_on": ["1180 баллов", "архетип «Хранитель Точности»", "мэтч 96%"],
+ "keyboard": [[{"label": "Записаться на собеседование", "payload": "iv_yes", "color": "positive"}]]}
+```
+
+`POST /api/bot/send` `{candidate_id, vk_user_id, text}` → `{ok, delivered, channel: "vk" | "vk_demo", message_id}`
+(сообщение от имени сообщества: `messages.send` с ключом сообщества; кандидат должен был разрешить сообщения —
+в мини-приложении для этого есть `VKWebAppAllowMessagesFromGroup`).
+
+## VK Mini App
+
+- Анкета, заполненная через VK ID, приходит в `POST /api/candidates` с полями `form.vk_user_id` и `form.vk_source`
+  (`vk` — реальные данные из `VKWebAppGetUserInfo`, `demo` — демо-профиль вне ВК). Контакт ВК засчитывается как контакт кандидата.
+- Подпись параметров запуска (`sign` в URL) бэкенд должен проверять секретным ключом приложения, прежде чем доверять `vk_user_id`.
+- Новые события телеметрии: `vk_init`, `vk_autofill {source}`, `vk_story_share {source}`, `bot_message`, `bot_push {scenario}`, `hr_bot_invite`.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, useSpring, useMotionValueEvent } from 'framer-motion'
-import { Gamepad2, BarChart3, Coins, KeyRound } from 'lucide-react'
+import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
 import { LogoPlate, cx } from './ui.jsx'
 
@@ -73,9 +73,16 @@ function CodeSlots({ digits }) {
   )
 }
 
-export default function Header() {
+const TABS = [
+  { id: 'student', Icon: Smartphone, full: 'VK Mini App · Игра', short: 'Mini App', active: 'bg-brand text-white' },
+  { id: 'bot', Icon: MessageCircle, full: 'ВК-бот ОЧАКОВО', short: 'ВК-бот', active: 'bg-vk text-white' },
+  { id: 'hr', Icon: BarChart3, full: 'Панель HR', short: 'HR', active: 'bg-graphite text-white' },
+]
+
+export default function Header({ embedded = false, onPhone }) {
   const { state, balance, actions, apiStatus } = useGame()
-  const isHR = state.mode === 'hr'
+  const isHR = state.mode !== 'student'
+  const unread = Object.values(state.bot.threads).reduce((a, t) => a + (t.unread || 0), 0)
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
       <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2 sm:gap-4 sm:px-6">
@@ -92,28 +99,35 @@ export default function Header() {
           {!isHR && <CodeSlots digits={state.digits} />}
           {!isHR && <PointsPill points={balance} />}
 
-          <div className="flex border border-line bg-white p-0.5" role="tablist" aria-label="Режим">
-            <button
-              role="tab"
-              aria-selected={!isHR}
-              onClick={() => actions.setMode('student')}
-              className={cx('flex items-center gap-1.5 px-2 py-1.5 text-xs font-bold uppercase tracking-wide transition sm:px-3', !isHR ? 'bg-brand text-white' : 'text-ink hover:bg-cream')}
-            >
-              <Gamepad2 className="h-4 w-4" />
-              <span className="hidden xl:inline">Режим студента</span>
-              <span className="hidden sm:inline xl:hidden">Студент</span>
+          {!embedded && (
+            <div className="flex border border-line bg-white p-0.5" role="tablist" aria-label="Режим">
+              {TABS.map(({ id, Icon: I, full, short, active }) => {
+                const on = state.mode === id
+                return (
+                  <button
+                    key={id}
+                    role="tab"
+                    aria-selected={on}
+                    onClick={() => actions.setMode(id)}
+                    className={cx('relative flex items-center gap-1.5 px-2 py-1.5 text-xs font-bold uppercase tracking-wide transition sm:px-3', on ? active : 'text-ink hover:bg-cream')}
+                    title={full}
+                  >
+                    <I className="h-4 w-4" />
+                    <span className="hidden xl:inline">{full}</span>
+                    <span className="hidden lg:inline xl:hidden">{short}</span>
+                    {id === 'bot' && unread > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-vk px-1 text-[10px] font-bold text-white">{unread}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {!embedded && state.mode === 'student' && (
+            <button onClick={onPhone} className="hidden h-9 w-9 place-items-center border border-line text-ink-soft transition hover:border-brand hover:text-brand lg:grid" title="Предпросмотр VK Mini App в рамке телефона">
+              <Smartphone className="h-4 w-4" />
             </button>
-            <button
-              role="tab"
-              aria-selected={isHR}
-              onClick={() => actions.setMode('hr')}
-              className={cx('flex items-center gap-1.5 px-2 py-1.5 text-xs font-bold uppercase tracking-wide transition sm:px-3', isHR ? 'bg-graphite text-white' : 'text-ink hover:bg-cream')}
-            >
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden xl:inline">Панель HR</span>
-              <span className="hidden sm:inline xl:hidden">HR</span>
-            </button>
-          </div>
+          )}
           <span
             className={cx('hidden h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white sm:block', apiStatus.online ? 'bg-lime' : 'bg-steel')}
             title={apiStatus.online ? `API онлайн: ${apiStatus.url}` : 'Автономный режим: встроенный движок'}

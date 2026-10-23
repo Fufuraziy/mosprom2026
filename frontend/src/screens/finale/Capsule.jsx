@@ -5,6 +5,7 @@ import { useGame } from '../../state/GameContext.jsx'
 import { CODE, PHOTO } from '../../data/content.js'
 import { Button, Burst, RecBadge, TornPhoto, cx } from '../../components/ui.jsx'
 import Krafty from '../../components/Krafty.jsx'
+import StoryShare from '../../components/StoryShare.jsx'
 
 const FORMULA = [
   { icon: Leaf, title: '100% натуральные ингредиенты', text: 'Собственные солодовни, сельхозпредприятия и рецепты «от поля до банки».' },
@@ -142,6 +143,7 @@ export default function Capsule({ onContinue }) {
                     Забрать награды <ArrowRight className="h-5 w-5" />
                   </Button>
                 </div>
+                <StoryShare className="mt-4 w-full" />
               </motion.div>
             )}
           </AnimatePresence>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Send, ShieldCheck, Loader2 } from 'lucide-react'
+import { Send, ShieldCheck, Loader2, BadgeCheck } from 'lucide-react'
+import { getVKProfile } from '../../services/vk.js'
 import { useGame } from '../../state/GameContext.jsx'
 import { api } from '../../services/api.js'
 import { validateCandidate, ageFrom } from '../../services/localEngine.js'
@@ -42,7 +43,39 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
     study_level: '',
     specialty: '',
     consent: false,
+    vk_user_id: null,
+    vk_source: null,
   })
+  const [vk, setVk] = useState(null) // { source, profile, note }
+  const [vkLoading, setVkLoading] = useState(false)
+
+  const fillFromVK = async () => {
+    setVkLoading(true)
+    const r = await getVKProfile()
+    setVkLoading(false)
+    if (r.source === 'error') {
+      setVk({ source: 'error', note: 'ВКонтакте не дал доступ к профилю. Заполни поля вручную.' })
+      return
+    }
+    const p = r.profile
+    setForm((f) => ({
+      ...f,
+      fio: [p.last_name, p.first_name].filter(Boolean).join(' '),
+      birth_date: p.bdate_iso || f.birth_date,
+      university: p.university || f.university,
+      study_level: p.study_level || f.study_level,
+      specialty: p.specialty || f.specialty,
+      vk_user_id: p.id,
+      vk_source: r.source,
+    }))
+    setErrors({})
+    actions.setVkProfile(p, r.source)
+    setVk({
+      source: r.source,
+      profile: p,
+      note: !p.bdate_iso && r.source === 'vk' ? 'Год рождения скрыт в профиле ВК — укажи дату рождения вручную.' : null,
+    })
+  }
   const [errors, setErrors] = useState({})
   const [sending, setSending] = useState(false)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
@@ -73,11 +106,41 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
       </div>
       <form onSubmit={submit} className="grid gap-4 p-5 sm:grid-cols-2" noValidate>
         <div className="sm:col-span-2">
+          {!vk || vk.source === 'error' ? (
+            <button type="button" onClick={fillFromVK} disabled={vkLoading} className="flex w-full items-center justify-center gap-3 rounded-lg bg-vk px-4 py-3.5 text-[15px] font-semibold text-white transition hover:bg-vk-dark disabled:opacity-60">
+              {vkLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="grid h-6 w-6 place-items-center rounded-md bg-white text-[11px] font-extrabold text-vk">VK</span>}
+              Заполнить анкету через ВКонтакте в 1 клик
+            </button>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-vk/30 bg-vk-light px-4 py-3">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-vk text-white">
+                <BadgeCheck className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-[#2C2D2E]">Данные синхронизированы через VK ID</div>
+                <div className="text-xs text-vk-gray">
+                  {vk.profile.first_name} {vk.profile.last_name}
+                  {vk.profile.bdate_iso ? `, ${ageFrom(vk.profile.bdate_iso)} лет` : ''}
+                  {vk.profile.university ? ` · ${vk.profile.university}` : vk.profile.city ? ` · ${vk.profile.city}` : ''}
+                  {vk.source === 'vk' ? ` · vk.com/id${vk.profile.id}` : ' · демо-профиль вне ВКонтакте'}
+                </div>
+              </div>
+              <button type="button" onClick={() => setVk(null)} className="text-xs font-semibold text-vk hover:underline">
+                Изменить
+              </button>
+            </div>
+          )}
+          {vk?.note && <div className="mt-2 text-xs font-semibold text-brand-700">{vk.note}</div>}
+          <div className="mt-3 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
+            <span className="h-px flex-1 bg-line" /> или вручную <span className="h-px flex-1 bg-line" />
+          </div>
+        </div>
+        <div className="sm:col-span-2">
           <Field label="ФИО" required error={errors.fio}>
             <input className={inputCls(errors.fio)} value={form.fio} onChange={set('fio')} placeholder="Иванова Мария Сергеевна" autoComplete="name" />
           </Field>
         </div>
-        <Field label="Телефон" error={errors.phone} hint="хотя бы один контакт">
+        <Field label="Телефон" error={errors.phone} hint={form.vk_user_id ? 'контакт ВК уже есть' : 'хотя бы один контакт'}>
           <input className={inputCls(errors.phone || errors.contact)} value={form.phone} onChange={set('phone')} placeholder="+7 900 000-00-00" inputMode="tel" autoComplete="tel" />
         </Field>
         <Field label="Telegram" error={errors.telegram}>

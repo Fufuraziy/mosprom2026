@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Download, Search, Users, TrendingDown, Percent, Baby, RefreshCw, Database, Wifi, WifiOff, ChevronRight, Sparkles } from 'lucide-react'
+import { MessageCircle, Download, Search, Users, TrendingDown, Percent, Baby, RefreshCw, Database, Wifi, WifiOff, ChevronRight, Sparkles } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
 import { api } from '../../services/api.js'
 import { BLOCKS, UNIVERSITIES, TOPIC_LABELS } from '../../data/content.js'
 import { Button, Card, cx } from '../../components/ui.jsx'
 import Dossier from './Dossier.jsx'
+import InviteModal from './InviteModal.jsx'
 
 export function downloadText(name, text, type = 'text/csv;charset=utf-8') {
   const blob = new Blob([text], { type })
@@ -65,6 +66,7 @@ export default function HRPanel() {
   const [list, setList] = useState([])
   const [filters, setFilters] = useState({ q: '', university: '', block: '', sort: 'created' })
   const [selected, setSelected] = useState(null)
+  const [invite, setInvite] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const load = async () => {
@@ -221,6 +223,7 @@ export default function HRPanel() {
                     <div className="flex items-center gap-2 font-extrabold">
                       {c.fio}
                       {c.is_live && <span className="rounded bg-brand px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-white">новый</span>}
+                      {c.vk_user_id && <span className="rounded bg-vk px-1 py-0.5 text-[9px] font-extrabold text-white" title="Анкета заполнена через VK ID">VK</span>}
                     </div>
                     <div className="text-xs text-ink-mute">
                       {c.age} лет · {c.study_level || '—'} · {c.archetype}
@@ -254,7 +257,20 @@ export default function HRPanel() {
                       .join(', ') || '—'}
                   </td>
                   <td className="px-3 py-3 text-ink-mute">
-                    <ChevronRight className="h-4 w-4" />
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setInvite(c)
+                        }}
+                        className="grid h-8 w-8 place-items-center rounded-full text-vk transition hover:bg-vk-light"
+                        title="Написать кандидату через ВК-бота"
+                        aria-label={`Написать ${c.fio} через ВК-бота`}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </button>
+                      <ChevronRight className="h-4 w-4" />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -274,6 +290,7 @@ export default function HRPanel() {
       </Card>
 
       <AnimatePresence>{selected && <Dossier candidate={selected} onClose={() => setSelected(null)} />}</AnimatePresence>
+      {invite && <InviteModal candidate={invite} onClose={() => setInvite(null)} />}
     </div>
   )
 }

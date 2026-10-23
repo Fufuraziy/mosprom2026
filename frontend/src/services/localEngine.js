@@ -241,8 +241,8 @@ export function listCandidates(filters = {}) {
 export function validateCandidate(form) {
   const errors = {}
   if (!form.fio || form.fio.trim().split(/\s+/).length < 2) errors.fio = 'Укажи фамилию и имя (можно с отчеством)'
-  const hasContact = [form.phone, form.telegram, form.email].some((v) => v && v.trim())
-  if (!hasContact) errors.contact = 'Нужен хотя бы один контакт: телефон, Telegram или email'
+  const hasContact = [form.phone, form.telegram, form.email, form.vk_user_id ? String(form.vk_user_id) : ''].some((v) => v && v.trim())
+  if (!hasContact) errors.contact = 'Нужен хотя бы один контакт: телефон, Telegram, email или ВКонтакте'
   if (form.phone && form.phone.replace(/\D/g, '').length < 10) errors.phone = 'Проверь номер телефона'
   if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) errors.email = 'Проверь email'
   const age = ageFrom(form.birth_date)
@@ -277,6 +277,8 @@ export function submitCandidate({ form, telemetry, points, session_id }) {
     university: form.university.trim(),
     study_level: form.study_level || '',
     specialty: form.specialty || '',
+    vk_user_id: form.vk_user_id || null,
+    vk_source: form.vk_source || null,
     points: points || 0,
     telemetry: telemetry || {},
     created_at: new Date().toISOString(),

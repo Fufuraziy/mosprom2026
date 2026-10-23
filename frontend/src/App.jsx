@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Coins, Ticket, Info } from 'lucide-react'
 import { useGame } from './state/GameContext.jsx'
@@ -13,6 +14,13 @@ import LineStation from './screens/stations/LineStation.jsx'
 import DesignStation from './screens/stations/DesignStation.jsx'
 import Finale from './screens/finale/Finale.jsx'
 import HRPanel from './screens/hr/HRPanel.jsx'
+import BotScreen from './screens/bot/BotScreen.jsx'
+import PhoneFrame, { VkMiniAppBar } from './components/PhoneFrame.jsx'
+import { isInsideVK } from './services/vk.js'
+
+// ?vk_frame=1 — приложение открыто в «рамке телефона»; внутри ВК — настоящий VK Mini App.
+const VK_FRAME = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('vk_frame')
+const EMBEDDED = VK_FRAME || isInsideVK
 
 const STATIONS = { lab: LabStation, engineering: EngineeringStation, line: LineStation, design: DesignStation }
 
@@ -61,12 +69,17 @@ function Footer() {
 }
 
 export default function App() {
-  const { state } = useGame()
+  const { state, actions } = useGame()
+  const [phone, setPhone] = useState(false)
+  const mode = EMBEDDED ? 'student' : state.mode
   let screen
   let key
-  if (state.mode === 'hr') {
+  if (mode === 'hr') {
     screen = <HRPanel />
     key = 'hr'
+  } else if (mode === 'bot') {
+    screen = <BotScreen />
+    key = 'bot'
   } else {
     key = state.screen + (state.stationId || '')
     if (state.screen === 'locker') screen = <Locker />
@@ -80,7 +93,8 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
+      {VK_FRAME && <VkMiniAppBar onBack={() => actions.go(state.screen === 'station' ? 'hub' : 'home')} />}
+      <Header embedded={EMBEDDED} onPhone={() => setPhone(true)} />
       <Toasts />
       <main className="flex-1">
         <AnimatePresence mode="wait">
@@ -90,7 +104,8 @@ export default function App() {
         </AnimatePresence>
       </main>
       <Footer />
-      {state.mode === 'student' && <MascotChat />}
+      {mode === 'student' && <MascotChat />}
+      {phone && <PhoneFrame onClose={() => setPhone(false)} />}
     </div>
   )
 }

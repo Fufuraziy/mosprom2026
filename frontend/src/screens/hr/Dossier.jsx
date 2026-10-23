@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { X, Phone, Send, Mail, GraduationCap, Download, MessageCircleQuestion, AlertTriangle, Bot, Handshake, Moon, Loader2, CalendarDays, MessagesSquare } from 'lucide-react'
+import { MessageCircle, X, Phone, Send, Mail, GraduationCap, Download, MessageCircleQuestion, AlertTriangle, Bot, Handshake, Moon, Loader2, CalendarDays, MessagesSquare } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
 import { api } from '../../services/api.js'
 import { BLOCKS, WHY_CARDS } from '../../data/content.js'
 import { Button, Progress, cx } from '../../components/ui.jsx'
 import { downloadText } from './HRPanel.jsx'
 import Krafty from '../../components/Krafty.jsx'
+import InviteModal from './InviteModal.jsx'
 
 function Ring({ value, label, color }) {
   const r = 34
@@ -31,6 +32,7 @@ export default function Dossier({ candidate, onClose }) {
   const [d, setD] = useState(null)
   const [contact, setContact] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [invite, setInvite] = useState(false)
   const closeRef = useRef(onClose)
   closeRef.current = onClose
 
@@ -229,6 +231,12 @@ export default function Dossier({ candidate, onClose }) {
                     <Phone className="h-4 w-4 text-brand" /> {c.phone}
                   </a>
                 )}
+                {c.vk_user_id && (
+                  <span className="flex items-center gap-2 rounded-sm border border-vk/30 bg-vk-light p-3 text-sm font-bold text-vk">
+                    <span className="grid h-5 w-5 place-items-center rounded bg-vk text-[9px] font-extrabold text-white">VK</span>
+                    {c.vk_source === 'demo' ? 'VK ID (демо)' : `vk.com/id${c.vk_user_id}`}
+                  </span>
+                )}
                 {c.telegram && (
                   <a href={`https://t.me/${c.telegram.replace('@', '')}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-sm border-2 border-ink/15 p-3 text-sm font-bold hover:border-brand">
                     <Send className="h-4 w-4 text-brand" /> {c.telegram}
@@ -248,7 +256,10 @@ export default function Dossier({ candidate, onClose }) {
         )}
 
         <div className="flex flex-wrap gap-2 border-t-[3px] border-brand bg-paper p-4">
-          <Button onClick={() => setContact((v) => !v)}>
+          <button onClick={() => setInvite(true)} className="flex items-center gap-2 bg-vk px-5 py-3 text-[13px] font-bold uppercase tracking-wide text-white hover:bg-vk-dark">
+            <MessageCircle className="h-4 w-4" /> Написать через ВК-бота
+          </button>
+          <Button variant="light" onClick={() => setContact((v) => !v)}>
             <MessagesSquare className="h-4 w-4" /> Связаться с кандидатом
           </Button>
           <Button variant="light" onClick={exportMira} disabled={exporting || !d}>
@@ -259,6 +270,7 @@ export default function Dossier({ candidate, onClose }) {
           </Button>
         </div>
       </motion.aside>
+      {invite && <InviteModal candidate={c} onClose={() => setInvite(false)} />}
     </>,
     document.body,
   )
