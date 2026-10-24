@@ -71,7 +71,7 @@ function Footer() {
 export default function App() {
   const { state, actions } = useGame()
   const [phone, setPhone] = useState(false)
-  const mode = EMBEDDED ? 'student' : state.mode
+  const mode = state.mode
   let screen
   let key
   if (mode === 'hr') {

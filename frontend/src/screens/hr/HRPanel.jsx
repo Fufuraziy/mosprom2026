@@ -61,7 +61,7 @@ function HBars({ rows, color = '#D50032', format = (v) => v.toLocaleString('ru-R
 }
 
 export default function HRPanel() {
-  const { apiStatus, toast } = useGame()
+  const { apiStatus, toast, state } = useGame()
   const [stats, setStats] = useState(null)
   const [list, setList] = useState([])
   const [filters, setFilters] = useState({ q: '', university: '', block: '', sort: 'created' })
@@ -73,9 +73,15 @@ export default function HRPanel() {
     setLoading(true)
     const [a, l] = await Promise.all([api.analytics(), api.listCandidates({})])
     setStats(a)
-    setList(l)
+    let combined = Array.isArray(l) ? [...l] : []
+    // Гарантируем, что только что отправленный кандидат state.candidate всегда на первой строке
+    if (state.candidate && !combined.some((c) => c.id === state.candidate.id)) {
+      combined.unshift(state.candidate)
+    }
+    setList(combined)
     setLoading(false)
   }
+
   useEffect(() => {
     load()
   }, [])
@@ -98,8 +104,12 @@ export default function HRPanel() {
   }, [list, filters])
 
   const exportCsv = () => {
-    downloadText(`ochakovo_candidates_${new Date().toISOString().slice(0, 10)}.csv`, api.csv(filtered))
-    toast(`CSV: ${filtered.length} кандидатов`, 'info')
+    if (apiStatus.online) {
+      window.open(`${api.API_URL}/api/hr/export-csv`, '_blank')
+    } else {
+      downloadText(`ochakovo_candidates_${new Date().toISOString().slice(0, 10)}.csv`, api.csv(filtered))
+    }
+    toast(`CSV сформирован: ${filtered.length} кандидатов`, 'info')
   }
 
   return (

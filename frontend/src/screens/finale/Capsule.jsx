@@ -15,7 +15,9 @@ const FORMULA = [
 
 export default function Capsule({ onContinue }) {
   const { state, actions } = useGame()
-  const [input, setInput] = useState(state.capsuleOpened ? CODE.join('') : '')
+  const targetCode = state.targetCode || CODE
+  const targetCodeStr = targetCode.join('')
+  const [input, setInput] = useState(state.capsuleOpened ? targetCodeStr : '')
   const [error, setError] = useState(0)
   const opened = state.capsuleOpened
 
@@ -25,7 +27,7 @@ export default function Capsule({ onContinue }) {
     setInput(v)
     if (v.length === 4) {
       actions.capsuleAttempt(v)
-      if (v === CODE.join('')) setTimeout(() => actions.capsuleOpen(), 350)
+      if (v === targetCodeStr) setTimeout(() => actions.capsuleOpen(), 350)
       else {
         setError((e) => e + 1)
         setTimeout(() => setInput(''), 650)
@@ -57,7 +59,7 @@ export default function Capsule({ onContinue }) {
           <p className="mt-4 max-w-md text-white/80">
             {opened
               ? 'Внутри не чертежи и не рецепт. Главный секрет мировых рекордов ОЧАКОВО — это формула из трёх частей.'
-              : 'Четыре цифры, которые ты собрал(а) на станциях. Подсказка: год, когда всё началось.'}
+              : 'Четыре цифры, которые ты собрал(а) на станциях. Собери комбинацию года легендарных свершений!'}
           </p>
           {!opened && (
             <div className="mt-6 flex gap-2">
@@ -102,7 +104,7 @@ export default function Capsule({ onContinue }) {
                   <button onClick={() => press('0')} className="rounded-sm border-2 border-white/20 bg-white/5 py-3 font-mono text-xl font-bold hover:bg-white/15">
                     0
                   </button>
-                  <button onClick={() => setInput(state.digits.every(Boolean) ? CODE.join('') : input)} className="rounded-sm border-2 border-brand bg-brand py-3 text-xs font-extrabold" title="Подставить собранный код">
+                  <button onClick={() => setInput(state.digits.every(Boolean) ? targetCodeStr : input)} className="rounded-sm border-2 border-brand bg-brand py-3 text-xs font-extrabold" title="Подставить собранный код">
                     <Unlock className="mx-auto h-5 w-5" />
                   </button>
                 </div>

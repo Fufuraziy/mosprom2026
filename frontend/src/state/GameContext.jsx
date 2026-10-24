@@ -24,6 +24,7 @@ const initialState = () => ({
   screen: 'home', // home | locker | hub | station | finale
   stationId: null,
   sessionId: uid('sess'),
+  targetCode: ['1', '9', '7', '8'],
   points: 0,
   spent: 0,
   digits: [null, null, null, null],
@@ -67,6 +68,8 @@ function reducer(state, a) {
     case 'LOAD':
       // синхронизация с другой вкладкой / рамкой телефона: режим просмотра у каждой вкладки свой
       return { ...state, ...a.state, mode: state.mode, telemetry: { ...emptyTelemetry(), ...(a.state.telemetry || {}) } }
+    case 'SET_TARGET_CODE':
+      return { ...state, targetCode: a.code, sessionId: a.sessionId || state.sessionId }
     case 'BOT_PUSH': {
       const b = state.bot
       const prev = b.threads[a.threadId] || { id: a.threadId, name: a.name || 'Кандидат', candidateId: a.candidateId || null, messages: [], unread: 0 }
@@ -120,7 +123,8 @@ function reducer(state, a) {
       if (t.stations[a.id]) return state
       const idx = ['lab', 'engineering', 'line', 'design'].indexOf(a.id)
       const digits = [...state.digits]
-      digits[idx] = CODE[idx]
+      const targetCode = state.targetCode || CODE
+      digits[idx] = targetCode[idx]
       return {
         ...state,
         digits,
@@ -216,6 +220,11 @@ export function GameProvider({ children }) {
     if (sessionStarted.current) return
     sessionStarted.current = true
     api.health()
+    api.startSession().then((res) => {
+      if (res?.target_code && Array.isArray(res.target_code) && res.target_code.length === 4) {
+        dispatch({ type: 'SET_TARGET_CODE', code: res.target_code, sessionId: res.session_id })
+      }
+    }).catch(() => {})
     api.track(state.sessionId, 'session_open', { screen: state.screen })
   }, [state.sessionId, state.screen])
 

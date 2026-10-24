@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ochakovo_craft_code_1978
+    ports:
+      - "8000:8000"
+    environment:
+      - OCHAKOVO_DB_PATH=/app/backend/ochakovo.db
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ochakovo_db_data:/app/backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  ochakovo_db_data:
+    driver: local
