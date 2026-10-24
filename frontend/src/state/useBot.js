@@ -50,6 +50,21 @@ export function useBot() {
         candidateId: candidate.id,
         markUnread: true,
       })
+      // Сохраняем в localStorage для надежной синхронизации между вкладками и перезагрузками
+      try {
+        const stored = JSON.parse(window.localStorage.getItem('ochakovo_hr_sent_messages') || '[]')
+        stored.push({
+          candidate_id: candidate.id,
+          candidate_fio: candidate.fio,
+          thread_id: threadId,
+          text,
+          keyboard,
+          sent_at: new Date().toISOString(),
+        })
+        window.localStorage.setItem('ochakovo_hr_sent_messages', JSON.stringify(stored))
+      } catch {
+        /* ignore */
+      }
       return threadId
     },
     [state.sessionId, actions],

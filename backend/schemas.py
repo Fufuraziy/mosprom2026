@@ -139,6 +139,8 @@ class BotSendRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     pin: Optional[str] = None
+    key: Optional[str] = None
+    login: Optional[str] = None
     vk_user_id: Optional[Any] = None
     sign: Optional[str] = None
 

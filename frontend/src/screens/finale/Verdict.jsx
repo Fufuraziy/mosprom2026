@@ -211,15 +211,25 @@ function Row({ k, v }) {
 
 function Toggle({ on, set, icon: I, label, sub }) {
   return (
-    <button onClick={() => set(!on)} className={cx('flex items-start gap-2 rounded-sm border-2 p-3 text-left transition', on ? 'border-brand bg-brand-50' : 'border-ink/15 bg-paper')} aria-pressed={on}>
-      <span className={cx('mt-0.5 grid h-5 w-9 shrink-0 items-center rounded-full border border-line px-0.5 transition', on ? 'bg-brand' : 'bg-paper')}>
-        <span className={cx('block h-3 w-3 rounded-full border border-brand bg-paper transition', on && 'translate-x-4')} />
+    <button
+      type="button"
+      onClick={() => set(!on)}
+      className={cx(
+        'flex items-start gap-2.5 rounded-sm border-2 p-3.5 text-left transition',
+        on
+          ? 'bg-red-950/80 text-white border-red-500 ring-1 ring-red-500 shadow-sm'
+          : 'bg-zinc-800/90 text-zinc-100 border-zinc-700 hover:border-zinc-500'
+      )}
+      aria-pressed={on}
+    >
+      <span className={cx('mt-0.5 grid h-5 w-9 shrink-0 items-center rounded-full border border-zinc-600 px-0.5 transition', on ? 'bg-red-600' : 'bg-zinc-700')}>
+        <span className={cx('block h-3.5 w-3.5 rounded-full bg-white transition', on && 'translate-x-3.5')} />
       </span>
       <span>
-        <span className="flex items-center gap-1 text-sm font-extrabold">
-          <I className="h-4 w-4" /> {label}
+        <span className="flex items-center gap-1.5 text-sm font-extrabold text-white">
+          <I className="h-4 w-4 text-red-400" /> {label}
         </span>
-        <span className="text-xs text-ink-mute">{sub}</span>
+        <span className="block text-xs text-zinc-300 mt-0.5 leading-snug">{sub}</span>
       </span>
     </button>
   )

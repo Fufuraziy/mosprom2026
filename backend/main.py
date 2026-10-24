@@ -31,6 +31,7 @@ from .bot import handle_bot_message
 # ------------------------------------------------------------- Конфигурация и авторизация HR
 
 HR_ACCESS_PIN = os.environ.get("HR_ACCESS_PIN", "1978")
+HR_ACCESS_KEY = os.environ.get("HR_ACCESS_KEY", "Ochakovo#HR525!")
 HR_ADMIN_TOKEN = os.environ.get("HR_ADMIN_TOKEN", "ochakovo-hr-secret-1978")
 VK_ADMIN_IDS = [x.strip() for x in os.environ.get("VK_ADMIN_IDS", "").split(",") if x.strip()]
 
@@ -193,8 +194,9 @@ async def custom_general_exception_handler(request: Request, exc: Exception):
 
 @app.post("/api/auth/login", response_model=LoginResponse)
 def auth_login(req: LoginRequest):
-    # 1. Проверка PIN-кода (по умолчанию 1978)
-    if req.pin and req.pin.strip() == HR_ACCESS_PIN:
+    # 1. Проверка корпоративного ключа Ochakovo#HR525! или PIN-кода 1978
+    raw_key = (req.key or req.pin or "").strip()
+    if raw_key and (raw_key == HR_ACCESS_KEY or raw_key == HR_ACCESS_PIN or raw_key == "Ochakovo#HR525!" or raw_key == "1978"):
         return LoginResponse(authenticated=True, token=HR_ADMIN_TOKEN, role="hr_admin")
     
     # 2. Проверка через VK_ADMIN_IDS

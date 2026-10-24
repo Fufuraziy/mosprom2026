@@ -7,9 +7,9 @@ import { StationShell, Quiz, StationReward } from '../../components/StationKit.j
 import { Button, Card, VerbTag, cx } from '../../components/ui.jsx'
 
 const STEPS = ['Линия SMI SK 500 P', 'ТТН на паллету', 'Мини-квиз', 'Цифра кода']
-const GAME_MS = 20000
-const SPAWN_MS = 640
-const TRAVEL_MS = 4300
+const GAME_MS = 26000
+const SPAWN_MS = 1150
+const TRAVEL_MS = 7740
 const TYPES = {
   mohito: { label: 'Мохито Fresh', body: '#6DBE3A', band: '#E9F7D8', text: 'MOJITO' },
   gin: { label: 'Джин & Грейпфрут', body: '#E8456B', band: '#FFE1E8', text: 'GIN&GRP' },
@@ -18,19 +18,37 @@ const TYPES = {
 function Can({ type, dented, onClick, x, removed }) {
   const t = TYPES[type]
   return (
-    <button
-      onClick={onClick}
-      className="absolute bottom-[34px] -ml-5 w-10 transition-[transform,opacity] duration-300"
-      style={{ left: `${x}%`, transform: removed ? 'translateY(70px) rotate(35deg)' : dented ? 'rotate(-7deg)' : undefined, opacity: removed ? 0 : 1 }}
-      aria-label={`${t.label}${dented ? ', мятая' : ''}`}
+    <div
+      onPointerDown={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClick()
+      }}
+      className={cx(
+        'absolute bottom-[16px] -ml-9 h-[90px] w-[74px] p-2 cursor-pointer select-none touch-manipulation z-20 flex items-center justify-center transition-[transform,opacity] duration-300',
+        dented && 'ring-2 ring-brand ring-offset-2 ring-offset-transparent animate-pulse rounded-lg bg-red-500/10'
+      )}
+      style={{
+        left: `${x}%`,
+        transform: removed
+          ? 'translate3d(0, 80px, 0) rotate(45deg)'
+          : dented
+            ? 'rotate(-6deg)'
+            : 'none',
+        opacity: removed ? 0 : 1,
+        willChange: 'transform, opacity',
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`${t.label}${dented ? ', мятая (брак)' : ''}`}
     >
-      <svg viewBox="0 0 40 70" className="h-[68px] w-10 drop-shadow">
+      <svg viewBox="0 0 40 70" className="h-[68px] w-10 drop-shadow-md pointer-events-none">
         <rect x="6" y="2" width="28" height="5" rx="2" fill="#C8CDD2" stroke="#4A4A4A" strokeWidth="1.5" />
         <path
           d={dented ? 'M5 8 h30 v20 l-6 6 6 6 v24 q0 4 -4 4 h-22 q-4 0 -4 -4 v-22 l5 -5 -5 -7z' : 'M5 8 h30 v56 q0 4 -4 4 h-22 q-4 0 -4 -4z'}
           fill={t.body}
-          stroke="#4A4A4A"
-          strokeWidth="2"
+          stroke={dented ? '#D50032' : '#4A4A4A'}
+          strokeWidth={dented ? '2.5' : '2'}
         />
         <rect x="5" y="26" width="30" height="16" fill={t.band} opacity={dented ? 0.7 : 1} />
         <text x="20" y="37" textAnchor="middle" fontSize="6.4" fontWeight="900" fill="#4A4A4A" fontFamily="Montserrat, Arial">
@@ -39,9 +57,14 @@ function Can({ type, dented, onClick, x, removed }) {
         <text x="20" y="56" textAnchor="middle" fontSize="5" fontWeight="800" fill="#fff" fontFamily="Montserrat, Arial">
           ОЧАКОВО
         </text>
-        {dented && <path d="M12 14 l8 6 -4 4 8 4" stroke="#4A4A4A" strokeWidth="1.5" fill="none" />}
+        {dented && (
+          <g>
+            <path d="M12 14 l8 6 -4 4 8 4" stroke="#D50032" strokeWidth="2.5" fill="none" />
+            <circle cx="20" cy="30" r="3" fill="#D50032" />
+          </g>
+        )}
       </svg>
-    </button>
+    </div>
   )
 }
 

@@ -7,8 +7,18 @@ import { Button, Card, RecBadge, SectionTitle, TornPhoto, VerbTag, cx } from '..
 import PpeArt, { Mannequin } from '../components/PpeArt.jsx'
 import Krafty from '../components/Krafty.jsx'
 
+function shuffleArray(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 export default function Locker() {
   const { state, actions } = useGame()
+  const [items] = useState(() => shuffleArray(PPE_ITEMS))
   const [picked, setPicked] = useState(state.ppeDone ? PPE_ITEMS.filter((i) => i.ok).map((i) => i.id) : [])
   const [feedback, setFeedback] = useState(null) // {wrong:[], missing:[]}
   const [shake, setShake] = useState(0)
@@ -53,8 +63,8 @@ export default function Locker() {
             sub="Перед входом в цех выбери ровно то, что разрешено правилами охраны труда. Безопасность — приоритет ОЧАКОВО: в цехе шумно, вокруг движущиеся механизмы и химия."
           />
 
-          <motion.div key={shake} animate={shake ? { x: [0, -10, 10, -6, 6, 0] } : {}} transition={{ duration: 0.4 }} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {PPE_ITEMS.map((it) => {
+          <motion.div key={shake} animate={shake ? { x: [0, -10, 10, -6, 6, 0] } : {}} transition={{ duration: 0.4 }} className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+            {items.map((it) => {
               const on = picked.includes(it.id)
               const isWrong = feedback?.wrong.includes(it.id)
               return (

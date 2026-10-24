@@ -166,6 +166,16 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
         <Field label="Дата рождения" required error={errors.birth_date} hint={age != null && age >= 0 ? `${age} лет` : ''}>
           <input type="date" max={max18} className={inputCls(errors.birth_date)} value={form.birth_date} onChange={set('birth_date')} />
         </Field>
+        {age != null && age < 18 && (
+          <div className="sm:col-span-2 rounded-sm border-2 border-brand bg-brand-50 p-4 text-ink">
+            <div className="font-display font-extrabold text-brand uppercase text-sm">
+              Ждём тебя в команде Очаково после 18-летия!
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+              По нормам ТК РФ и правилам охраны труда пищевого комбината трудоустройство и практика возможны строго с 18 лет. А пока мы приглашаем тебя на увлекательные экскурсии в <b>Музей традиционных русских напитков ОЧАКОВО</b> на ул. Рябиновой, 44 (запись: 8 800 100 77 77)!
+            </p>
+          </div>
+        )}
         <Field label="Интересующая вакансия" required error={errors.vacancy}>
           <select className={inputCls(errors.vacancy)} value={form.vacancy} onChange={set('vacancy')}>
             <option value="">Выбери…</option>

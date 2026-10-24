@@ -228,7 +228,7 @@ export default function HRPanel() {
             </thead>
             <tbody className="divide-y divide-ink/10">
               {filtered.map((c) => (
-                <tr key={c.id} onClick={() => setSelected(c)} className={cx('cursor-pointer transition hover:bg-brand-50', c.is_live && 'bg-malt-light/25')}>
+                <tr key={c.id} onClick={() => setSelected(c)} className={cx('group cursor-pointer transition-colors hover:bg-slate-800/90 dark:hover:bg-zinc-800 hover:text-white', c.is_live ? 'bg-malt-light/25 dark:bg-zinc-800/40' : 'bg-transparent')}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 font-extrabold">
                       {c.fio}

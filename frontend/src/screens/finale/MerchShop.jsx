@@ -111,7 +111,15 @@ export default function MerchShop({ onForm }) {
             ? 'Анкета отправлена — твои билеты участвуют в розыгрыше. Победителей объявим в сообществе ОЧАКОВО и напишем по контактам из анкеты.'
             : 'Билеты активируются после отправки анкеты (18+): так мы сможем связаться с победителем и вручить мерч.'}
         </p>
-        {!state.candidate && <Button onClick={onForm}>Заполнить анкету</Button>}
+        {!state.candidate && (
+          <button
+            type="button"
+            onClick={onForm}
+            className="shrink-0 rounded-sm bg-[#E30613] hover:bg-red-700 text-white font-bold py-2.5 px-5 shadow-lg shadow-red-600/30 border border-red-400 uppercase text-xs tracking-wider transition active:scale-95"
+          >
+            Заполнить анкету 18+
+          </button>
+        )}
       </div>
     </div>
   )

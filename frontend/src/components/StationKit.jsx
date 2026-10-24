@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, BookOpen, Check, X, FastForward, Map } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
-import { STATIONS, PHOTO } from '../data/content.js'
+import { STATIONS, PHOTO, STATION_HISTORY_FACTS } from '../data/content.js'
 import { Button, Card, Picto, RecBadge, Steps, TornPhoto, VerbTag, cx } from './ui.jsx'
 import Krafty from './Krafty.jsx'
 
@@ -38,6 +38,14 @@ export function StationShell({ id, steps, step, onSkip, children, tip }) {
           </Button>
         )}
       </div>
+      {STATION_HISTORY_FACTS?.[id] && (
+        <div className="mb-4 flex items-center gap-3 rounded-sm border border-brand/30 bg-paper p-3 text-xs font-semibold shadow-sm">
+          <span className="rounded bg-brand/10 px-2 py-1 font-mono text-[11px] font-bold uppercase text-brand">
+            {STATION_HISTORY_FACTS[id].year}
+          </span>
+          <span className="flex-1 italic text-ink">{STATION_HISTORY_FACTS[id].quote}</span>
+        </div>
+      )}
       {tip && (
         <div className="mb-5 flex items-start gap-3 rounded-sm border border-line bg-paper p-3 shadow-pop-sm">
           <Krafty size={44} mood="think" className="shrink-0" />
@@ -57,10 +65,25 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
   const q = questions[i]
   const answered = chosen !== null
 
-  const choose = (k) => {
+  // Fisher-Yates global shuffle of answer options
+  const shuffledOptions = useMemo(() => {
+    if (!q) return []
+    const list = q.options.map((text, origIdx) => ({
+      text,
+      origIdx,
+      isCorrect: origIdx === q.answer,
+    }))
+    for (let j = list.length - 1; j > 0; j--) {
+      const r = Math.floor(Math.random() * (j + 1));
+      [list[j], list[r]] = [list[r], list[j]]
+    }
+    return list
+  }, [i, q])
+
+  const choose = (opt) => {
     if (answered) return
-    setChosen(k)
-    const ok = k === q.answer
+    setChosen(opt)
+    const ok = opt.isCorrect
     if (ok) setCorrect((c) => c + 1)
     actions.quiz(station, i, ok)
   }
@@ -86,13 +109,13 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
           <motion.div key={i} initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}>
             <p className="font-display text-lg font-extrabold leading-snug sm:text-xl">{q.q}</p>
             <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-              {q.options.map((o, k) => {
-                const isRight = answered && k === q.answer
-                const isWrong = answered && k === chosen && k !== q.answer
+              {shuffledOptions.map((opt, k) => {
+                const isRight = answered && opt.isCorrect
+                const isWrong = answered && chosen === opt && !opt.isCorrect
                 return (
                   <button
-                    key={k}
-                    onClick={() => choose(k)}
+                    key={opt.text}
+                    onClick={() => choose(opt)}
                     disabled={answered}
                     className={cx(
                       'flex items-center gap-3 rounded-sm border-2 px-4 py-3 text-left text-sm font-bold transition',
@@ -105,7 +128,7 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
                     <span className={cx('grid h-7 w-7 shrink-0 place-items-center rounded-sm border-2 font-mono text-xs', isRight || isWrong ? 'border-white' : 'border-ink/30')}>
                       {isRight ? <Check className="h-4 w-4" /> : isWrong ? <X className="h-4 w-4" /> : 'АБВГ'[k]}
                     </span>
-                    {o}
+                    {opt.text}
                   </button>
                 )
               })}
@@ -113,7 +136,7 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
             {answered && (
               <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4 flex flex-col gap-3 rounded-sm bg-cream p-4 sm:flex-row sm:items-center">
                 <p className="flex-1 text-sm leading-relaxed">
-                  <b className={chosen === q.answer ? 'text-lime' : 'text-brand'}>{chosen === q.answer ? `Верно! +${pointsPer}. ` : 'Не совсем. '}</b>
+                  <b className={chosen?.isCorrect ? 'text-lime' : 'text-brand'}>{chosen?.isCorrect ? `Верно! +${pointsPer}. ` : 'Не совсем. '}</b>
                   {q.fact}
                 </p>
                 <Button onClick={next}>
@@ -154,6 +177,25 @@ export function StationReward({ id, breakdown, total }) {
         <VerbTag>Твоя точность — наш успех</VerbTag>
         <h2 className="mt-3 font-display text-2xl font-extrabold sm:text-3xl">Станция «{s.title}» пройдена!</h2>
         <p className="mt-1 text-sm text-ink-soft">Результаты мини-игры ушли в твой профиль компетенций. HR увидит их только если ты сам(а) отправишь анкету.</p>
+        {STATION_HISTORY_FACTS?.[id] && (
+          <div className="mt-4 rounded-sm border-2 border-brand/30 bg-kraft-light p-4 text-ink shadow-pop-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-brand">
+                📜 Исторический факт ОЧАКОВО · {STATION_HISTORY_FACTS[id].year}
+              </span>
+              <span className="rounded-full bg-brand px-2 py-0.5 text-[10px] font-extrabold uppercase text-white">
+                {STATION_HISTORY_FACTS[id].badge}
+              </span>
+            </div>
+            <div className="mt-1 font-display text-base font-extrabold">{STATION_HISTORY_FACTS[id].title}</div>
+            <p className="mt-1 text-xs leading-relaxed text-ink-soft">{STATION_HISTORY_FACTS[id].fact}</p>
+            {STATION_HISTORY_FACTS[id].quote && (
+              <div className="mt-2.5 border-t border-brand/20 pt-2 text-[11px] italic font-semibold text-brand">
+                {STATION_HISTORY_FACTS[id].quote}
+              </div>
+            )}
+          </div>
+        )}
         <ul className="mt-4 divide-y-2 divide-dashed divide-ink/10">
           {breakdown.map((b) => (
             <li key={b.label} className="flex items-center justify-between gap-4 py-2 text-sm">

@@ -186,12 +186,26 @@ function Refractometer({ onDone }) {
             </div>
           ) : cur && measured[cur.n] ? (
             <motion.div key={cur.n} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <div className="mt-2 text-[11px] text-[#7FB6C9]">
+              <div className="mt-1 text-[11px] text-[#7FB6C9]">
                 Образец №{cur.n} · {cur.name}
               </div>
-              <div className="text-5xl font-bold tracking-tight text-white">{measured[cur.n].toFixed(2)}</div>
-              <div className="mt-1 text-[11px]">
-                Норма: {cur.min.toFixed(1)}–{cur.max.toFixed(1)} °Bx · nD {(1.3330 + measured[cur.n] * 0.00145).toFixed(4)}
+              <div className="flex items-baseline gap-2">
+                <div className="text-4xl sm:text-5xl font-bold tracking-tight text-white">{measured[cur.n].toFixed(2)}</div>
+                <div className="text-xs font-bold text-[#7FB6C9]">°Bx</div>
+              </div>
+              <div className="mt-0.5 text-[11px] text-[#BFF3FF]/80">
+                Норма рецептуры: <b className="text-white">{cur.min.toFixed(1)}–{cur.max.toFixed(1)} °Bx</b>
+              </div>
+              <div className="mt-2">
+                {measured[cur.n] >= cur.min && measured[cur.n] <= cur.max ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-[#3DD6A0] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#0D2236] shadow-sm">
+                    ● В пределах допуска (Норма)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded bg-[#FF4D6D] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white animate-pulse shadow-sm">
+                    ▲ Отклонение от рецептуры (Брак)
+                  </span>
+                )}
               </div>
             </motion.div>
           ) : (
@@ -230,8 +244,21 @@ function Refractometer({ onDone }) {
               </div>
               <div className="hidden sm:block">
                 <div className="text-sm font-extrabold">{s.name}</div>
-                <div className="text-xs text-ink-mute">
-                  норма {s.min}–{s.max} °Bx {measured[s.n] != null && <b className="ml-1 text-ink">· изм. {measured[s.n].toFixed(2)}</b>}
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-mute">
+                  <span>норма {s.min}–{s.max} °Bx</span>
+                  {measured[s.n] != null && (
+                    <>
+                      <b className="text-ink">· {measured[s.n].toFixed(2)} °Bx</b>
+                      <span className={cx(
+                        'rounded px-1.5 py-0.2 text-[10px] font-extrabold uppercase tracking-wider',
+                        measured[s.n] >= s.min && measured[s.n] <= s.max
+                          ? 'bg-lime/25 text-lime-800 border border-lime/40'
+                          : 'bg-brand/20 text-brand-700 border border-brand/40 animate-pulse'
+                      )}>
+                        {measured[s.n] >= s.min && measured[s.n] <= s.max ? 'В пределах допуска' : 'Отклонение'}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">

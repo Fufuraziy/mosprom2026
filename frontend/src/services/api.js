@@ -118,7 +118,22 @@ export async function checkHealth(force = false) {
  * Выполнить запрос к бэкенду, а при недоступности — локальный fallback.
  * Ошибки валидации (4xx) пробрасываются как есть, чтобы форма показала их пользователю.
  */
+const GET_CACHE = new Map()
+const GET_CACHE_TTL = 30000 // Кэширование GET-запросов на 30 секунд
+
+export function clearGetCache() {
+  GET_CACHE.clear()
+}
+
 async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = false } = {}) {
+  // Кэш для GET-запросов (30 секунд)
+  if (method === 'GET') {
+    const cached = GET_CACHE.get(path)
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.data
+    }
+  }
+
   const online = await checkHealth()
   if (online) {
     try {
@@ -144,7 +159,13 @@ async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = fa
       }
       if (r.ok) {
         const ct = r.headers.get('content-type') || ''
-        return ct.includes('application/json') ? await r.json() : await r.text()
+        const result = ct.includes('application/json') ? await r.json() : await r.text()
+        if (method === 'GET') {
+          GET_CACHE.set(path, { data: result, expiresAt: Date.now() + GET_CACHE_TTL })
+        } else {
+          GET_CACHE.clear()
+        }
+        return result
       }
       if (r.status === 404 || r.status === 405 || r.status === 501) {
         // эндпоинт ещё не реализован на бэкенде — тихо работаем локально
@@ -157,7 +178,11 @@ async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = fa
       if (!(slow && e.name === 'AbortError')) setOnline(false)
     }
   }
-  return fallback()
+  const fallbackResult = fallback()
+  if (method === 'GET' && fallbackResult && typeof fallbackResult.then !== 'function') {
+    GET_CACHE.set(path, { data: fallbackResult, expiresAt: Date.now() + GET_CACHE_TTL })
+  }
+  return fallbackResult
 }
 
 function normalizeErrors(data) {
@@ -180,20 +205,26 @@ const q = (params = {}) => {
 export const api = {
   health: () => checkHealth(true),
 
-  /** Вход в систему HR / Режим Жюри. Проверяет PIN (по умолчанию 1978) или vk_user_id */
-  login: (pin, vk_user_id) =>
+  /** Вход в систему HR / Режим Жюри. Проверяет корпоративный ключ Ochakovo#HR525! / 1978 или vk_user_id */
+  login: (keyOrPin, login = 'hr-kab1155@ochakovo.ru', vk_user_id) =>
     call(
       'POST',
       '/api/auth/login',
-      { pin: pin ? String(pin).trim() : undefined, vk_user_id: vk_user_id || undefined },
+      {
+        key: keyOrPin ? String(keyOrPin).trim() : undefined,
+        pin: keyOrPin ? String(keyOrPin).trim() : undefined,
+        login,
+        vk_user_id: vk_user_id || undefined,
+      },
       () => {
-        if (String(pin).trim() === '1978') {
+        const val = String(keyOrPin).trim()
+        if (val === 'Ochakovo#HR525!' || val === '1978') {
           return { authenticated: true, token: 'ochakovo-hr-secret-1978', role: 'hr_admin' }
         }
-        const err = new Error('Неверный код доступа сотрудника HR Очаково')
+        const err = new Error('Неверный корпоративный ключ доступа сотрудника HR Очаково')
         err.status = 401
-        err.detail = 'Неверный код доступа сотрудника HR Очаково'
-        err.errors = { pin: 'Неверный код доступа сотрудника HR Очаково' }
+        err.detail = 'Неверный корпоративный ключ доступа сотрудника HR Очаково'
+        err.errors = { key: 'Неверный корпоративный ключ доступа сотрудника HR Очаково' }
         throw err
       },
     ).then((res) => {
