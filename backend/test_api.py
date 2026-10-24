@@ -162,7 +162,12 @@ def test_candidate_valid_submission_and_hr_flow():
     })
     assert r_send.status_code == 200
     assert r_send.json()["ok"] is True
-    assert r_send.json()["channel"] == "vk"
+    # Без VK_GROUP_TOKEN сообщение не уходит в настоящий ВК — честно помечаем как демо-канал (симулятор бота).
+    # С токеном и числовым VK ID канал будет "vk", а delivered отразит ответ messages.send.
+    import backend.main as m
+    expected = "vk" if m.VK_GROUP_TOKEN else "vk_demo"
+    assert r_send.json()["channel"] == expected
+    assert r_send.json()["delivered"] is True or expected == "vk"
 
 def test_analytics_dashboard():
     r = client.get("/api/analytics/summary")
