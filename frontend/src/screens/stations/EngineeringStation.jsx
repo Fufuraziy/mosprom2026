@@ -190,6 +190,21 @@ function Panel({ onDone, onPhase }) {
     return () => clearInterval(id)
   }, [phase])
 
+  // приложение свернули (VKWebAppViewHide) посреди смены — смена прерывается, её можно начать заново
+  useEffect(() => {
+    if (phase !== 'run') return
+    const onPause = () => {
+      sim.current = { drift: 0, green: 0, ticks: 0, alarmAt: 0, alarmStart: 0, reaction: null, handled: false }
+      setMeaAlarm(false)
+      setValveOpen(true)
+      setPressure(2.0)
+      setT(0)
+      setPhase('idle')
+    }
+    window.addEventListener('och:pause', onPause)
+    return () => window.removeEventListener('och:pause', onPause)
+  }, [phase])
+
   useEffect(() => {
     if (phase !== 'run') return
     const onKey = (e) => {
@@ -312,13 +327,13 @@ function Panel({ onDone, onPhase }) {
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setAnswers((a) => ({ ...a, [open]: 'ok' }))}
-                    className={cx('flex items-center justify-center gap-1 rounded-sm border border-line px-2 py-2 text-xs font-extrabold', answers[open] === 'ok' ? 'bg-lime text-white' : 'bg-white')}
+                    className={cx('flex items-center justify-center gap-1 rounded-sm border border-line px-2 py-2 text-xs font-extrabold', answers[open] === 'ok' ? 'bg-lime text-white' : 'bg-paper')}
                   >
                     <CheckCircle2 className="h-4 w-4" /> Норма
                   </button>
                   <button
                     onClick={() => setAnswers((a) => ({ ...a, [open]: 'bad' }))}
-                    className={cx('flex items-center justify-center gap-1 rounded-sm border border-line px-2 py-2 text-xs font-extrabold', answers[open] === 'bad' ? 'bg-brand text-white' : 'bg-white')}
+                    className={cx('flex items-center justify-center gap-1 rounded-sm border border-line px-2 py-2 text-xs font-extrabold', answers[open] === 'bad' ? 'bg-brand text-white' : 'bg-paper')}
                   >
                     <TriangleAlert className="h-4 w-4" /> Отклонение
                   </button>

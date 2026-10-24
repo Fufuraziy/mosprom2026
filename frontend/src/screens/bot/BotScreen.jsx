@@ -29,7 +29,7 @@ const KB_COLORS = {
 
 function MiniAppCard({ att, onOpen }) {
   return (
-    <div className="mt-2 w-full max-w-[300px] overflow-hidden rounded-xl border border-[#DCE1E6] bg-white">
+    <div className="mt-2 w-full max-w-[300px] overflow-hidden rounded-xl border border-[#DCE1E6] bg-paper">
       <div className="relative h-28">
         <img src={PHOTO('hq-building.jpg')} alt="" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -57,7 +57,7 @@ function Message({ m, onOpenApp }) {
             {m.kind === 'invite' ? 'Сообщение от HR ОЧАКОВО' : 'Рассылка сообщества'}
           </div>
         )}
-        <div className={cx('whitespace-pre-line rounded-2xl px-3.5 py-2 text-[14px] leading-snug text-[#2C2D2E]', mine ? 'rounded-br-md bg-vk-bubble' : 'rounded-bl-md bg-white shadow-[0_1px_1px_rgba(0,0,0,.06)]')}>
+        <div className={cx('whitespace-pre-line rounded-2xl px-3.5 py-2 text-[14px] leading-snug text-[#2C2D2E]', mine ? 'rounded-br-md bg-vk-bubble' : 'rounded-bl-md bg-paper shadow-[0_1px_1px_rgba(0,0,0,.06)]')}>
           {m.text}
           <span className="ml-2 inline-flex translate-y-0.5 items-center gap-0.5 text-[10px] text-vk-gray">
             {time(m.ts)}
@@ -103,7 +103,7 @@ function Chat({ thread, onBack }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-3 border-b border-[#E7E8EC] bg-white px-4 py-2.5">
+      <div className="flex items-center gap-3 border-b border-[#E7E8EC] bg-paper px-4 py-2.5">
         {onBack && (
           <button onClick={onBack} className="text-vk md:hidden" aria-label="К диалогам">
             <ChevronLeft className="h-6 w-6" />
@@ -117,7 +117,7 @@ function Chat({ thread, onBack }) {
       </div>
       <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto bg-vk-bg px-3 py-4 sm:px-5">
         {!thread.messages.length && (
-          <div className="mx-auto mt-10 max-w-sm rounded-2xl bg-white p-5 text-center shadow-[0_1px_1px_rgba(0,0,0,.06)]">
+          <div className="mx-auto mt-10 max-w-sm rounded-2xl bg-paper p-5 text-center shadow-[0_1px_1px_rgba(0,0,0,.06)]">
             <LogoSquare withText={false} className="mx-auto h-16 w-16 rounded-full" />
             <div className="mt-3 font-semibold text-[#2C2D2E]">{COMMUNITY}</div>
             <p className="mt-1 text-sm text-vk-gray">Практика и стажировки 18+. Нажмите «Начать», чтобы бот рассказал о вакансиях и открыл мини-игру.</p>
@@ -128,7 +128,7 @@ function Chat({ thread, onBack }) {
         ))}
       </div>
       {keyboard && (
-        <div className="space-y-1.5 border-t border-[#E7E8EC] bg-white px-3 pt-2">
+        <div className="space-y-1.5 border-t border-[#E7E8EC] bg-paper px-3 pt-2">
           {keyboard.map((row, i) => (
             <div key={i} className="flex gap-1.5">
               {row.map((b) => (
@@ -140,7 +140,7 @@ function Chat({ thread, onBack }) {
           ))}
         </div>
       )}
-      <form onSubmit={submit} className="flex items-center gap-2 bg-white px-3 py-2.5">
+      <form onSubmit={submit} className="flex items-center gap-2 bg-paper px-3 py-2.5">
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Напишите сообщение..." className="min-w-0 flex-1 rounded-full border border-[#DCE1E6] bg-[#F2F3F5] px-4 py-2 text-sm outline-none focus:border-vk" />
         <button type="submit" disabled={!text.trim()} className="grid h-9 w-9 place-items-center rounded-full text-vk disabled:text-vk-gray" aria-label="Отправить">
           <Send className="h-5 w-5" />
@@ -179,7 +179,7 @@ export default function BotScreen() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* мессенджер */}
-        <div className="grid h-[640px] overflow-hidden rounded-xl border border-[#DCE1E6] bg-white shadow-card md:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid h-[640px] overflow-hidden rounded-xl border border-[#DCE1E6] bg-paper shadow-card md:grid-cols-[280px_minmax(0,1fr)]">
           <aside className={cx('flex min-h-0 flex-col border-r border-[#E7E8EC]', mobileChat && 'hidden md:flex')}>
             <div className="border-b border-[#E7E8EC] p-3">
               <div className="flex items-center gap-2 rounded-lg bg-[#F2F3F5] px-3 py-2 text-sm text-vk-gray">
@@ -223,7 +223,7 @@ export default function BotScreen() {
 
         {/* пульт для жюри */}
         <div className="space-y-4">
-          <div className="border border-line bg-white p-4">
+          <div className="border border-line bg-paper p-4">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-soft">
               <BellRing className="h-4 w-4 text-brand" /> Сценарии пушей (для жюри)
             </div>
@@ -249,7 +249,7 @@ export default function BotScreen() {
                 [BarChart3, 'Панель HR', 'ИИ-досье и приглашение через бота'],
               ].map(([I, t, s], i) => (
                 <li key={t} className="flex gap-3">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center bg-white text-brand">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center bg-paper text-brand">
                     <I className="h-4 w-4" />
                   </span>
                   <span>

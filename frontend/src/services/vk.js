@@ -18,6 +18,12 @@ const params = typeof window !== 'undefined' ? new URLSearchParams(window.locati
  */
 export const isInsideVK = Boolean(params.get('vk_app_id') && params.get('sign')) || Boolean(bridge.isWebView?.())
 
+/**
+ * Строка запуска для бэкенда (заголовок X-VK-Launch-Params): бэкенд проверяет подпись sign
+ * «Защищённым ключом» приложения и только тогда доверяет vk_user_id. Вне ВК — пусто.
+ */
+export const launchQuery = params.get('sign') ? window.location.search.replace(/^\?/, '') : ''
+
 export const launchParams = {
   vk_user_id: params.get('vk_user_id'),
   vk_app_id: params.get('vk_app_id'),
@@ -33,15 +39,21 @@ async function send(method, payload) {
   return withTimeout(bridge.send(method, payload))
 }
 
-/** Вызывается один раз при старте приложения. */
-export async function initVK() {
-  if (!isInsideVK) return { ok: false, mode: 'browser' }
-  try {
-    await send('VKWebAppInit')
-    return { ok: true, mode: 'vk' }
-  } catch (e) {
-    return { ok: false, mode: 'vk', error: String(e?.message || e) }
-  }
+let initPromise = null
+
+/** VKWebAppInit — один раз при старте (main.jsx вызывает до рендера, повторные вызовы получают тот же результат). */
+export function initVK() {
+  if (initPromise) return initPromise
+  initPromise = (async () => {
+    if (!isInsideVK) return { ok: false, mode: 'browser' }
+    try {
+      await send('VKWebAppInit')
+      return { ok: true, mode: 'vk' }
+    } catch (e) {
+      return { ok: false, mode: 'vk', error: String(e?.message || e) }
+    }
+  })()
+  return initPromise
 }
 
 /** «D.M.YYYY» → «YYYY-MM-DD»; «D.M» (год скрыт) → null. */
@@ -137,6 +149,70 @@ export async function allowBotMessages() {
     }
   }
   return { source: 'demo', ok: true }
+}
+
+/**
+ * Виброотклик (Taptic Engine / вибромотор). kind: 'success' | 'error' | 'warning' | 'light' | 'medium' | 'heavy'.
+ * Вне ВК и на платформах без вибрации — тихо ничего не делает.
+ */
+export function haptic(kind = 'light') {
+  if (!isInsideVK) return
+  const notify = kind === 'success' || kind === 'error' || kind === 'warning'
+  const p = notify ? bridge.send('VKWebAppTapticNotificationOccurred', { type: kind }) : bridge.send('VKWebAppTapticImpactOccurred', { style: kind })
+  p.catch(() => {})
+}
+
+/**
+ * Приложение свернули / развернули: VKWebAppViewHide / VKWebAppViewRestore внутри ВК, visibilitychange в браузере.
+ * Мини-игры слушают window-событие 'och:pause' и ставят таймеры на паузу (правило ВК 2.2.5).
+ */
+let viewEventsOn = false
+export function listenViewEvents() {
+  if (viewEventsOn || typeof window === 'undefined') return
+  viewEventsOn = true
+  const fire = (name) => window.dispatchEvent(new Event(name))
+  bridge.subscribe(({ detail }) => {
+    if (detail?.type === 'VKWebAppViewHide') fire('och:pause')
+    if (detail?.type === 'VKWebAppViewRestore') fire('och:resume')
+  })
+  document.addEventListener('visibilitychange', () => fire(document.hidden ? 'och:pause' : 'och:resume'))
+}
+
+/* ------------------------------------------------------------------ VK Storage */
+// Прогресс игры хранится в ВК (правило 2.3.8: одинаковый прогресс на всех устройствах; localStorage в WebView ненадёжен).
+// Лимиты: значение ≤ 4096 символов (сериализованная строка ≤ 2236), ≤ 1000 ключей, ≤ 1000 вызовов в час.
+const ST_PREFIX = 'g1978_'
+const ST_CHUNK = 2000
+export const vkStorageEnabled = isInsideVK
+
+export async function storageLoad() {
+  if (!vkStorageEnabled) return null
+  try {
+    const meta = await send('VKWebAppStorageGet', { keys: [ST_PREFIX + 'meta'] })
+    const raw = meta?.keys?.[0]?.value
+    if (!raw) return null
+    const { n, savedAt } = JSON.parse(raw)
+    const keys = Array.from({ length: n }, (_, i) => ST_PREFIX + i)
+    const r = await send('VKWebAppStorageGet', { keys })
+    const map = Object.fromEntries((r?.keys || []).map((k) => [k.key, k.value]))
+    const json = keys.map((k) => map[k] || '').join('')
+    return { state: JSON.parse(json), savedAt }
+  } catch {
+    return null // новый пользователь (пустая строка) или ошибка — играем с локальным состоянием
+  }
+}
+
+export async function storageSave(obj) {
+  if (!vkStorageEnabled) return
+  const json = JSON.stringify(obj)
+  const parts = []
+  for (let i = 0; i < json.length; i += ST_CHUNK) parts.push(json.slice(i, i + ST_CHUNK))
+  try {
+    for (let i = 0; i < parts.length; i++) await send('VKWebAppStorageSet', { key: ST_PREFIX + i, value: parts[i] })
+    await send('VKWebAppStorageSet', { key: ST_PREFIX + 'meta', value: JSON.stringify({ n: parts.length, savedAt: obj.savedAt || Date.now() }) })
+  } catch {
+    /* flood control или сеть — сохраним в следующий раз */
+  }
 }
 
 export { bridge }

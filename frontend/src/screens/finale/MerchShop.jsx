@@ -39,7 +39,7 @@ function MerchArt({ id }) {
   if (id === 'stickers')
     return (
       <div className="relative grid h-full w-full place-items-center">
-        <div className="absolute left-[18%] top-[14%] rotate-[-12deg] rounded-full border border-line bg-white p-1.5 shadow-pop-sm">
+        <div className="absolute left-[18%] top-[14%] rotate-[-12deg] rounded-full border border-line bg-paper p-1.5 shadow-pop-sm">
           <Krafty size={64} mood="wink" />
         </div>
         <div className="absolute right-[16%] top-[18%] grid h-16 w-16 rotate-[10deg] place-items-center rounded-full border border-line bg-brand font-display text-[10px] font-extrabold leading-tight text-white shadow-pop-sm">

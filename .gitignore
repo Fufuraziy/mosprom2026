@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+.pytest_cache/
+
+# SQLite
+*.db
+*.sqlite3
+
+# Node / Frontend
+node_modules/
+dist/
+*.local
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Архив сборки, который создаёт vk-miniapps-deploy
+frontend/build.zip

@@ -1,28 +1,14 @@
-import { useState } from 'react'
+// Страница для сотрудников и жюри (hr.html): Панель HR, симулятор ВК-бота, предпросмотр мини-приложения.
+// Сама игра — VK Mini App (index.html → src/miniapp), здесь она показывается в рамке телефона.
 import { motion, AnimatePresence } from 'framer-motion'
 import { Coins, Ticket, Info } from 'lucide-react'
 import { useGame } from './state/GameContext.jsx'
 import Header from './components/Header.jsx'
-import MascotChat from './components/MascotChat.jsx'
 import { Logo } from './components/ui.jsx'
-import Home from './screens/Home.jsx'
-import Locker from './screens/Locker.jsx'
-import Hub from './screens/Hub.jsx'
-import LabStation from './screens/stations/LabStation.jsx'
-import EngineeringStation from './screens/stations/EngineeringStation.jsx'
-import LineStation from './screens/stations/LineStation.jsx'
-import DesignStation from './screens/stations/DesignStation.jsx'
-import Finale from './screens/finale/Finale.jsx'
 import HRPanel from './screens/hr/HRPanel.jsx'
 import BotScreen from './screens/bot/BotScreen.jsx'
-import PhoneFrame, { VkMiniAppBar } from './components/PhoneFrame.jsx'
-import { isInsideVK } from './services/vk.js'
-
-// ?vk_frame=1 — приложение открыто в «рамке телефона»; внутри ВК — настоящий VK Mini App.
-const VK_FRAME = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('vk_frame')
-const EMBEDDED = VK_FRAME || isInsideVK
-
-const STATIONS = { lab: LabStation, engineering: EngineeringStation, line: LineStation, design: DesignStation }
+import MapView from './screens/map/MapView.jsx'
+import { PhoneInline } from './components/PhoneFrame.jsx'
 
 function Toasts() {
   const { toasts } = useGame()
@@ -69,43 +55,35 @@ function Footer() {
 }
 
 export default function App() {
-  const { state, actions } = useGame()
-  const [phone, setPhone] = useState(false)
-  const mode = EMBEDDED ? 'student' : state.mode
-  let screen
-  let key
-  if (mode === 'hr') {
-    screen = <HRPanel />
-    key = 'hr'
-  } else if (mode === 'bot') {
-    screen = <BotScreen />
-    key = 'bot'
-  } else {
-    key = state.screen + (state.stationId || '')
-    if (state.screen === 'locker') screen = <Locker />
-    else if (state.screen === 'hub') screen = <Hub />
-    else if (state.screen === 'station' && STATIONS[state.stationId]) {
-      const S = STATIONS[state.stationId]
-      screen = <S />
-    } else if (state.screen === 'finale') screen = <Finale />
-    else screen = <Home />
-  }
+  const { state } = useGame()
+  const mode = state.mode
+  const screen =
+    mode === 'hr' ? (
+      <HRPanel />
+    ) : mode === 'bot' ? (
+      <BotScreen />
+    ) : mode === 'map' ? (
+      <div className="mx-auto max-w-7xl p-4 sm:p-6">
+        <div className="border-2 border-brand bg-white shadow-xl overflow-hidden rounded-xl">
+          <MapView onNavigateToApply={() => actions.setMode('student')} />
+        </div>
+      </div>
+    ) : (
+      <PhoneInline />
+    )
 
   return (
     <div className="flex min-h-screen flex-col">
-      {VK_FRAME && <VkMiniAppBar onBack={() => actions.go(state.screen === 'station' ? 'hub' : 'home')} />}
-      <Header embedded={EMBEDDED} onPhone={() => setPhone(true)} />
+      <Header />
       <Toasts />
       <main className="flex-1">
         <AnimatePresence mode="wait">
-          <motion.div key={key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.25 }}>
+          <motion.div key={mode} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.25 }}>
             {screen}
           </motion.div>
         </AnimatePresence>
       </main>
       <Footer />
-      {mode === 'student' && <MascotChat />}
-      {phone && <PhoneFrame onClose={() => setPhone(false)} />}
     </div>
   )
 }

@@ -45,7 +45,7 @@ export default function InviteModal({ candidate, onClose }) {
 
   return createPortal(
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <motion.div initial={{ y: 20, scale: 0.98 }} animate={{ y: 0, scale: 1 }} onClick={(e) => e.stopPropagation()} className="flex max-h-full w-full max-w-[560px] flex-col overflow-hidden bg-white shadow-pop-lg" role="dialog" aria-label="Приглашение через ВК-бота">
+      <motion.div initial={{ y: 20, scale: 0.98 }} animate={{ y: 0, scale: 1 }} onClick={(e) => e.stopPropagation()} className="flex max-h-full w-full max-w-[560px] flex-col overflow-hidden bg-paper shadow-pop-lg" role="dialog" aria-label="Приглашение через ВК-бота">
         <div className="flex items-center gap-3 bg-vk px-5 py-3 text-white">
           <MessageCircle className="h-5 w-5" />
           <div className="min-w-0 flex-1">
@@ -106,7 +106,7 @@ export default function InviteModal({ candidate, onClose }) {
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     rows={8}
-                    className="w-full resize-y rounded-2xl rounded-tl-md border border-transparent bg-white px-3 py-2 text-[14px] leading-snug text-[#2C2D2E] outline-none focus:border-vk"
+                    className="w-full resize-y rounded-2xl rounded-tl-md border border-transparent bg-paper px-3 py-2 text-[14px] leading-snug text-[#2C2D2E] outline-none focus:border-vk"
                   />
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5 pl-10">

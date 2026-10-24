@@ -1,10 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { api, onStatusChange } from '../services/api.js'
+import { api, onStatusChange, isHrAuthStored, setHrToken } from '../services/api.js'
+import HrAuthModal from '../components/HrAuthModal.jsx'
 import { uid } from '../services/localEngine.js'
-import { CODE } from '../data/content.js'
-import { initVK } from '../services/vk.js'
+import { LEGACY_CODE, STATION_ORDER, newCapsuleCode } from '../data/content.js'
+import { initVK, haptic, launchParams, storageLoad, storageSave, vkStorageEnabled } from '../services/vk.js'
 
 const LS_KEY = 'ochakovo1978_game_v1'
+
+/**
+ * Навигация мини-приложения. MiniApp подставляет сюда переход через vk-mini-apps-router,
+ * чтобы старый вызов actions.go(screen, stationId) из экранов игры менял адрес (#/hub, #/station/lab…)
+ * и попадал в историю «Назад». На странице HR (hr.html) остаётся null — там экраны переключает state.mode.
+ */
+export const navigation = { go: null }
 
 const emptyTelemetry = () => ({
   why_ochakovo_cards_viewed: [],
@@ -16,6 +24,9 @@ const emptyTelemetry = () => ({
   calculator: { interactions: 0, night_ok: false, last: null },
   asked_topics: {},
   skipped: [],
+  viewed_map_locations: [],
+  selected_map_workshop: null,
+  target_vacancy_from_map: null,
   started_at: new Date().toISOString(),
 })
 
@@ -24,6 +35,8 @@ const initialState = () => ({
   screen: 'home', // home | locker | hub | station | finale
   stationId: null,
   sessionId: uid('sess'),
+  code: newCapsuleCode(), // код замка капсулы этой игры (4 случайные цифры)
+  sessionRegistered: false, // игра зарегистрирована на бэкенде (POST /api/sessions)
   points: 0,
   spent: 0,
   digits: [null, null, null, null],
@@ -36,6 +49,8 @@ const initialState = () => ({
   chatHistory: [],
   storyShared: false,
   vkProfile: null,
+  ageOk: false, // показано и подтверждено предупреждение 18+ (правило ВК 2.1.5)
+  juryMode: false, // «Режим жюри»: Панель HR и ВК-бот внутри мини-приложения
   bot: emptyBot(),
 })
 
@@ -53,6 +68,8 @@ function load() {
     const raw = window.localStorage.getItem(LS_KEY)
     if (!raw) return initialState()
     const s = JSON.parse(raw)
+    // сохранение до случайного кода: начатая игра доигрывается со старым кодом
+    if (!Array.isArray(s.code) || s.code.length !== 4) s.code = (s.digits || []).some(Boolean) ? LEGACY_CODE : newCapsuleCode()
     return { ...initialState(), ...s, telemetry: { ...emptyTelemetry(), ...(s.telemetry || {}) }, bot: s.bot?.threads ? s.bot : emptyBot() }
   } catch {
     return initialState()
@@ -92,6 +109,27 @@ function reducer(state, a) {
       return { ...state, screen: a.screen, stationId: a.stationId ?? null, mode: 'student' }
     case 'AWARD':
       return { ...state, points: state.points + a.points }
+    case 'MAP_LOCATION_VIEW': {
+      const cur = t.viewed_map_locations || []
+      if (cur.includes(a.name)) return state
+      return {
+        ...state,
+        points: state.points + 15,
+        telemetry: {
+          ...t,
+          viewed_map_locations: [...cur, a.name],
+        },
+      }
+    }
+    case 'MAP_WORKSHOP_SELECT':
+      return {
+        ...state,
+        telemetry: {
+          ...t,
+          selected_map_workshop: a.workshop?.name || null,
+          target_vacancy_from_map: a.workshop?.targetVacancy || null,
+        },
+      }
     case 'WHY_VIEW':
       if (t.why_ochakovo_cards_viewed.includes(a.id)) return state
       return {
@@ -118,9 +156,9 @@ function reducer(state, a) {
       }
     case 'STATION_DONE': {
       if (t.stations[a.id]) return state
-      const idx = ['lab', 'engineering', 'line', 'design'].indexOf(a.id)
+      const idx = STATION_ORDER.indexOf(a.id)
       const digits = [...state.digits]
-      digits[idx] = CODE[idx]
+      digits[idx] = state.code[idx] // станция N открывает N-ю цифру кода этой игры
       return {
         ...state,
         digits,
@@ -167,8 +205,18 @@ function reducer(state, a) {
       return { ...state, candidate: a.candidate }
     case 'DEMO':
       return { ...state, demoFast: a.value }
+    case 'REMOTE_SESSION': {
+      // код от бэкенда принимаем, только пока ни одна цифра не открыта — иначе сломаем начатую игру
+      const fresh = !state.digits.some(Boolean) && !state.capsuleOpened
+      const code = fresh && Array.isArray(a.code) && a.code.length === 4 && a.code.every((d) => /^[0-9]$/.test(String(d))) ? a.code.map(String) : state.code
+      return { ...state, sessionRegistered: true, code, sessionId: fresh && a.sessionId ? a.sessionId : state.sessionId }
+    }
+    case 'JURY':
+      return { ...state, juryMode: a.value }
+    case 'AGE_OK':
+      return { ...state, ageOk: true }
     case 'RESET':
-      return { ...initialState(), mode: state.mode }
+      return { ...initialState(), mode: state.mode, ageOk: state.ageOk, juryMode: state.juryMode }
     default:
       return state
   }
@@ -176,19 +224,80 @@ function reducer(state, a) {
 
 const GameCtx = createContext(null)
 
+function checkUrlJuryParam() {
+  if (typeof window === 'undefined') return false
+  try {
+    const url = new URL(window.location.href)
+    const jury = url.searchParams.get('jury')
+    const role = url.searchParams.get('role')
+    if (jury === '1978' || jury === '1' || role === 'hr' || role === 'jury') {
+      return true
+    }
+    const hash = window.location.hash || ''
+    if (hash.includes('jury=1978') || hash.includes('role=hr') || hash.includes('role=jury')) {
+      return true
+    }
+  } catch {
+    /* ignore */
+  }
+  return false
+}
+
 export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, undefined, load)
   const [toasts, setToasts] = useState([])
   const [apiStatus, setApiStatus] = useState({ online: null, mode: 'local' })
   const sessionStarted = useRef(false)
+  const [isHrAuthenticated, setIsHrAuthenticated] = useState(() => {
+    if (checkUrlJuryParam()) {
+      setHrToken('ochakovo-hr-secret-1978')
+      return true
+    }
+    return isHrAuthStored()
+  })
+  const [hrAuthModalOpen, setHrAuthModalOpen] = useState(false)
+  const [pendingHrTarget, setPendingHrTarget] = useState('hr')
 
   useEffect(() => {
+    if (checkUrlJuryParam()) {
+      setHrToken('ochakovo-hr-secret-1978')
+      setIsHrAuthenticated(true)
+    }
+  }, [])
+
+  // Сохранение: localStorage сразу, VK Storage (внутри ВК) — не чаще раза в 15 с и при сворачивании приложения.
+  const vkDirty = useRef(false)
+  const latest = useRef(state)
+  latest.current = state
+  useEffect(() => {
     try {
-      window.localStorage.setItem(LS_KEY, JSON.stringify(state))
+      window.localStorage.setItem(LS_KEY, JSON.stringify({ ...state, savedAt: Date.now() }))
     } catch {
       /* ignore */
     }
+    vkDirty.current = true
   }, [state])
+
+  useEffect(() => {
+    if (!vkStorageEnabled) return
+    const flush = () => {
+      if (!vkDirty.current) return
+      vkDirty.current = false
+      const s = latest.current
+      // бот — только для страницы HR; чат — последние 30 реплик (лимиты VK Storage)
+      storageSave({ ...s, bot: undefined, chatHistory: s.chatHistory.slice(-30), savedAt: Date.now() })
+    }
+    const id = setInterval(flush, 15000)
+    window.addEventListener('och:pause', flush)
+    // при старте — забираем прогресс с другого устройства, если он новее
+    storageLoad().then((r) => {
+      if (r?.state && (r.savedAt || 0) > (latest.current.savedAt || 0)) dispatch({ type: 'LOAD', state: r.state })
+    })
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('och:pause', flush)
+    }
+  }, [])
 
   useEffect(() => onStatusChange(setApiStatus), [])
 
@@ -216,8 +325,19 @@ export function GameProvider({ children }) {
     if (sessionStarted.current) return
     sessionStarted.current = true
     api.health()
-    api.track(state.sessionId, 'session_open', { screen: state.screen })
+    api.track(state.sessionId, 'session_open', { screen: state.screen, vk_platform: launchParams.vk_platform || null, vk_ref: launchParams.vk_ref || null })
   }, [state.sessionId, state.screen])
+
+  // Новая игра (первый запуск или «Пройти заново») → регистрируем сессию на бэкенде.
+  // Если бэкенд выдал свой код замка (target_code) — используем его, пока ни одна цифра не открыта.
+  useEffect(() => {
+    if (state.sessionRegistered) return
+    api
+      .startSession({ session_id: state.sessionId, target_code: state.code })
+      .then((r) => r && r.source !== 'local' && dispatch({ type: 'REMOTE_SESSION', sessionId: r.session_id, code: r.target_code }))
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.sessionRegistered, state.sessionId])
 
   const toast = useCallback((msg, kind = 'points') => {
     const id = Math.random().toString(36).slice(2)
@@ -231,18 +351,80 @@ export function GameProvider({ children }) {
     () => ({
       go: (screen, stationId) => {
         dispatch({ type: 'GO', screen, stationId })
-        window.scrollTo?.({ top: 0, behavior: 'smooth' })
+        if (navigation.go) navigation.go(screen, stationId)
+        else window.scrollTo?.({ top: 0, behavior: 'smooth' })
         track('navigate', { screen, stationId })
       },
+      ageOk: () => {
+        dispatch({ type: 'AGE_OK' })
+        track('age_gate_ok', {})
+      },
+      openHrAuth: (target = 'hr') => {
+        if (isHrAuthenticated) {
+          if (target === 'jury') dispatch({ type: 'JURY', value: true })
+          else actions.setMode(target)
+          return
+        }
+        setPendingHrTarget(target)
+        setHrAuthModalOpen(true)
+      },
+      closeHrAuth: () => setHrAuthModalOpen(false),
+      loginHr: async (pin) => {
+        const res = await api.login(pin)
+        setIsHrAuthenticated(true)
+        setHrAuthModalOpen(false)
+        toast('Вход выполнен: Отдел подбора Очаково')
+        track('hr_auth_success', { role: res.role })
+        if (pendingHrTarget === 'jury') {
+          dispatch({ type: 'JURY', value: true })
+        } else if (pendingHrTarget === 'hr' || pendingHrTarget === 'bot') {
+          dispatch({ type: 'MODE', mode: pendingHrTarget })
+          if (navigation.go) navigation.go(pendingHrTarget === 'hr' ? 'jury_hr' : 'jury_bot')
+        }
+        return res
+      },
+      logoutHr: () => {
+        api.logout()
+        setIsHrAuthenticated(false)
+        if (state.mode === 'hr' || state.mode === 'bot') {
+          dispatch({ type: 'MODE', mode: 'student' })
+        }
+        if (state.juryMode) {
+          dispatch({ type: 'JURY', value: false })
+        }
+        toast('Сессия HR завершена. Режим студента')
+        track('hr_logout', {})
+      },
       setMode: (mode) => {
+        if ((mode === 'hr' || mode === 'bot') && !isHrAuthenticated) {
+          setPendingHrTarget(mode)
+          setHrAuthModalOpen(true)
+          return
+        }
         dispatch({ type: 'MODE', mode })
-        window.scrollTo?.({ top: 0 })
+        // в мини-приложении HR и бот — экраны «Режима жюри»
+        if (navigation.go) {
+          if (mode === 'hr' || mode === 'bot') navigation.go(mode === 'hr' ? 'jury_hr' : 'jury_bot')
+        } else window.scrollTo?.({ top: 0 })
         track('mode', { mode })
       },
       award: (points, reason) => {
         dispatch({ type: 'AWARD', points })
         toast(`+${points} Крафт-баллов · ${reason}`)
         track('points', { points, reason })
+      },
+      viewMapLocation: (loc) => {
+        const name = loc.name || loc.id
+        const cur = state.telemetry?.viewed_map_locations || []
+        if (!cur.includes(name)) {
+          dispatch({ type: 'MAP_LOCATION_VIEW', name })
+          toast('+15 Крафт-баллов · Изучен цех Очаково')
+          track('map_location_viewed', { id: loc.id, name })
+        }
+      },
+      selectMapWorkshop: (workshop) => {
+        dispatch({ type: 'MAP_WORKSHOP_SELECT', workshop })
+        track('map_workshop_selected', { id: workshop.id, vacancy: workshop.targetVacancy })
       },
       viewWhy: (id, isNew) => {
         dispatch({ type: 'WHY_VIEW', id })
@@ -252,19 +434,23 @@ export function GameProvider({ children }) {
         }
       },
       ppeAttempt: (wrong, missing) => {
+        if (wrong.length || missing.length) haptic('error')
         dispatch({ type: 'PPE_ATTEMPT', wrong })
         track('ppe_attempt', { wrong, missing })
       },
       ppeDone: () => {
+        haptic('success')
         dispatch({ type: 'PPE_DONE' })
         toast('+100 Крафт-баллов · Допуск к смене получен')
         track('ppe_done', {})
       },
       quiz: (station, idx, correct) => {
+        haptic(correct ? 'success' : 'error')
         dispatch({ type: 'QUIZ', correct })
         track('quiz_answer', { station, idx, correct })
       },
       stationDone: (id, points, result, skipped = false) => {
+        haptic('success')
         dispatch({ type: 'STATION_DONE', id, points, result, skipped })
         toast(`+${points} Крафт-баллов · Станция пройдена`)
         track('station_done', { id, points, result, skipped })
@@ -274,11 +460,13 @@ export function GameProvider({ children }) {
         track('capsule_attempt', { code })
       },
       capsuleOpen: () => {
+        haptic('success')
         dispatch({ type: 'CAPSULE_OPEN' })
         toast('+150 Крафт-баллов · Капсула 1978 открыта!')
         track('capsule_open', {})
       },
       buy: (item) => {
+        haptic('medium')
         dispatch({ type: 'BUY', id: item.id, price: item.price })
         api.buyTicket(state.sessionId, item.id)
         toast(`Билет на розыгрыш: ${item.title}`, 'ticket')
@@ -295,6 +483,15 @@ export function GameProvider({ children }) {
         track('candidate_submitted', { id: candidate?.id })
       },
       setDemo: (value) => dispatch({ type: 'DEMO', value }),
+      setJury: (value) => {
+        if (value && !isHrAuthenticated) {
+          setPendingHrTarget('jury')
+          setHrAuthModalOpen(true)
+          return
+        }
+        dispatch({ type: 'JURY', value })
+        track('jury_mode', { value })
+      },
       botPush: (threadId, messages, meta = {}) => dispatch({ type: 'BOT_PUSH', threadId, messages, ...meta }),
       botActive: (threadId) => dispatch({ type: 'BOT_ACTIVE', threadId }),
       storyShared: (source) => {
@@ -308,15 +505,25 @@ export function GameProvider({ children }) {
       },
       reset: () => {
         dispatch({ type: 'RESET' })
-        window.scrollTo?.({ top: 0 })
+        if (!navigation.go) window.scrollTo?.({ top: 0 })
       },
     }),
-    [toast, track, state.sessionId],
+    [toast, track, state.sessionId, isHrAuthenticated, pendingHrTarget],
   )
 
   const balance = state.points - state.spent
-  const value = { state, balance, actions, toasts, toast, apiStatus }
-  return <GameCtx.Provider value={value}>{children}</GameCtx.Provider>
+  const value = { state, balance, actions, toasts, toast, apiStatus, isHrAuthenticated, hrAuthModalOpen }
+  return (
+    <GameCtx.Provider value={value}>
+      {children}
+      <HrAuthModal
+        isOpen={hrAuthModalOpen}
+        onClose={() => setHrAuthModalOpen(false)}
+        onSuccess={actions.loginHr}
+        targetMode={pendingHrTarget}
+      />
+    </GameCtx.Provider>
+  )
 }
 
 export const useGame = () => useContext(GameCtx)

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { MessageCircle, X, Phone, Send, Mail, GraduationCap, Download, MessageCircleQuestion, AlertTriangle, Bot, Handshake, Moon, Loader2, CalendarDays, MessagesSquare } from 'lucide-react'
+import { MessageCircle, X, Phone, Send, Mail, GraduationCap, Download, MessageCircleQuestion, AlertTriangle, Bot, Handshake, Moon, Loader2, CalendarDays, MessagesSquare, MapPin, CheckCircle } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
 import { api } from '../../services/api.js'
 import { BLOCKS, WHY_CARDS } from '../../data/content.js'
@@ -101,7 +101,7 @@ export default function Dossier({ candidate, onClose }) {
           </div>
         ) : (
           <div className="flex-1 space-y-4 overflow-y-auto p-5">
-            <div className="rounded-sm border border-line bg-white p-4 shadow-pop-sm">
+            <div className="rounded-sm border border-line bg-paper p-4 shadow-pop-sm">
               <div className="mb-1 font-mono text-[11px] font-bold uppercase text-brand">Резюме для рекрутера</div>
               <p className="text-sm leading-relaxed">{d.summary}</p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
@@ -114,7 +114,7 @@ export default function Dossier({ candidate, onClose }) {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-sm border border-line bg-white p-4">
+              <div className="rounded-sm border border-line bg-paper p-4">
                 <div className="font-display font-extrabold">Прогноз удержания</div>
                 <div className="mt-2">
                   <Ring value={d.retention_score} label="Retention Score / 100" color={color} />
@@ -123,7 +123,7 @@ export default function Dossier({ candidate, onClose }) {
                   Риск ухода в первые 3 месяца ≈ <b className="text-ink">{d.probation_dropout_risk}%</b> (база по компании 38%)
                 </div>
               </div>
-              <div className="rounded-sm border border-line bg-white p-4">
+              <div className="rounded-sm border border-line bg-paper p-4">
                 <div className="font-display font-extrabold">Сменный график 2/2</div>
                 <div className={cx('mt-3 flex items-center gap-2 rounded-sm p-3 text-sm font-bold', d.shift_readiness.level === 'full' ? 'bg-lime/15' : d.shift_readiness.level === 'day' ? 'bg-malt-light/40' : 'bg-brand-50')}>
                   <Moon className="h-5 w-5 shrink-0" /> {d.shift_readiness.label}
@@ -136,7 +136,7 @@ export default function Dossier({ candidate, onClose }) {
               </div>
             </div>
 
-            <div className="rounded-sm border border-line bg-white p-4">
+            <div className="rounded-sm border border-line bg-paper p-4">
               <div className="font-display font-extrabold">5 шкал компетенций из игры</div>
               <div className="mt-3 space-y-3">
                 {d.competencies.map((m) => (
@@ -152,7 +152,7 @@ export default function Dossier({ candidate, onClose }) {
               </div>
             </div>
 
-            <div className="rounded-sm border border-line bg-white p-4">
+            <div className="rounded-sm border border-line bg-paper p-4">
               <div className="flex items-center gap-2 font-display font-extrabold">
                 <MessageCircleQuestion className="h-5 w-5 text-brand" /> Что волнует перед выходом · шпаргалка
               </div>
@@ -176,6 +176,32 @@ export default function Dossier({ candidate, onClose }) {
                   <b className="text-ink">Открытые аргументы «Почему ОЧАКОВО»:</b> {d.why_cards.map((id) => WHY_CARDS.find((w) => w.id === id)?.title).filter(Boolean).join(' · ')}
                 </div>
               )}
+              {((c.telemetry?.viewed_map_locations && c.telemetry.viewed_map_locations.length > 0) || c.telemetry?.selected_map_workshop) && (
+                <div className="mt-3 rounded-sm border-2 border-brand/30 bg-white p-3.5 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 font-display font-extrabold text-ink">
+                    <MapPin className="h-4 w-4 text-brand" />
+                    <span>Осознанный интерес по карте цехов</span>
+                  </div>
+                  {c.telemetry.selected_map_workshop && (
+                    <div className="p-2 rounded bg-brand/10 border border-brand/20 text-xs font-bold text-graphite flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-brand shrink-0" />
+                      <span>Приоритетный выбор кандидата: <strong className="text-brand font-extrabold">{c.telemetry.selected_map_workshop}</strong></span>
+                    </div>
+                  )}
+                  {c.telemetry.viewed_map_locations && c.telemetry.viewed_map_locations.length > 0 && (
+                    <div className="text-xs text-ink-soft">
+                      <b className="text-ink">Изучено цехов на карте ({c.telemetry.viewed_map_locations.length}):</b>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {c.telemetry.viewed_map_locations.map((loc, idx) => (
+                          <span key={idx} className="px-2 py-0.5 rounded bg-paper border border-line text-[11px] font-semibold text-ink">
+                            {loc}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -192,10 +218,10 @@ export default function Dossier({ candidate, onClose }) {
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 rounded-sm bg-white px-3 py-2 text-xs font-bold">Связь поколений: {d.mentor.bridge}</div>
+                <div className="mt-3 rounded-sm bg-paper px-3 py-2 text-xs font-bold">Связь поколений: {d.mentor.bridge}</div>
                 <div className="mt-1 text-[10px] text-ink-mute">демо-профиль наставника</div>
               </div>
-              <div className="rounded-sm border border-line bg-white p-4">
+              <div className="rounded-sm border border-line bg-paper p-4">
                 <div className="font-display font-extrabold">Мэтч вакансий</div>
                 <div className="mt-2 space-y-2">
                   {d.matches.map((m) => (
@@ -225,7 +251,7 @@ export default function Dossier({ candidate, onClose }) {
             )}
 
             {contact && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid gap-2 rounded-sm border border-line bg-white p-4 sm:grid-cols-3">
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid gap-2 rounded-sm border border-line bg-paper p-4 sm:grid-cols-3">
                 {c.phone && (
                   <a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-2 rounded-sm border-2 border-ink/15 p-3 text-sm font-bold hover:border-brand">
                     <Phone className="h-4 w-4 text-brand" /> {c.phone}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Delete, Unlock, Leaf, Award, Zap, ArrowRight } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
-import { CODE, PHOTO } from '../../data/content.js'
+import { PHOTO } from '../../data/content.js'
 import { Button, Burst, RecBadge, TornPhoto, cx } from '../../components/ui.jsx'
 import Krafty from '../../components/Krafty.jsx'
 import StoryShare from '../../components/StoryShare.jsx'
@@ -15,7 +15,8 @@ const FORMULA = [
 
 export default function Capsule({ onContinue }) {
   const { state, actions } = useGame()
-  const [input, setInput] = useState(state.capsuleOpened ? CODE.join('') : '')
+  const target = state.code.join('') // код этой игры: 4 случайные цифры, открытые на станциях
+  const [input, setInput] = useState(state.capsuleOpened ? target : '')
   const [error, setError] = useState(0)
   const opened = state.capsuleOpened
 
@@ -25,7 +26,7 @@ export default function Capsule({ onContinue }) {
     setInput(v)
     if (v.length === 4) {
       actions.capsuleAttempt(v)
-      if (v === CODE.join('')) setTimeout(() => actions.capsuleOpen(), 350)
+      if (v === target) setTimeout(() => actions.capsuleOpen(), 350)
       else {
         setError((e) => e + 1)
         setTimeout(() => setInput(''), 650)
@@ -34,7 +35,7 @@ export default function Capsule({ onContinue }) {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-64px)] overflow-hidden bg-graphite text-white">
+    <div className="relative min-h-[calc(100dvh-110px)] overflow-hidden bg-graphite text-white">
       <div className="halftone-red absolute inset-0 opacity-25" />
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:py-16">
         <div>
@@ -57,7 +58,7 @@ export default function Capsule({ onContinue }) {
           <p className="mt-4 max-w-md text-white/80">
             {opened
               ? 'Внутри не чертежи и не рецепт. Главный секрет мировых рекордов ОЧАКОВО — это формула из трёх частей.'
-              : 'Четыре цифры, которые ты собрал(а) на станциях. Подсказка: год, когда всё началось.'}
+              : 'Введи четыре цифры, которые ты собрал(а) на станциях — по порядку: станция 1, 2, 3, 4. У каждого игрока свой код.'}
           </p>
           {!opened && (
             <div className="mt-6 flex gap-2">
@@ -85,7 +86,7 @@ export default function Capsule({ onContinue }) {
                 </div>
                 <motion.div key={error} animate={error ? { x: [0, -12, 12, -8, 8, 0] } : {}} className="mt-6 flex justify-center gap-3">
                   {[0, 1, 2, 3].map((i) => (
-                    <span key={i} className={cx('grid h-16 w-12 place-items-center rounded-sm border-2 font-mono text-3xl font-extrabold', input[i] ? 'border-white bg-white text-ink' : 'border-white/30 text-white/30', error && input.length === 4 && 'border-brand bg-brand text-white')}>
+                    <span key={i} className={cx('grid h-16 w-12 place-items-center rounded-sm border-2 font-mono text-3xl font-extrabold', input[i] ? 'border-white bg-paper text-ink' : 'border-white/30 text-white/30', error && input.length === 4 && 'border-brand bg-brand text-white')}>
                       {input[i] || '•'}
                     </span>
                   ))}
@@ -102,7 +103,7 @@ export default function Capsule({ onContinue }) {
                   <button onClick={() => press('0')} className="rounded-sm border-2 border-white/20 bg-white/5 py-3 font-mono text-xl font-bold hover:bg-white/15">
                     0
                   </button>
-                  <button onClick={() => setInput(state.digits.every(Boolean) ? CODE.join('') : input)} className="rounded-sm border-2 border-brand bg-brand py-3 text-xs font-extrabold" title="Подставить собранный код">
+                  <button onClick={() => setInput(state.digits.every(Boolean) ? state.digits.join('') : input)} className="rounded-sm border-2 border-brand bg-brand py-3 text-xs font-extrabold" title="Подставить собранный код">
                     <Unlock className="mx-auto h-5 w-5" />
                   </button>
                 </div>

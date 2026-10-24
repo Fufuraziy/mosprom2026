@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, useSpring, useMotionValueEvent } from 'framer-motion'
-import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound } from 'lucide-react'
+import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound, Lock, Unlock, MapPin } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
 import { LogoPlate, cx } from './ui.jsx'
 
@@ -27,7 +27,7 @@ function PointsPill({ points }) {
       initial={bump ? { scale: 1.18 } : false}
       animate={{ scale: 1 }}
       transition={{ type: 'spring', stiffness: 400, damping: 14 }}
-      className="flex items-center gap-1.5 border border-line bg-white py-1 pl-1 pr-3"
+      className="flex items-center gap-1.5 border border-line bg-paper py-1 pl-1 pr-3"
       title="Крафт-баллы (Очакоины)"
     >
       <span className="grid h-7 w-7 place-items-center bg-brand text-white">
@@ -54,7 +54,7 @@ function CodeSlots({ digits }) {
           key={i}
           className={cx(
             'relative grid h-8 w-6 place-items-center overflow-hidden border font-mono text-base font-bold sm:h-9 sm:w-7 sm:text-lg',
-            d ? 'border-brand bg-brand text-white' : 'border-dashed border-steel bg-white text-steel',
+            d ? 'border-brand bg-brand text-white' : 'border-dashed border-steel bg-paper text-steel',
           )}
         >
           <AnimatePresence mode="wait">
@@ -75,18 +75,19 @@ function CodeSlots({ digits }) {
 
 const TABS = [
   { id: 'student', Icon: Smartphone, full: 'VK Mini App · Игра', short: 'Mini App', active: 'bg-brand text-white' },
+  { id: 'map', Icon: MapPin, full: 'Карта цехов и РФ', short: 'Карта', active: 'bg-brand text-white' },
   { id: 'bot', Icon: MessageCircle, full: 'ВК-бот ОЧАКОВО', short: 'ВК-бот', active: 'bg-vk text-white' },
   { id: 'hr', Icon: BarChart3, full: 'Панель HR', short: 'HR', active: 'bg-graphite text-white' },
 ]
 
-export default function Header({ embedded = false, onPhone }) {
-  const { state, balance, actions, apiStatus } = useGame()
+export default function Header({ embedded = false }) {
+  const { state, balance, actions, apiStatus, isHrAuthenticated } = useGame()
   const isHR = state.mode !== 'student'
   const unread = Object.values(state.bot.threads).reduce((a, t) => a + (t.unread || 0), 0)
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85">
       <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2 sm:gap-4 sm:px-6">
-        <button onClick={() => actions.go('home')} className="flex shrink-0 items-center gap-2" aria-label="На главную">
+        <button onClick={() => actions.setMode('hr')} className="flex shrink-0 items-center gap-2" aria-label="Панель HR">
           <LogoPlate className="h-9 w-auto sm:h-11" />
           <span className="hidden border-l border-line pl-3 text-[10px] font-bold uppercase leading-tight tracking-[0.16em] text-ink-soft md:block">
             Крафт-код
@@ -99,8 +100,21 @@ export default function Header({ embedded = false, onPhone }) {
           {!isHR && <CodeSlots digits={state.digits} />}
           {!isHR && <PointsPill points={balance} />}
 
+          {isHrAuthenticated && (
+            <button
+              type="button"
+              onClick={actions.logoutHr}
+              className="flex items-center gap-1.5 border border-brand bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand hover:bg-brand hover:text-white transition shadow-sm rounded-sm"
+              title="Завершить сессию HR Очаково и выйти в режим студента"
+            >
+              <Unlock className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden sm:inline">🔓 Сессия HR</span>
+              <span className="hidden lg:inline text-[10px] opacity-80">(Выйти в режим студента)</span>
+            </button>
+          )}
+
           {!embedded && (
-            <div className="flex border border-line bg-white p-0.5" role="tablist" aria-label="Режим">
+            <div className="flex border border-line bg-paper p-0.5" role="tablist" aria-label="Режим">
               {TABS.map(({ id, Icon: I, full, short, active }) => {
                 const on = state.mode === id
                 return (
@@ -122,11 +136,6 @@ export default function Header({ embedded = false, onPhone }) {
                 )
               })}
             </div>
-          )}
-          {!embedded && state.mode === 'student' && (
-            <button onClick={onPhone} className="hidden h-9 w-9 place-items-center border border-line text-ink-soft transition hover:border-brand hover:text-brand lg:grid" title="Предпросмотр VK Mini App в рамке телефона">
-              <Smartphone className="h-4 w-4" />
-            </button>
           )}
           <span
             className={cx('hidden h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white sm:block', apiStatus.online ? 'bg-lime' : 'bg-steel')}

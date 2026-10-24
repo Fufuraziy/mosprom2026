@@ -6,26 +6,15 @@ import { api } from '../services/api.js'
 import Krafty from './Krafty.jsx'
 import { cx } from './ui.jsx'
 
-const QUICK = ['Сколько платят?', 'Как с общежитием?', 'А если сессия?', 'Что с военкоматом?', 'Какой график 2/2?', 'Есть испытательный срок?']
+export const QUICK = ['Сколько платят?', 'Как с общежитием?', 'А если сессия?', 'Что с военкоматом?', 'Какой график 2/2?', 'Есть испытательный срок?']
 
-export default function MascotChat() {
+/** Логика чата с Крафти: история в GameContext, ответ ИИ-агента №1 (или локального FAQ), темы → телеметрия. */
+export function useMascot() {
   const { state, actions } = useGame()
-  const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [typing, setTyping] = useState(false)
   const [suggest, setSuggest] = useState(QUICK)
-  const [nudge, setNudge] = useState(false)
-  const listRef = useRef(null)
   const msgs = state.chatHistory
-
-  useEffect(() => {
-    const t = setTimeout(() => setNudge(true), 9000)
-    return () => clearTimeout(t)
-  }, [])
-
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [msgs.length, typing, open])
 
   const send = async (raw) => {
     const m = (raw ?? text).trim()
@@ -44,6 +33,26 @@ export default function MascotChat() {
       setTyping(false)
     }, wait)
   }
+  return { msgs, text, setText, typing, suggest, send }
+}
+
+export const GREETING = 'Привет! Я Крафти, медведь-наставник из ЛЭП 🐻 Отвечу про практику, зарплату, общежитие, сессию на заводе, военкомат и график. Спрашивай!'
+
+/** Плавающий чат (страница HR / старый сайт). В мини-приложении Крафти — отдельная вкладка (MascotChatPanel). */
+export default function MascotChat() {
+  const [open, setOpen] = useState(false)
+  const [nudge, setNudge] = useState(false)
+  const listRef = useRef(null)
+  const { msgs, text, setText, typing, suggest, send } = useMascot()
+
+  useEffect(() => {
+    const t = setTimeout(() => setNudge(true), 9000)
+    return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
+  }, [msgs.length, typing, open])
 
   return (
     <>
@@ -63,7 +72,7 @@ export default function MascotChat() {
           >
             <AnimatePresence>
               {nudge && (
-                <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="mb-6 hidden max-w-[200px] rounded-sm rounded-br-none border border-line bg-white px-3 py-2 text-left text-xs font-bold text-ink shadow-pop-sm sm:block">
+                <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="mb-6 hidden max-w-[200px] rounded-sm rounded-br-none border border-line bg-paper px-3 py-2 text-left text-xs font-bold text-ink shadow-pop-sm sm:block">
                   Есть вопрос про общагу, зарплату или сессию? Спроси меня!
                 </motion.span>
               )}
@@ -90,7 +99,7 @@ export default function MascotChat() {
           >
             <div className="relative flex items-center gap-3 bg-brand px-4 py-3 text-white">
               <div className="halftone-white absolute inset-0 opacity-40" />
-              <div className="relative rounded-full border border-line bg-white p-0.5">
+              <div className="relative rounded-full border border-line bg-paper p-0.5">
                 <Krafty size={44} mood="wink" />
               </div>
               <div className="relative flex-1">
@@ -103,9 +112,9 @@ export default function MascotChat() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto bg-[linear-gradient(180deg,#F5F6F7,#fff)] p-4">
+            <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto bg-cream p-4">
               <Bubble role="bot">
-                Привет! Я Крафти, медведь-наставник из ЛЭП 🐻 Отвечу про практику, зарплату, общежитие, сессию на заводе, военкомат и график. Спрашивай!
+                {GREETING}
               </Bubble>
               {msgs.map((m, i) => (
                 <Bubble key={i} role={m.role} topic={m.topic}>
@@ -120,7 +129,7 @@ export default function MascotChat() {
                 </div>
               )}
             </div>
-            <div className="no-scrollbar flex gap-2 overflow-x-auto border-t-2 border-ink/10 bg-white px-3 py-2">
+            <div className="no-scrollbar flex gap-2 overflow-x-auto border-t-2 border-ink/10 bg-paper px-3 py-2">
               {suggest.map((q) => (
                 <button key={q} onClick={() => send(q)} className="shrink-0 rounded-full border-2 border-ink/20 bg-cream px-3 py-1 text-xs font-bold hover:border-brand">
                   {q}
@@ -132,7 +141,7 @@ export default function MascotChat() {
                 e.preventDefault()
                 send()
               }}
-              className="flex gap-2 border-t-2 border-brand bg-white p-3"
+              className="flex gap-2 border-t-2 border-brand bg-paper p-3"
             >
               <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Спроси про практику…" className="min-w-0 flex-1 rounded-sm border-2 border-ink/20 px-3 py-2 text-sm font-semibold outline-none focus:border-brand" />
               <button type="submit" disabled={!text.trim() || typing} className="grid h-10 w-10 place-items-center rounded-sm border border-line bg-brand text-white disabled:opacity-40" aria-label="Отправить">
@@ -146,11 +155,11 @@ export default function MascotChat() {
   )
 }
 
-function Bubble({ role, children, topic }) {
+export function Bubble({ role, children, topic }) {
   const bot = role === 'bot'
   return (
     <div className={cx('flex', bot ? 'justify-start' : 'justify-end')}>
-      <div className={cx('max-w-[86%] rounded-sm border-2 px-3 py-2 text-sm leading-snug', bot ? 'rounded-bl-none border-line bg-white' : 'rounded-br-none border-graphite bg-graphite text-white')}>
+      <div className={cx('max-w-[86%] rounded-sm border-2 px-3 py-2 text-sm leading-snug', bot ? 'rounded-bl-none border-line bg-paper' : 'rounded-br-none border-graphite bg-graphite text-white')}>
         {children}
         {topic && (
           <div className="mt-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-brand">

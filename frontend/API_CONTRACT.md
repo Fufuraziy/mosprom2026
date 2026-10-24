@@ -13,6 +13,31 @@
 
 Фронт перепроверяет доступность раз в 20 секунд и показывает статус в шапке и в панели HR.
 
+## Аутентификация HR и Режим Жюри
+
+Для защиты персональных данных кандидатов и панели HR головного офиса «Очаково»:
+
+### `POST /api/auth/login`
+- Тело запроса:
+```json
+{"pin": "1978", "vk_user_id": "optional"}
+```
+- Ответ (`200 OK`):
+```json
+{"authenticated": true, "token": "ochakovo-hr-secret-1978", "role": "hr_admin"}
+```
+- Ответ (`401 Unauthorized` при неверном PIN):
+```json
+{"detail": "Неверный код доступа сотрудника HR Очаково"}
+```
+
+### Защита HR-эндпоинтов и демо-страховка
+- Заголовки: `X-HR-Token` или `Authorization: Bearer ...`.
+- Если токен валиден: бэкенд возвращает заголовок `X-HR-Auth-Mode: hr_admin` и поле `"auth_mode": "hr_admin"`.
+- **Страховка для демо:** если токен не передан, бэкенд НЕ блокирует эксперта ошибкой 401, а отдаёт `200 OK` с `auth_mode: "jury_open_fallback"`.
+- **Бесшовный вход:** переход по ссылке с параметром `?jury=1978` или `?role=hr` автоматически авторизует эксперта без показа модалки.
+- **Вход в 1 клик:** в модальном окне предусмотрена подсказка `🔑 Пин-код для экспертов и жюри «Открой#Моспром»: 1978` и кнопка `«⚡ Быстрый вход для Эксперта Жюри (1 клик)»`.
+
 ## Игровая сессия и телеметрия
 
 | Метод | Путь | Тело | Ответ |
@@ -20,7 +45,7 @@
 | POST | `/api/sessions` | `{started_at}` | `{session_id}` |
 | POST | `/api/telemetry` | `{session_id, event, payload, ts}` | `{ok: true}` |
 
-Основные `event`: `session_open`, `navigate`, `points`, `why_ochakovo_cards_viewed` (`{id}`),
+Основные `event`: `session_open`, `navigate`, `points`, `why_ochakovo_cards_viewed` (`{id}`), `map_location_viewed` (`{id, name}`), `map_workshop_selected` (`{id, vacancy}`),
 `ppe_attempt` (`{wrong:[], missing:[]}`), `ppe_done`, `quiz_answer` (`{station, idx, correct}`),
 `station_done` (`{id, points, result, skipped}`), `capsule_attempt` (`{code}`), `capsule_open`,
 `raffle_ticket` (`{item, price}`), `calculator` (`{dept, nights, dorm, meals}`),
@@ -43,6 +68,8 @@
   "capsule_attempts": 1,
   "calculator": {"interactions": 5, "night_ok": true, "last": {"dept": "bottling", "nights": 7, "dorm": true, "meals": true}},
   "asked_topics": {"dorm": 2, "military": 1},
+  "viewed_map_locations": ["Центральная Лаборатория и R&D-центр Дегустаций", "Технологический цех (Варка, участок CO2 и ЛЭП)"],
+  "selected_map_workshop": "Технологический цех (Варка, участок CO2 и ЛЭП)",
   "skipped": [],
   "started_at": "2026-10-24T10:00:00Z"
 }

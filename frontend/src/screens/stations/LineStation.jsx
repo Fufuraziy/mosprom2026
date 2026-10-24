@@ -63,7 +63,7 @@ function LineGame({ onFinish }) {
     g.current.last = performance.now()
     const loop = (ts) => {
       const s = g.current
-      const dt = ts - s.last
+      const dt = Math.min(ts - s.last, 100) // после сворачивания приложения не «проматываем» конвейер
       s.last = ts
       s.elapsed += dt
       if (s.elapsed - s.lastSpawn > SPAWN_MS && s.elapsed < GAME_MS - TRAVEL_MS - 250) {
@@ -81,6 +81,13 @@ function LineGame({ onFinish }) {
     raf.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf.current)
   }, [status])
+
+  // приложение свернули (VKWebAppViewHide) — ставим линию на паузу, как аварийный стоп без штрафа
+  useEffect(() => {
+    const onPause = () => setStatus((st) => (st === 'run' ? 'pause' : st))
+    window.addEventListener('och:pause', onPause)
+    return () => window.removeEventListener('och:pause', onPause)
+  }, [])
 
   // банки, доехавшие до туннеля
   useEffect(() => {
@@ -117,13 +124,13 @@ function LineGame({ onFinish }) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
       <div className="overflow-hidden rounded-sm border border-line bg-[#E9EEF1] shadow-pop">
-        <div className="flex items-center justify-between border-b-2 border-brand bg-white px-4 py-2 font-mono text-xs">
+        <div className="flex items-center justify-between border-b-2 border-brand bg-paper px-4 py-2 font-mono text-xs">
           <span className="font-bold">ЛИНИЯ №3 · SMI SK 500 P · термоусадочный туннель</span>
           <span className="font-bold text-brand">{status === 'run' || status === 'pause' ? `${remaining.toFixed(1)} c` : ''}</span>
         </div>
         <div className="relative h-[230px] overflow-hidden sm:h-[260px]">
           {/* стена цеха */}
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,#DDE4E8_0,#C9D2D8_70%,#9AA5AD_100%)]" />
+          <div className="absolute inset-0 och-light bg-[linear-gradient(180deg,#DDE4E8_0,#C9D2D8_70%,#9AA5AD_100%)]" />
           <div className="absolute left-0 right-0 top-8 h-2 bg-[#7FB6C9]/60" />
           {/* конвейер */}
           <div className="absolute bottom-[22px] left-0 right-[92px] h-[14px] border-y-2 border-brand bg-[#2B6CB0]">
@@ -195,7 +202,7 @@ function LineGame({ onFinish }) {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {status === 'idle' || status === 'pause' ? (
-            <button onClick={() => setStatus('run')} className="flex items-center justify-center gap-1 rounded-sm border-2 border-white bg-[#3DD68C] py-3 font-extrabold text-ink active:scale-95">
+            <button onClick={() => setStatus('run')} className="flex items-center justify-center gap-1 rounded-sm border-2 border-white bg-[#3DD68C] py-3 font-extrabold text-[#1f1f1f] active:scale-95">
               <Play className="h-5 w-5" /> ПУСК
             </button>
           ) : (
@@ -262,7 +269,7 @@ function TTN({ stats, onDone }) {
           </label>
           <label className="block">
             <span className="text-xs font-extrabold uppercase text-ink-mute">Грузополучатель</span>
-            <select value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} className={cx('mt-1 w-full rounded-sm border-2 bg-white px-3 py-2.5 text-sm font-semibold', field('to'))}>
+            <select value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} className={cx('mt-1 w-full rounded-sm border-2 bg-paper px-3 py-2.5 text-sm font-semibold', field('to'))}>
               <option value="">Выбери получателя…</option>
               {RECIPIENTS.map((r) => (
                 <option key={r}>{r}</option>
@@ -282,7 +289,7 @@ function TTN({ stats, onDone }) {
                   inputMode="numeric"
                   value={form[k]}
                   onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-                  className={cx('mt-1 w-full rounded-sm border-2 bg-white px-3 py-2.5 font-mono text-lg font-bold', field(k))}
+                  className={cx('mt-1 w-full rounded-sm border-2 bg-paper px-3 py-2.5 font-mono text-lg font-bold', field(k))}
                 />
               </label>
             ))}
@@ -292,7 +299,7 @@ function TTN({ stats, onDone }) {
               Подписать ТТН
             </Button>
           ) : (
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-white p-3">
+            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-paper p-3">
               <span className="text-sm font-bold">
                 Верно заполнено полей: {correct}/3.{' '}
                 {correct < 3 && (

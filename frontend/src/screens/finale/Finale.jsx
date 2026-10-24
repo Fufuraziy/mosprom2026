@@ -54,9 +54,9 @@ export default function Finale() {
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={cx('flex shrink-0 items-center gap-2 rounded-sm border border-line px-4 py-2.5 text-sm font-extrabold transition', tab === id ? 'bg-brand text-white shadow-pop' : 'bg-white hover:bg-paper')}
+              className={cx('flex shrink-0 items-center gap-2 rounded-sm border border-line px-4 py-2.5 text-sm font-extrabold transition', tab === id ? 'bg-brand text-white shadow-pop' : 'bg-paper hover:bg-paper')}
             >
-              <span className={cx('grid h-5 w-5 place-items-center rounded-full font-mono text-[11px]', tab === id ? 'bg-white text-brand' : 'bg-graphite text-white')}>{i + 1}</span>
+              <span className={cx('grid h-5 w-5 place-items-center rounded-full font-mono text-[11px]', tab === id ? 'bg-paper text-brand' : 'bg-graphite text-white')}>{i + 1}</span>
               <I className="h-4 w-4" />
               {label}
             </button>

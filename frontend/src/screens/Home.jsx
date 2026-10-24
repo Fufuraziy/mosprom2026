@@ -22,7 +22,7 @@ function WhyCard({ card, opened, onOpen }) {
   const [expanded, setExpanded] = useState(false)
   const isOpen = opened && expanded
   return (
-    <motion.div layout className={cx('relative overflow-hidden border transition-colors', isOpen ? 'border-brand bg-brand text-white' : 'border-line bg-white hover:border-brand/50')}>
+    <motion.div layout className={cx('relative overflow-hidden border transition-colors', isOpen ? 'border-brand bg-brand text-white' : 'border-line bg-paper hover:border-brand/50')}>
       <button
         className="flex w-full items-start gap-4 p-5 text-left"
         onClick={() => {
@@ -31,7 +31,7 @@ function WhyCard({ card, opened, onOpen }) {
         }}
         aria-expanded={isOpen}
       >
-        <div className={cx('grid h-12 w-12 shrink-0 place-items-center', isOpen ? 'bg-white text-brand' : 'bg-brand text-white')}>
+        <div className={cx('grid h-12 w-12 shrink-0 place-items-center', isOpen ? 'bg-paper text-brand' : 'bg-brand text-white')}>
           <Icon name={card.icon} className="h-6 w-6" strokeWidth={1.6} />
         </div>
         <div className="min-w-0 flex-1">
@@ -56,13 +56,13 @@ function WhyCard({ card, opened, onOpen }) {
             <ul className="space-y-2 px-5 pb-4 pl-[84px]">
               {card.body.map((b, i) => (
                 <li key={i} className="flex gap-2 text-sm leading-snug">
-                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 bg-white" />
+                  <span className="mt-[7px] h-1.5 w-1.5 shrink-0 bg-paper" />
                   <span>{b}</span>
                 </li>
               ))}
             </ul>
             <div className="px-5 pb-5 pl-[84px]">
-              <Sticker color="bg-white text-brand border-white">{card.badge}</Sticker>
+              <Sticker color="bg-paper text-brand border-white">{card.badge}</Sticker>
             </div>
           </motion.div>
         )}
@@ -71,37 +71,34 @@ function WhyCard({ card, opened, onOpen }) {
   )
 }
 
-export default function Home() {
+/** Главный экран: детективная завязка (красный блок + квадратные модули). onWhy — переход к «5 причин». */
+export function HomeHero({ onWhy }) {
   const { state, actions } = useGame()
   const viewed = state.telemetry.why_ochakovo_cards_viewed
   const done = Object.keys(state.telemetry.stations).length
   const started = state.ppeDone || done > 0
   const start = () => actions.go(state.ppeDone ? 'hub' : 'locker')
-
   return (
-    <div>
+    <>
       {/* ---------------------------------------------------------------- HERO */}
-      <section className="bg-white">
+      <section className="bg-paper">
         <div className="mx-auto grid max-w-7xl lg:grid-cols-2">
           {/* красная заливка с текстом */}
-          <div className="relative bg-brand px-5 pb-12 pt-10 text-white sm:px-10 lg:pb-16 lg:pt-14">
-            <div className="mb-6 flex flex-wrap items-center gap-2">
+          <div className="relative bg-brand px-5 pb-8 pt-7 text-white sm:px-10 sm:pb-12 sm:pt-10 lg:pb-16 lg:pt-14">
+            <div className="mb-5 flex flex-wrap items-center gap-2">
               <RecBadge label="REC · ДЕЛО № 1978" />
               <span className="border border-white/50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em]">18+ · практика и стажировки</span>
             </div>
             <h1 className="font-display uppercase leading-[0.92] tracking-tight">
-              <span className="block text-[44px] font-extralight sm:text-7xl">Секретный</span>
-              <span className="block text-[52px] font-extrabold sm:text-[88px]">код 1978</span>
+              <span className="block text-[40px] font-extralight sm:text-7xl">Секретный</span>
+              <span className="block text-[48px] font-extrabold sm:text-[88px]">код 1978</span>
             </h1>
-            <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-white/90 sm:text-base">{STORY.lead}</p>
-            <p className="mt-3 max-w-xl text-[15px] font-semibold leading-relaxed sm:text-base">{STORY.mission}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/90 sm:text-base">{STORY.lead}</p>
+            <p className="mt-3 max-w-xl text-sm font-semibold leading-relaxed sm:text-base">{STORY.mission}</p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button variant="dark" size="lg" onClick={start}>
                 {started ? 'Продолжить расследование' : 'Начать расследование'}
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Button>
-              <Button size="lg" className="border border-white/70 bg-transparent hover:bg-white/10" onClick={() => document.getElementById('why')?.scrollIntoView({ behavior: 'smooth' })}>
-                Почему ОЧАКОВО?
               </Button>
             </div>
             <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-semibold text-white/90">
@@ -137,7 +134,7 @@ export default function Home() {
             </Module>
             <motion.div className="absolute bottom-[31%] right-[30%] flex items-end gap-1" initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.4, type: 'spring' }}>
               <Krafty size={76} mood="wink" className="animate-floaty drop-shadow-md" />
-              <div className="mb-12 hidden max-w-[150px] border border-line bg-white px-3 py-2 text-xs font-semibold text-ink shadow-pop sm:block">
+              <div className="mb-12 hidden max-w-[150px] border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink shadow-pop sm:block">
                 Я Крафти, наставник. Код соберём вместе!
               </div>
             </motion.div>
@@ -145,8 +142,20 @@ export default function Home() {
         </div>
       </section>
 
+    </>
+  )
+}
+
+export function BrandEssence() {
+  const { state, actions } = useGame()
+  const viewed = state.telemetry.why_ochakovo_cards_viewed
+  const done = Object.keys(state.telemetry.stations).length
+  const started = state.ppeDone || done > 0
+  const start = () => actions.go(state.ppeDone ? 'hub' : 'locker')
+  return (
+    <>
       {/* ------------------------------------------------------- ПЛАТФОРМА БРЕНДА */}
-      <section className="border-b border-line bg-white">
+      <section className="border-b border-line bg-paper">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-[1fr_1.4fr] md:items-center">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink-soft">Призвание ОЧАКОВО</div>
@@ -162,6 +171,18 @@ export default function Home() {
         </div>
       </section>
 
+    </>
+  )
+}
+
+export function Timeline() {
+  const { state, actions } = useGame()
+  const viewed = state.telemetry.why_ochakovo_cards_viewed
+  const done = Object.keys(state.telemetry.stations).length
+  const started = state.ppeDone || done > 0
+  const start = () => actions.go(state.ppeDone ? 'hub' : 'locker')
+  return (
+    <>
       {/* ---------------------------------------------------------- ЛЕНТА ВРЕМЕНИ */}
       <section className="bg-cream">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -185,8 +206,20 @@ export default function Home() {
         </div>
       </section>
 
+    </>
+  )
+}
+
+export function WhyCards() {
+  const { state, actions } = useGame()
+  const viewed = state.telemetry.why_ochakovo_cards_viewed
+  const done = Object.keys(state.telemetry.stations).length
+  const started = state.ppeDone || done > 0
+  const start = () => actions.go(state.ppeDone ? 'hub' : 'locker')
+  return (
+    <>
       {/* --------------------------------------------------------- 5 ПРИЧИН */}
-      <section id="why" className="scroll-mt-20 bg-white">
+      <section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionTitle
@@ -222,13 +255,25 @@ export default function Home() {
         </div>
       </section>
 
+    </>
+  )
+}
+
+export function BrandValues() {
+  const { state, actions } = useGame()
+  const viewed = state.telemetry.why_ochakovo_cards_viewed
+  const done = Object.keys(state.telemetry.stations).length
+  const started = state.ppeDone || done > 0
+  const start = () => actions.go(state.ppeDone ? 'hub' : 'locker')
+  return (
+    <>
       {/* ------------------------------------------------------- ЦЕННОСТИ БРЕНДА */}
       <section className="bg-cream">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
           <SectionTitle kicker="Ценности и характер бренда" title={<><span className="font-light">С кем ты будешь </span><span className="font-extrabold">работать</span></>} sub="Пять ценностей ОЧАКОВО из платформы бренда — по ним мы узнаём «своих»." />
           <div className="grid grid-cols-2 gap-px bg-line sm:grid-cols-3 lg:grid-cols-5">
             {BRAND_VALUES.map((v, i) => (
-              <div key={v.value} className="flex flex-col bg-white p-5">
+              <div key={v.value} className="flex flex-col bg-paper p-5">
                 <span className="font-display text-5xl font-extrabold leading-none text-brand">{i + 1}</span>
                 <span className="mt-4 text-sm font-extrabold uppercase text-ink">{v.value}</span>
                 <span className="mt-1 text-[11px] font-bold uppercase tracking-wider text-brand">{v.character}</span>
@@ -239,20 +284,32 @@ export default function Home() {
         </div>
       </section>
 
+    </>
+  )
+}
+
+export function StationsRoute() {
+  const { state, actions } = useGame()
+  const viewed = state.telemetry.why_ochakovo_cards_viewed
+  const done = Object.keys(state.telemetry.stations).length
+  const started = state.ppeDone || done > 0
+  const start = () => actions.go(state.ppeDone ? 'hub' : 'locker')
+  return (
+    <>
       {/* --------------------------------------------------------- МАРШРУТ */}
-      <section className="bg-white">
+      <section className="bg-paper">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
           <SectionTitle kicker="Маршрут расследования" title={<><span className="font-light">От идеи до полки: </span><span className="font-extrabold">4 станции</span></>} sub="На каждой станции: мини-игра по реальному оборудованию из цехов, справка из истории и одна цифра кода." />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {STATIONS.map((s, i) => {
               const ok = !!state.telemetry.stations[s.id]
               return (
-                <button key={s.id} onClick={start} className="group relative overflow-hidden border border-line bg-white text-left transition hover:border-brand">
+                <button key={s.id} onClick={start} className="group relative overflow-hidden border border-line bg-paper text-left transition hover:border-brand">
                   <div className="relative h-36 overflow-hidden">
                     <img src={PHOTO(s.photo)} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                    <span className="absolute left-0 top-0 bg-white px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-ink">Станция {i + 1}</span>
+                    <span className="absolute left-0 top-0 bg-paper px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-ink">Станция {i + 1}</span>
                     <span className={cx('absolute right-0 top-0 grid h-10 w-10 place-items-center font-mono text-lg font-bold', ok ? 'bg-brand text-white' : 'bg-white/90 text-steel')}>
-                      {ok ? s.digit : <Lock className="h-4 w-4" />}
+                      {ok ? state.digits[i] : <Lock className="h-4 w-4" />}
                     </span>
                   </div>
                   <div className="flex items-start gap-3 p-4">
@@ -268,21 +325,47 @@ export default function Home() {
             })}
           </div>
         </div>
+      </section>
+    </>
+  )
+}
+
+export function BrandsMarquee() {
+  const { state, actions } = useGame()
+  const viewed = state.telemetry.why_ochakovo_cards_viewed
+  const done = Object.keys(state.telemetry.stations).length
+  const started = state.ppeDone || done > 0
+  const start = () => actions.go(state.ppeDone ? 'hub' : 'locker')
+  return (
+    <>
+      <section>
         {/* фирменный паттерн — отдельной полосой, не перекрывая текст (стр. 54–55) */}
-        <div className="och-pattern-white h-28 w-full bg-white sm:h-36" style={{ backgroundPosition: 'center bottom', backgroundSize: 'auto 100%', backgroundRepeat: 'repeat-x' }} aria-hidden />
+        <div className="och-pattern-white h-28 w-full bg-paper sm:h-36" style={{ backgroundPosition: 'center bottom', backgroundSize: 'auto 100%', backgroundRepeat: 'repeat-x' }} aria-hidden />
         <div className="overflow-hidden bg-brand py-3 text-white">
           <div className="marquee-track animate-marquee">
             {[...BRANDS, ...BRANDS].map((b, i) => (
               <span key={i} className="mx-6 flex items-center gap-6 whitespace-nowrap font-display text-base font-light uppercase tracking-wide">
-                {b} <span className="h-1.5 w-1.5 bg-white" />
+                {b} <span className="h-1.5 w-1.5 bg-paper" />
               </span>
             ))}
           </div>
         </div>
       </section>
 
+    </>
+  )
+}
+
+export function CapsuleTeaser() {
+  const { state, actions } = useGame()
+  const viewed = state.telemetry.why_ochakovo_cards_viewed
+  const done = Object.keys(state.telemetry.stations).length
+  const started = state.ppeDone || done > 0
+  const start = () => actions.go(state.ppeDone ? 'hub' : 'locker')
+  return (
+    <>
       {/* ------------------------------------------------------------ ФИНАЛ */}
-      <section className="bg-white">
+      <section className="bg-paper">
         <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 py-14 sm:px-6 md:grid-cols-[auto_1fr]">
           <TornPhoto src={PHOTO('lep-tanks.jpg')} alt="Чаны ЛЭП" seed={5} rec recLabel="ЛЭП · 22 с" className="mx-auto h-56 w-72 sm:h-64 sm:w-96" />
           <div>
@@ -302,6 +385,22 @@ export default function Home() {
           </div>
         </div>
       </section>
+    </>
+  )
+}
+
+/** Полная лента (как раньше) — для предпросмотра на странице HR. */
+export default function Home() {
+  return (
+    <div>
+      <HomeHero onWhy={() => {}} />
+      <BrandEssence />
+      <Timeline />
+      <WhyCards />
+      <BrandValues />
+      <StationsRoute />
+      <BrandsMarquee />
+      <CapsuleTeaser />
     </div>
   )
 }

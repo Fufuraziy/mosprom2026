@@ -7,8 +7,43 @@
 import * as local from './localEngine.js'
 import * as botLocal from './botEngine.js'
 import { normalizeAnalytics, normalizeArchetype, normalizeTelemetry } from './normalize.js'
+import { launchParams, launchQuery } from './vk.js'
 
 export const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
+
+export const HR_TOKEN_KEY = 'ochakovo_hr_token'
+export const HR_AUTH_KEY = 'ochakovo_hr_auth'
+
+export function getHrToken() {
+  try {
+    return window.sessionStorage?.getItem(HR_TOKEN_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+export function setHrToken(token) {
+  try {
+    if (token) {
+      window.sessionStorage?.setItem(HR_TOKEN_KEY, token)
+      window.sessionStorage?.setItem(HR_AUTH_KEY, 'true')
+    } else {
+      window.sessionStorage?.removeItem(HR_TOKEN_KEY)
+      window.sessionStorage?.removeItem(HR_AUTH_KEY)
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+export function isHrAuthStored() {
+  try {
+    return window.sessionStorage?.getItem(HR_AUTH_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
 
 const HEALTH_TTL = 20000 // мс: как часто перепроверяем доступность бэкенда
 const TIMEOUT = 3500
@@ -91,7 +126,11 @@ async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = fa
         API_URL + path,
         {
           method,
-          headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+          headers: {
+            ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+            // внутри ВК — строка запуска с подписью: бэкенд проверяет sign и доверяет vk_user_id (BACKEND_HANDOFF.md, 7.1)
+            ...(launchQuery ? { 'X-VK-Launch-Params': launchQuery } : {}),
+          },
           body: body !== undefined ? JSON.stringify(body) : undefined,
         },
         timeout,
@@ -113,7 +152,7 @@ async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = fa
       }
       throw new Error(`HTTP ${r.status}`)
     } catch (e) {
-      if (e.status === 422 || e.status === 400) throw e
+      if (e.status === 422 || e.status === 400 || e.status === 401) throw e
       // медленный ответ ИИ — не повод считать бэкенд упавшим
       if (!(slow && e.name === 'AbortError')) setOnline(false)
     }
@@ -141,12 +180,42 @@ const q = (params = {}) => {
 export const api = {
   health: () => checkHealth(true),
 
+  /** Вход в систему HR / Режим Жюри. Проверяет PIN (по умолчанию 1978) или vk_user_id */
+  login: (pin, vk_user_id) =>
+    call(
+      'POST',
+      '/api/auth/login',
+      { pin: pin ? String(pin).trim() : undefined, vk_user_id: vk_user_id || undefined },
+      () => {
+        if (String(pin).trim() === '1978') {
+          return { authenticated: true, token: 'ochakovo-hr-secret-1978', role: 'hr_admin' }
+        }
+        const err = new Error('Неверный код доступа сотрудника HR Очаково')
+        err.status = 401
+        err.detail = 'Неверный код доступа сотрудника HR Очаково'
+        err.errors = { pin: 'Неверный код доступа сотрудника HR Очаково' }
+        throw err
+      },
+    ).then((res) => {
+      if (res?.authenticated && res?.token) {
+        setHrToken(res.token)
+      }
+      return res
+    }),
+
+  /** Выход из сессии HR */
+  logout: () => {
+    setHrToken(null)
+  },
+
   /** Новая игровая сессия (анонимная, до анкеты). */
-  startSession: () =>
-    call('POST', '/api/sessions', { started_at: new Date().toISOString() }, () => ({
-      session_id: local.uid('sess'),
-      source: 'local',
-    })),
+  startSession: (extra = {}) =>
+    call(
+      'POST',
+      '/api/sessions',
+      { started_at: new Date().toISOString(), vk_platform: launchParams.vk_platform || null, vk_ref: launchParams.vk_ref || null, ...extra },
+      () => ({ session_id: extra.session_id || local.uid('sess'), target_code: extra.target_code || null, source: 'local' }),
+    ),
 
   /** Событие телеметрии: {session_id, event, payload}. Ошибки не мешают игре. */
   track: (session_id, event, payload = {}) =>
@@ -213,6 +282,13 @@ export const api = {
       channel: candidate.vk_user_id ? 'vk' : 'vk_demo',
       message_id: local.uid('msg'),
     })),
+
+  /** Удалить мои данные (правило ВК 1.1.10). На бэкенде пользователь определяется по подписи строки запуска ВК. */
+  deleteMe: (session_id, candidate_id) =>
+    call('DELETE', '/api/candidates/me', { session_id, candidate_id }, () => local.deleteMine({ session_id, candidate_id })).then((r) => {
+      local.deleteMine({ session_id, candidate_id }) // и локальную копию тоже
+      return r
+    }),
 
   /** CSV формируем на клиенте из уже загруженного списка — так работает и офлайн. */
   csv: (list) => local.toCSV(list),

@@ -9,9 +9,11 @@
  *   Retail: зелёный 376 C #84BD00, голубой 2194 #0086D6, тёмно-зелёный 362 #509E2F
  * Шрифт бренда — Proxima Nova (платный, ставится первым в стеке); открытая замена — Montserrat.
  */
+const v = (name) => `rgb(var(--och-${name}) / <alpha-value>)`
+
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,jsx}'],
+  content: ['./index.html', './hr.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
@@ -28,20 +30,21 @@ export default {
           800: '#8C1D21',
           900: '#5F1416',
         },
+        // Поверхности и текст — через CSS-переменные (index.css): светлая и тёмная тема VK Mini App.
         ink: {
-          DEFAULT: '#1F1F1F',
-          2: '#4A4A4A',
-          soft: '#626262',
-          mute: '#83898C',
+          DEFAULT: v('ink'),
+          2: v('ink-2'),
+          soft: v('ink-soft'),
+          mute: v('ink-mute'),
         },
         graphite: { DEFAULT: '#626262', 2: '#575757' },
-        steel: { DEFAULT: '#A2AAAD', light: '#D4D8DA' },
-        line: '#DDE0E2',
+        steel: { DEFAULT: '#A2AAAD', light: v('steel-light') },
+        line: v('line'),
         // бывшие «солод» и «крафт» → серая шкала Pantone 429
-        malt: { DEFAULT: '#A2AAAD', light: '#E8EBEC', dark: '#626262' },
-        kraft: { DEFAULT: '#E8EBEC', light: '#F4F5F6', dark: '#C9CED0' },
-        cream: '#F5F6F7',
-        paper: '#FFFFFF',
+        malt: { DEFAULT: '#A2AAAD', light: v('malt-light'), dark: v('malt-dark') },
+        kraft: { DEFAULT: v('kraft'), light: v('kraft-light'), dark: v('kraft-dark') },
+        cream: v('cream'),
+        paper: v('paper'),
         mint: '#0086D6',
         lime: '#84BD00',
         leaf: '#509E2F',

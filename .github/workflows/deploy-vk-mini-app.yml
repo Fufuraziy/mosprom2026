@@ -1,0 +1,56 @@
+# Автодеплой VK Mini App: каждый push в main, затрагивающий frontend/, собирает игру и заливает её на хостинг ВК.
+# Нужные секреты репозитория (Settings → Secrets and variables → Actions):
+#   VK_MINI_APPS_TOKEN — сервисный ключ доступа приложения 54849953 (dev.vk.com → приложение → «Ключи доступа»)
+#   VITE_API_URL       — публичный HTTPS-адрес бэкенда (необязательно: без него игра работает на встроенном движке)
+#   VITE_VK_GROUP_ID   — id сообщества ВК для подписки на сообщения бота (необязательно)
+name: Deploy VK Mini App
+
+on:
+  push:
+    branches: [main]
+    paths: ['frontend/**', '.github/workflows/deploy-vk-mini-app.yml']
+  workflow_dispatch: # ручной запуск: вкладка Actions → Deploy VK Mini App → Run workflow
+
+concurrency:
+  group: vk-mini-app-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # npm install, а не npm ci: package-lock собран на macOS, а нативные пакеты сборщика под Linux ставятся отдельно
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Write .env.production
+        run: |
+          {
+            echo "VITE_VK_APP_ID=54849953"
+            if [ -n "${{ secrets.VITE_API_URL }}" ]; then echo "VITE_API_URL=${{ secrets.VITE_API_URL }}"; fi
+            if [ -n "${{ secrets.VITE_VK_GROUP_ID }}" ]; then echo "VITE_VK_GROUP_ID=${{ secrets.VITE_VK_GROUP_ID }}"; fi
+          } > .env.production
+
+      - name: Build
+        run: npm run build
+
+      # vk-miniapps-deploy без вопросов: noprompt + обновить адреса prod и dev
+      - name: Configure non-interactive deploy
+        run: |
+          node -e "const f='vk-hosting-config.json';const c=require('./'+f);Object.assign(c,{noprompt:true,update_prod:1,update_dev:1});require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+
+      - name: Deploy to VK Mini Apps hosting
+        env:
+          MINI_APPS_ACCESS_TOKEN: ${{ secrets.VK_MINI_APPS_TOKEN }}
+          MINI_APPS_APP_ID: '54849953'
+          CI_URLS: 'true'
+        run: npx vk-miniapps-deploy
