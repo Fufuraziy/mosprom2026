@@ -12,6 +12,7 @@ import {
   Panel,
   PanelHeader,
   PanelHeaderBack,
+  PanelHeaderButton,
   PanelHeaderContent,
   Placeholder,
   SimpleCell,
@@ -21,6 +22,9 @@ import {
 import { useFirstPageCheck, useParams, useRouteNavigator } from '@vkontakte/vk-mini-apps-router'
 import {
   Icon28ArticleOutline,
+  Icon28ChatsOutline,
+  Icon28StatisticsOutline,
+  Icon28ViewOutline,
   Icon28DeleteOutline,
   Icon28DocumentTextOutline,
   Icon28GameOutline,
@@ -55,6 +59,8 @@ import CandidateForm, { Submitted } from '../screens/finale/CandidateForm.jsx'
 import FirstDayGuide from '../screens/finale/FirstDayGuide.jsx'
 import { StoryShareButton } from '../components/StoryShare.jsx'
 import MascotChatPanel from '../screens/mascot/MascotChatPanel.jsx'
+import HRPanel from '../screens/hr/HRPanel.jsx'
+import BotScreen from '../screens/bot/BotScreen.jsx'
 import { MODAL, PANEL, PATH, stationPath } from './routes.js'
 
 const STATION_SCREENS = { lab: LabStation, engineering: EngineeringStation, line: LineStation, design: DesignStation }
@@ -70,17 +76,107 @@ function useStatus() {
  * parent — куда вести «Назад», если экран открыт по прямой ссылке и истории нет.
  * onBack — свой обработчик (например, подтверждение выхода со станции).
  */
-export function Screen({ nav, title, subtitle, parent, onBack, children }) {
+export function Screen({ nav, title, subtitle, parent, onBack, before, children }) {
   const navigator = useRouteNavigator()
   const isFirst = useFirstPageCheck()
   const back = () => (isFirst ? navigator.replace(parent || '/') : navigator.back())
   return (
     <Panel nav={nav}>
-      <PanelHeader before={parent !== undefined && <PanelHeaderBack onClick={onBack ? () => onBack(back) : back} />}>
+      <PanelHeader before={parent !== undefined ? <PanelHeaderBack onClick={onBack ? () => onBack(back) : back} /> : before}>
         {subtitle ? <PanelHeaderContent subtitle={subtitle}>{title}</PanelHeaderContent> : title}
       </PanelHeader>
       {children}
     </Panel>
+  )
+}
+
+/* ------------------------------------------------------------------ ЖЮРИ */
+
+/**
+ * Кнопка «👁 Режим жюри» в левом углу шапки главного экрана (правый угол занят капсулой ВК).
+ * Включает вкладку «Жюри» с Панелью HR и симулятором ВК-бота — в том числе внутри ВКонтакте.
+ */
+function JuryButton() {
+  const { state, actions } = useGame()
+  const navigator = useRouteNavigator()
+  const open = () => {
+    if (state.juryMode) return navigator.push(PATH[PANEL.JURY_HOME])
+    navigator.showPopout(
+      <Alert
+        title="👁 Режим жюри"
+        description="Покажем Панель HR и симулятор ВК-бота прямо в мини-приложении — так эксперты увидят всю экосистему. Выключается в Профиле."
+        actions={[
+          { title: 'Отмена', mode: 'cancel' },
+          {
+            title: 'Включить',
+            mode: 'default',
+            action: () => {
+              actions.setJury(true)
+              navigator.push(PATH[PANEL.JURY_HOME])
+            },
+          },
+        ]}
+        onClosed={() => navigator.hidePopout()}
+      />,
+    )
+  }
+  return (
+    <PanelHeaderButton onClick={open} label="Режим жюри" aria-label="Режим жюри">
+      <Icon28ViewOutline />
+    </PanelHeaderButton>
+  )
+}
+
+export function JuryHomePanel({ nav }) {
+  const { actions } = useGame()
+  const navigator = useRouteNavigator()
+  return (
+    <Screen nav={nav} title="Режим жюри" subtitle="Экосистема: игра + ВК-бот + HR">
+      <Group>
+        <Div className="space-y-2 text-sm leading-relaxed text-ink-soft">
+          <p>
+            Мини-приложение — это витрина для студента. Ниже то, что видит команда ОЧАКОВО: <b className="text-ink">Панель HR</b> с воронкой, ИИ-досье и приглашениями и{' '}
+            <b className="text-ink">ВК-бот</b> сообщества, который возвращает студентов в игру.
+          </p>
+          <p>Отправь анкету в игре — она сразу появится в Панели HR с меткой «новый». Приглашение из досье придёт во вкладку «ВК-бот».</p>
+        </Div>
+      </Group>
+      <Group>
+        <Cell before={<Icon28StatisticsOutline />} subtitle="Воронка, кандидаты, ИИ-досье, CSV" chevron="always" onClick={() => navigator.push(PATH[PANEL.JURY_HR])}>
+          Панель HR
+        </Cell>
+        <Cell before={<Icon28ChatsOutline />} subtitle="Сообщения сообщества и сценарии пушей" chevron="always" onClick={() => navigator.push(PATH[PANEL.JURY_BOT])}>
+          ВК-бот ОЧАКОВО
+        </Cell>
+        <Cell
+          before={<Icon28ViewOutline />}
+          onClick={() => {
+            actions.setJury(false)
+            navigator.replace(PATH[PANEL.HOME])
+          }}
+        >
+          Выключить режим жюри
+        </Cell>
+      </Group>
+    </Screen>
+  )
+}
+
+export function JuryHRPanel({ nav }) {
+  return (
+    <Screen nav={nav} title="Панель HR" subtitle="Режим жюри" parent={PATH[PANEL.JURY_HOME]}>
+      <div className="w-full min-w-0 overflow-x-hidden">
+        <HRPanel />
+      </div>
+    </Screen>
+  )
+}
+
+export function JuryBotPanel({ nav }) {
+  return (
+    <Screen nav={nav} title="ВК-бот ОЧАКОВО" subtitle="Режим жюри" parent={PATH[PANEL.JURY_HOME]}>
+      <BotScreen />
+    </Screen>
   )
 }
 
@@ -94,7 +190,7 @@ export function HomePanel({ nav }) {
   const done = Object.keys(state.telemetry.stations).length
   const started = state.ppeDone || done > 0
   return (
-    <Screen nav={nav} title="Секретный код 1978" subtitle={started ? status : 'ОЧАКОВО · практика и стажировки 18+'}>
+    <Screen nav={nav} title="Секретный код 1978" subtitle={started ? status : 'ОЧАКОВО · практика и стажировки 18+'} before={<JuryButton />}>
       <HomeHero onWhy={() => navigator.push(PATH[PANEL.WHY])} />
       <Group header={<Header>Материалы дела</Header>}>
         <Cell before={<Icon28HistoryBackwardOutline />} subtitle="1978–2000+ и призвание бренда" chevron="always" onClick={() => navigator.push(PATH[PANEL.STORY])}>
@@ -444,6 +540,14 @@ export function MePanel({ nav }) {
         <SimpleCell Component="label" after={<Switch checked={state.demoFast} onChange={(e) => actions.setDemo(e.target.checked)} />} subtitle="Кнопка «Пропустить мини-игру» на станциях">
           Демо-ускорение для жюри
         </SimpleCell>
+        <SimpleCell
+          Component="label"
+          before={<Icon28ViewOutline />}
+          after={<Switch checked={state.juryMode} onChange={(e) => actions.setJury(e.target.checked)} />}
+          subtitle="Вкладка с Панелью HR и ВК-ботом"
+        >
+          Режим жюри
+        </SimpleCell>
         <SimpleCell before={<Icon28InfoCircleOutline />} chevron="always" onClick={() => navigator.push(PATH[PANEL.ABOUT])}>
           О приложении
         </SimpleCell>
@@ -527,6 +631,9 @@ export const PANELS = {
   [PANEL.CHAT]: ChatPanel,
   [PANEL.ME]: MePanel,
   [PANEL.ABOUT]: AboutPanel,
+  [PANEL.JURY_HOME]: JuryHomePanel,
+  [PANEL.JURY_HR]: JuryHRPanel,
+  [PANEL.JURY_BOT]: JuryBotPanel,
 }
 
 export { stationPath }

@@ -4,7 +4,28 @@
 
 export const PHOTO = (name) => `./brand/photos/${name}`
 
-export const CODE = ['1', '9', '7', '8']
+/** Год закладки «Капсулы Мастерства» — сюжет и заголовки (комбинат запущен в 1978 году к Олимпиаде-80). */
+export const CAPSULE_YEAR = '1978'
+
+/** Порядок станций = порядок цифр кода: станция 1 открывает 1-ю цифру, станция 2 — 2-ю и т. д. */
+export const STATION_ORDER = ['lab', 'engineering', 'line', 'design']
+
+/**
+ * Код замка капсулы — 4 случайные цифры, свои для каждой новой игры (не «1978»: его знают все,
+ * и подсмотренный у друга код не должен открывать капсулу). Цифры — строки '0'…'9'.
+ */
+export function newCapsuleCode() {
+  const a = new Uint32Array(4)
+  try {
+    crypto.getRandomValues(a)
+  } catch {
+    for (let i = 0; i < 4; i++) a[i] = Math.floor(Math.random() * 1e9)
+  }
+  return Array.from(a, (x) => String(x % 10))
+}
+
+/** Код игр, начатых до появления случайного кода: старое сохранение должно доиграться. */
+export const LEGACY_CODE = ['1', '9', '7', '8']
 
 export const STORY = {
   kicker: 'Дело № 1978 · Совершенно открыто',
@@ -124,7 +145,6 @@ export const STATIONS = [
   {
     id: 'lab',
     n: 1,
-    digit: '1',
     title: 'Лаборатория и R&D',
     role: 'Химик-лаборант',
     salary: 'от 60 000 ₽',
@@ -138,7 +158,6 @@ export const STATIONS = [
   {
     id: 'engineering',
     n: 2,
-    digit: '9',
     title: 'Инженерия и техцех',
     role: 'Машинист тех. установок / оператор варки',
     salary: 'от 70 000 ₽',
@@ -152,7 +171,6 @@ export const STATIONS = [
   {
     id: 'line',
     n: 3,
-    digit: '7',
     title: 'Цех розлива и склад',
     role: 'Оператор линии / оператор склада',
     salary: '56 000 – 70 000+ ₽',
@@ -166,7 +184,6 @@ export const STATIONS = [
   {
     id: 'design',
     n: 4,
-    digit: '8',
     title: 'Дизайн, IT и СДО Mirapolis',
     role: 'Бесплатная практика + управление',
     salary: 'проектная практика',

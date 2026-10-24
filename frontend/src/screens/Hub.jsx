@@ -64,7 +64,7 @@ export default function Hub() {
                       ok ? 'border-white bg-brand text-white' : 'border-dashed border-white/70 bg-black/40 text-white/70',
                     )}
                   >
-                    {ok ? s.digit : '?'}
+                    {ok ? state.digits[i] : '?'}
                   </span>
                 </div>
                 <div className="flex flex-1 flex-col p-4">

@@ -103,7 +103,7 @@ export default function HRPanel() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-brand">Головной офис · ул. Рябиновая, 44</div>
@@ -133,7 +133,7 @@ export default function HRPanel() {
             <Kpi icon={Baby} label="Средний возраст" value={stats.avg_age ? `${String(stats.avg_age).replace('.', ',')} лет` : '—'} sub={`в компании сейчас ${stats.company_avg_age}: омоложение`} />
           </div>
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-3">
             <Card className="p-5 lg:col-span-1">
               <div className="flex items-center justify-between">
                 <div className="font-display text-lg font-extrabold">Воронка сезона</div>

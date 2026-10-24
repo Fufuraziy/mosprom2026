@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { api, onStatusChange } from '../services/api.js'
 import { uid } from '../services/localEngine.js'
-import { CODE } from '../data/content.js'
+import { LEGACY_CODE, STATION_ORDER, newCapsuleCode } from '../data/content.js'
 import { initVK, haptic, launchParams, storageLoad, storageSave, vkStorageEnabled } from '../services/vk.js'
 
 const LS_KEY = 'ochakovo1978_game_v1'
@@ -31,6 +31,8 @@ const initialState = () => ({
   screen: 'home', // home | locker | hub | station | finale
   stationId: null,
   sessionId: uid('sess'),
+  code: newCapsuleCode(), // код замка капсулы этой игры (4 случайные цифры)
+  sessionRegistered: false, // игра зарегистрирована на бэкенде (POST /api/sessions)
   points: 0,
   spent: 0,
   digits: [null, null, null, null],
@@ -44,6 +46,7 @@ const initialState = () => ({
   storyShared: false,
   vkProfile: null,
   ageOk: false, // показано и подтверждено предупреждение 18+ (правило ВК 2.1.5)
+  juryMode: false, // «Режим жюри»: Панель HR и ВК-бот внутри мини-приложения
   bot: emptyBot(),
 })
 
@@ -61,6 +64,8 @@ function load() {
     const raw = window.localStorage.getItem(LS_KEY)
     if (!raw) return initialState()
     const s = JSON.parse(raw)
+    // сохранение до случайного кода: начатая игра доигрывается со старым кодом
+    if (!Array.isArray(s.code) || s.code.length !== 4) s.code = (s.digits || []).some(Boolean) ? LEGACY_CODE : newCapsuleCode()
     return { ...initialState(), ...s, telemetry: { ...emptyTelemetry(), ...(s.telemetry || {}) }, bot: s.bot?.threads ? s.bot : emptyBot() }
   } catch {
     return initialState()
@@ -126,9 +131,9 @@ function reducer(state, a) {
       }
     case 'STATION_DONE': {
       if (t.stations[a.id]) return state
-      const idx = ['lab', 'engineering', 'line', 'design'].indexOf(a.id)
+      const idx = STATION_ORDER.indexOf(a.id)
       const digits = [...state.digits]
-      digits[idx] = CODE[idx]
+      digits[idx] = state.code[idx] // станция N открывает N-ю цифру кода этой игры
       return {
         ...state,
         digits,
@@ -175,10 +180,18 @@ function reducer(state, a) {
       return { ...state, candidate: a.candidate }
     case 'DEMO':
       return { ...state, demoFast: a.value }
+    case 'REMOTE_SESSION': {
+      // код от бэкенда принимаем, только пока ни одна цифра не открыта — иначе сломаем начатую игру
+      const fresh = !state.digits.some(Boolean) && !state.capsuleOpened
+      const code = fresh && Array.isArray(a.code) && a.code.length === 4 && a.code.every((d) => /^[0-9]$/.test(String(d))) ? a.code.map(String) : state.code
+      return { ...state, sessionRegistered: true, code, sessionId: fresh && a.sessionId ? a.sessionId : state.sessionId }
+    }
+    case 'JURY':
+      return { ...state, juryMode: a.value }
     case 'AGE_OK':
       return { ...state, ageOk: true }
     case 'RESET':
-      return { ...initialState(), mode: state.mode, ageOk: state.ageOk }
+      return { ...initialState(), mode: state.mode, ageOk: state.ageOk, juryMode: state.juryMode }
     default:
       return state
   }
@@ -255,6 +268,17 @@ export function GameProvider({ children }) {
     api.track(state.sessionId, 'session_open', { screen: state.screen, vk_platform: launchParams.vk_platform || null, vk_ref: launchParams.vk_ref || null })
   }, [state.sessionId, state.screen])
 
+  // Новая игра (первый запуск или «Пройти заново») → регистрируем сессию на бэкенде.
+  // Если бэкенд выдал свой код замка (target_code) — используем его, пока ни одна цифра не открыта.
+  useEffect(() => {
+    if (state.sessionRegistered) return
+    api
+      .startSession({ session_id: state.sessionId, target_code: state.code })
+      .then((r) => r && r.source !== 'local' && dispatch({ type: 'REMOTE_SESSION', sessionId: r.session_id, code: r.target_code }))
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.sessionRegistered, state.sessionId])
+
   const toast = useCallback((msg, kind = 'points') => {
     const id = Math.random().toString(36).slice(2)
     setToasts((x) => [...x, { id, msg, kind }])
@@ -277,7 +301,10 @@ export function GameProvider({ children }) {
       },
       setMode: (mode) => {
         dispatch({ type: 'MODE', mode })
-        window.scrollTo?.({ top: 0 })
+        // в мини-приложении HR и бот — экраны «Режима жюри»
+        if (navigation.go) {
+          if (mode === 'hr' || mode === 'bot') navigation.go(mode === 'hr' ? 'jury_hr' : 'jury_bot')
+        } else window.scrollTo?.({ top: 0 })
         track('mode', { mode })
       },
       award: (points, reason) => {
@@ -342,6 +369,10 @@ export function GameProvider({ children }) {
         track('candidate_submitted', { id: candidate?.id })
       },
       setDemo: (value) => dispatch({ type: 'DEMO', value }),
+      setJury: (value) => {
+        dispatch({ type: 'JURY', value })
+        track('jury_mode', { value })
+      },
       botPush: (threadId, messages, meta = {}) => dispatch({ type: 'BOT_PUSH', threadId, messages, ...meta }),
       botActive: (threadId) => dispatch({ type: 'BOT_ACTIVE', threadId }),
       storyShared: (source) => {

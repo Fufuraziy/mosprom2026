@@ -147,11 +147,13 @@ export const api = {
   health: () => checkHealth(true),
 
   /** Новая игровая сессия (анонимная, до анкеты). */
-  startSession: () =>
-    call('POST', '/api/sessions', { started_at: new Date().toISOString(), vk_platform: launchParams.vk_platform || null, vk_ref: launchParams.vk_ref || null }, () => ({
-      session_id: local.uid('sess'),
-      source: 'local',
-    })),
+  startSession: (extra = {}) =>
+    call(
+      'POST',
+      '/api/sessions',
+      { started_at: new Date().toISOString(), vk_platform: launchParams.vk_platform || null, vk_ref: launchParams.vk_ref || null, ...extra },
+      () => ({ session_id: extra.session_id || local.uid('sess'), target_code: extra.target_code || null, source: 'local' }),
+    ),
 
   /** Событие телеметрии: {session_id, event, payload}. Ошибки не мешают игре. */
   track: (session_id, event, payload = {}) =>

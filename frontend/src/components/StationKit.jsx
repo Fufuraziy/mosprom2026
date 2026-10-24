@@ -146,7 +146,7 @@ export function StationReward({ id, breakdown, total }) {
         <div className="halftone-red absolute inset-0 rounded-sm opacity-40" />
         <div className="relative text-center">
           <div className="font-mono text-xs font-bold uppercase tracking-widest text-white/70">Цифра {s.n} из 4</div>
-          <div className="font-display text-[150px] font-extrabold leading-none text-white">{s.digit}</div>
+          <div className="font-display text-[150px] font-extrabold leading-none text-white">{state.digits[s.n - 1] ?? '?'}</div>
           <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/80">Код капсулы</div>
         </div>
       </motion.div>

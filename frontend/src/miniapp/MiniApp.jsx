@@ -19,7 +19,7 @@ import {
   View,
 } from '@vkontakte/vkui'
 import { useActiveVkuiLocation, useFirstPageCheck, usePopout, useRouteNavigator } from '@vkontakte/vk-mini-apps-router'
-import { Icon28GameOutline, Icon28GiftOutline, Icon28MessageOutline, Icon28UserCircleOutline, Icon24CoinsOutline, Icon24TicketOutline, Icon24InfoCircleOutline, Icon56UserCircleOutline } from '@vkontakte/icons'
+import { Icon28GameOutline, Icon28GiftOutline, Icon28MessageOutline, Icon28UserCircleOutline, Icon28ViewOutline, Icon24CoinsOutline, Icon24TicketOutline, Icon24InfoCircleOutline, Icon56UserCircleOutline } from '@vkontakte/icons'
 import bridge from '@vkontakte/vk-bridge'
 import { navigation, useGame } from '../state/GameContext.jsx'
 import { isInsideVK } from '../services/vk.js'
@@ -32,9 +32,10 @@ const TABS = [
   { view: VIEW.REWARDS, label: 'Награды', Icon: Icon28GiftOutline, root: PATH[PANEL.VERDICT] },
   { view: VIEW.MASCOT, label: 'Крафти', Icon: Icon28MessageOutline, root: PATH[PANEL.CHAT] },
   { view: VIEW.PROFILE, label: 'Профиль', Icon: Icon28UserCircleOutline, root: PATH[PANEL.ME] },
+  { view: VIEW.JURY, label: 'Жюри', Icon: Icon28ViewOutline, root: PATH[PANEL.JURY_HOME], jury: true },
 ]
 
-const ROOT_PANEL = { [VIEW.QUEST]: PANEL.HOME, [VIEW.REWARDS]: PANEL.VERDICT, [VIEW.MASCOT]: PANEL.CHAT, [VIEW.PROFILE]: PANEL.ME }
+const ROOT_PANEL = { [VIEW.QUEST]: PANEL.HOME, [VIEW.REWARDS]: PANEL.VERDICT, [VIEW.MASCOT]: PANEL.CHAT, [VIEW.PROFILE]: PANEL.ME, [VIEW.JURY]: PANEL.JURY_HOME }
 
 export default function MiniApp() {
   const { state, actions, toasts } = useGame()
@@ -78,6 +79,12 @@ export default function MiniApp() {
     if (!isInsideVK) return
     bridge.send('VKWebAppSetSwipeSettings', { history: isFirst }).catch(() => {})
   }, [isFirst])
+
+  // Ссылка для экспертов: …#/ ?jury=1 сразу включает «Режим жюри».
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('jury') && !state.juryMode) actions.setJury(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Предупреждение 18+ при первом запуске (правило ВК 2.1.5).
   useEffect(() => {
@@ -130,7 +137,7 @@ export default function MiniApp() {
 
   const tabbar = showTabbar && (
     <Tabbar>
-      {TABS.map(({ view: v, label, Icon, root }) => (
+      {TABS.filter((t) => !t.jury || state.juryMode || view === VIEW.JURY).map(({ view: v, label, Icon, root }) => (
         <TabbarItem
           key={v}
           label={label}

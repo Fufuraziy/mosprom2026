@@ -309,7 +309,7 @@ export function StationsRoute() {
                     <img src={PHOTO(s.photo)} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                     <span className="absolute left-0 top-0 bg-paper px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-ink">Станция {i + 1}</span>
                     <span className={cx('absolute right-0 top-0 grid h-10 w-10 place-items-center font-mono text-lg font-bold', ok ? 'bg-brand text-white' : 'bg-white/90 text-steel')}>
-                      {ok ? s.digit : <Lock className="h-4 w-4" />}
+                      {ok ? state.digits[i] : <Lock className="h-4 w-4" />}
                     </span>
                   </div>
                   <div className="flex items-start gap-3 p-4">

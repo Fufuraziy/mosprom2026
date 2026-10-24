@@ -10,6 +10,7 @@ export const VIEW = {
   REWARDS: 'rewards',
   MASCOT: 'mascot',
   PROFILE: 'profile',
+  JURY: 'jury', // «Режим жюри»: виден только после включения в Профиле или кнопкой 👁 на главной
 }
 
 /** Экраны (Panel). id уникальны во всём приложении. */
@@ -30,6 +31,9 @@ export const PANEL = {
   CHAT: 'chat',
   ME: 'me',
   ABOUT: 'about',
+  JURY_HOME: 'jury_home',
+  JURY_HR: 'jury_hr',
+  JURY_BOT: 'jury_bot',
 }
 
 /** Модальные окна (без собственного адреса: navigator.showModal(id), «назад» закрывает). */
@@ -55,6 +59,9 @@ export const PATH = {
   [PANEL.CHAT]: '/mascot',
   [PANEL.ME]: '/profile',
   [PANEL.ABOUT]: '/profile/about',
+  [PANEL.JURY_HOME]: '/jury',
+  [PANEL.JURY_HR]: '/jury/hr',
+  [PANEL.JURY_BOT]: '/jury/bot',
 }
 
 export const stationPath = (id) => `/station/${id}`
@@ -76,6 +83,7 @@ export const routes = RoutesConfig.create([
     createView(VIEW.REWARDS, [panel(PANEL.VERDICT), panel(PANEL.SALARY), panel(PANEL.MERCH), panel(PANEL.APPLY), panel(PANEL.APPLIED)]),
     createView(VIEW.MASCOT, [panel(PANEL.CHAT)]),
     createView(VIEW.PROFILE, [panel(PANEL.ME), panel(PANEL.ABOUT)]),
+    createView(VIEW.JURY, [panel(PANEL.JURY_HOME), panel(PANEL.JURY_HR), panel(PANEL.JURY_BOT)]),
   ]),
 ])
 
@@ -87,6 +95,7 @@ export const VIEW_PANELS = {
   [VIEW.REWARDS]: [PANEL.VERDICT, PANEL.SALARY, PANEL.MERCH, PANEL.APPLY, PANEL.APPLIED],
   [VIEW.MASCOT]: [PANEL.CHAT],
   [VIEW.PROFILE]: [PANEL.ME, PANEL.ABOUT],
+  [VIEW.JURY]: [PANEL.JURY_HOME, PANEL.JURY_HR, PANEL.JURY_BOT],
 }
 
 /** На этих экранах нижняя панель скрыта: игра, ввод кода, анкета — ничего не должно отвлекать. */
@@ -110,6 +119,10 @@ export function pathForScreen(screen, stationId, state) {
       return PATH[PANEL.VERDICT]
     case 'apply':
       return PATH[PANEL.APPLY]
+    case 'jury_hr':
+      return PATH[PANEL.JURY_HR]
+    case 'jury_bot':
+      return PATH[PANEL.JURY_BOT]
     default:
       return PATH[PANEL.HOME]
   }
