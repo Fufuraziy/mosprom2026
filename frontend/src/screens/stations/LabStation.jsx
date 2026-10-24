@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Droplet, Droplets, Hand, ArrowRight, Star, ScanLine } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
+import { nudgeMascot } from '../../state/mascotBus.js'
 import { LAB_SAMPLES, QUIZZES } from '../../data/content.js'
 import { StationShell, Quiz, StationReward } from '../../components/StationKit.jsx'
 import { Button, Card, VerbTag, cx } from '../../components/ui.jsx'
@@ -48,6 +49,8 @@ function Titration({ onDone }) {
   }
   const stop = () => {
     setStopped(true)
+    if (drops > endpoint) nudgeMascot('Перетитровано: раствор ушёл в малиновый. В следующий раз капай по одной, когда розовый всплеск держится дольше.', 'lab_mentor')
+    else if (drops < endpoint) nudgeMascot('Рано остановился: окраска ещё не устойчива. Дождись бледно-розового цвета, который не исчезает.', 'lab_mentor')
   }
   const acc = titrationAccuracy(drops, endpoint)
   const level = Math.max(8, 100 - drops * 2.2)

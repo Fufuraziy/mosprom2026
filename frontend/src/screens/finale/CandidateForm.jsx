@@ -7,6 +7,7 @@ import { api } from '../../services/api.js'
 import { validateCandidate, ageFrom } from '../../services/localEngine.js'
 import { VACANCY_OPTIONS, READINESS, UNIVERSITIES, STUDY_LEVELS } from '../../data/content.js'
 import { Button, Card, cx } from '../../components/ui.jsx'
+import { MerchTicketsBadge } from '../../components/MerchCard.jsx'
 
 const today = new Date()
 const max18 = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate()).toISOString().slice(0, 10)
@@ -90,7 +91,13 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
     try {
       const c = await api.submitCandidate({
         form,
-        telemetry: { ...state.telemetry, tickets: state.tickets },
+        telemetry: {
+          ...state.telemetry,
+          tickets: state.tickets,
+          merch_colors: state.merchColors || {},
+          // id предметов по одному на билет — так их видит Панель HR и CSV
+          purchased_merch_tickets: Object.entries(state.tickets).flatMap(([id, n]) => Array(n).fill(id)),
+        },
         tickets: state.tickets,
         points: state.points,
         session_id: state.sessionId,
@@ -211,6 +218,10 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
         <Field label="Специальность">
           <input className={inputCls()} value={form.specialty} onChange={set('specialty')} placeholder="Например, технология продуктов брожения" />
         </Field>
+        <div className="sm:col-span-2">
+          <div className="mb-1.5 text-xs font-bold uppercase tracking-wider text-ink-soft">Твои билеты мерча (увидит HR)</div>
+          <MerchTicketsBadge tickets={state.tickets} colors={state.merchColors || {}} empty="Билетов нет — их можно взять за Крафт-баллы в разделе «Мерч» и после отправки анкеты." />
+        </div>
         <div className="sm:col-span-2">
           <label className={cx('flex cursor-pointer items-start gap-3 rounded-sm border-2 p-3 text-sm', errors.consent ? 'border-brand bg-brand-50' : 'border-ink/15')}>
             <input type="checkbox" checked={form.consent} onChange={set('consent')} className="mt-1 h-4 w-4 accent-brand" />

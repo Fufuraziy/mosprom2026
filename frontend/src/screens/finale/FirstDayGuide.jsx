@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { MapPin, Bus, CheckSquare, Square, Phone, Coffee, Building2, BedDouble } from 'lucide-react'
 import { FIRST_DAY } from '../../data/content.js'
 import { Card, SectionTitle, Sticker, cx } from '../../components/ui.jsx'
+import { WelcomePackCard } from '../../components/MerchCard.jsx'
 
 const LS = 'ochakovo1978_checklist_v1'
 
@@ -81,6 +82,8 @@ export default function FirstDayGuide() {
   return (
     <section>
       <SectionTitle kicker="Интерактивный справочник первого дня" title="Твой первый день в ОЧАКОВО" sub="Всё из справочника студента: как доехать, что взять и куда звонить." />
+      <WelcomePackCard />
+      <div className="h-4" />
       <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto">
         {TABS.map(([id, label, I]) => (
           <button key={id} onClick={() => setTab(id)} className={cx('flex shrink-0 items-center gap-2 rounded-sm border border-line px-4 py-2 text-sm font-extrabold', tab === id ? 'bg-graphite text-white shadow-pop' : 'bg-paper')}>
