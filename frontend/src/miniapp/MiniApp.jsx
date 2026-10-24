@@ -9,6 +9,7 @@ import {
   ModalPage,
   ModalPageHeader,
   ModalRoot,
+  Panel,
   PanelHeader,
   SplitCol,
   SplitLayout,
@@ -22,7 +23,7 @@ import { useActiveVkuiLocation, useFirstPageCheck, usePopout, useRouteNavigator 
 import { Icon28GameOutline, Icon28PlaceOutline, Icon28GiftOutline, Icon28MessageOutline, Icon28UserCircleOutline, Icon28ViewOutline, Icon24CoinsOutline, Icon24TicketOutline, Icon24InfoCircleOutline, Icon56UserCircleOutline } from '@vkontakte/icons'
 import bridge from '@vkontakte/vk-bridge'
 import { navigation, useGame } from '../state/GameContext.jsx'
-import { isInsideVK } from '../services/vk.js'
+import { isInsideVK, haptic } from '../services/vk.js'
 import { MODAL, NO_TABBAR, PANEL, PATH, pathForScreen, router, VIEW, VIEW_PANELS } from './routes.js'
 import { PANELS } from './panels.jsx'
 import { StoryShareContent } from '../components/StoryShare.jsx'
@@ -177,6 +178,7 @@ export default function MiniApp() {
           selected={view === v}
           indicator={v === VIEW.REWARDS && rewardsNew && view !== v ? <Badge mode="prominent">Новое</Badge> : null}
           onClick={() => {
+            haptic('light')
             if (view === v) {
               if (panel !== ROOT_PANEL[v]) navigator.push(root)
               return
@@ -194,20 +196,29 @@ export default function MiniApp() {
     <SplitLayout header={platform !== 'vkcom' && <PanelHeader delimiter="none" />} center modal={modals} popout={popout}>
       <SplitCol stretchedOnMobile autoSpaced maxWidth={720}>
         <Epic activeStory={view} tabbar={tabbar}>
-          {Object.entries(VIEW_PANELS).map(([v, panels]) => (
-            <View
-              key={v}
-              nav={v}
-              activePanel={view === v ? panel : lastPanel.current[v]}
-              history={view === v ? history : [lastPanel.current[v]]}
-              onSwipeBack={() => navigator.back()}
-            >
-              {panels.map((p) => {
-                const P = PANELS[p]
-                return <P key={p} nav={p} />
-              })}
-            </View>
-          ))}
+          {Object.entries(VIEW_PANELS).map(([v, panels]) => {
+            const isCurrentView = view === v
+            const activeP = isCurrentView ? panel : lastPanel.current[v]
+            return (
+              <View
+                key={v}
+                nav={v}
+                activePanel={activeP}
+                history={isCurrentView ? history : [activeP]}
+                onSwipeBack={() => navigator.back()}
+              >
+                {panels.map((p) => {
+                  // Оптимизация: рендерим только активный экран и экраны в анимации перехода
+                  const isVisible = p === activeP || (isCurrentView && history.includes(p))
+                  if (!isVisible) {
+                    return <Panel key={p} id={p} nav={p} />
+                  }
+                  const P = PANELS[p]
+                  return <P key={p} nav={p} />
+                })}
+              </View>
+            )
+          })}
         </Epic>
       </SplitCol>
       {snackbarHolder}

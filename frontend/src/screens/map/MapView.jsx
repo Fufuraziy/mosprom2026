@@ -49,7 +49,7 @@ export default function MapView({ onNavigateToApply }) {
   const [viewType, setViewType] = useState('map') // 'map' | 'scheme'
   const [selectedItem, setSelectedItem] = useState(null)
   const [activePhoto, setActivePhoto] = useState(0)
-  const [mapError, setMapError] = useState(false)
+  const [mapReady, setMapReady] = useState(false)
   const mapContainerRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const markersRef = useRef([])
@@ -58,65 +58,86 @@ export default function MapView({ onNavigateToApply }) {
   const viewedLocations = state.telemetry?.viewed_map_locations || []
   const selectedWorkshopName = state.telemetry?.selected_map_workshop || null
 
-  // Инициализация карты Leaflet с чистыми открытыми тайлами OpenStreetMap
+  // Инициализация карты Leaflet с надежными зеркалами OpenStreetMap
   useEffect(() => {
     if (!mapContainerRef.current) return
 
-    try {
-      if (!mapInstanceRef.current) {
+    let map = mapInstanceRef.current
+    if (!map) {
+      try {
         const initialCenter = mode === 'moscow' ? MOSCOW_CAMPUS_CENTER : RUSSIA_CENTER
         const initialZoom = mode === 'moscow' ? MOSCOW_CAMPUS_ZOOM : RUSSIA_ZOOM
 
-        const map = L.map(mapContainerRef.current, {
+        map = L.map(mapContainerRef.current, {
           center: initialCenter,
           zoom: initialZoom,
           zoomControl: true,
           attributionControl: false,
         })
 
-        // Чистые тайлы OpenStreetMap без ограничений и водяных знаков
-        const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Список надежных зеркал OpenStreetMap (без API-ключей и блокировок)
+        const tileSources = [
+          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+          'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+        ]
+        let currentSourceIdx = 0
+
+        const tileLayer = L.tileLayer(tileSources[0], {
           maxZoom: 19,
+          subdomains: ['a', 'b', 'c'],
           attribution: '&copy; OpenStreetMap contributors',
+          crossOrigin: true,
         })
 
-        let tileErrors = 0
         tileLayer.on('tileerror', () => {
-          tileErrors += 1
-          if (tileErrors > 4) {
-            // Резервное открытое зеркало HOT OSM
-            try {
-              tileLayer.setUrl('https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png')
-            } catch {
-              setMapError(true)
-            }
-          }
+          // При ошибке переключаемся на следующее надежное зеркало без скрытия карты
+          currentSourceIdx = (currentSourceIdx + 1) % tileSources.length
+          tileLayer.setUrl(tileSources[currentSourceIdx])
         })
 
         tileLayer.addTo(map)
         mapInstanceRef.current = map
+        setMapReady(true)
+      } catch (e) {
+        console.warn('Leaflet map init warning:', e)
       }
-    } catch {
-      setMapError(true)
+    }
+
+    const invalidate = () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize()
+      }
+    }
+
+    const t1 = setTimeout(invalidate, 50)
+    const t2 = setTimeout(invalidate, 250)
+    const t3 = setTimeout(invalidate, 600)
+
+    let resizeObserver = null
+    if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
+      resizeObserver = new ResizeObserver(() => invalidate())
+      resizeObserver.observe(mapContainerRef.current)
     }
 
     return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
-        mapInstanceRef.current = null
-      }
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+      if (resizeObserver) resizeObserver.disconnect()
     }
   }, [])
 
-  // Автоматический пересчет размеров Leaflet при смене режима или переключении вкладки
+  // Автоматический пересчет размеров Leaflet при смене режима или вкладки
   useEffect(() => {
     const timer = setTimeout(() => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.invalidateSize()
       }
-    }, 150)
+    }, 100)
     return () => clearTimeout(timer)
-  }, [mode, viewType])
+  }, [mode, viewType, mapReady])
 
   // Обновление маркеров при переключении режима (РФ / Москва)
   useEffect(() => {
@@ -183,7 +204,7 @@ export default function MapView({ onNavigateToApply }) {
 
       markersRef.current.push(marker)
     })
-  }, [mode, selectedItem, viewedLocations])
+  }, [mode, selectedItem, viewedLocations, mapReady])
 
   // Обработка выбора точки
   const handleSelectItem = (item) => {
@@ -260,20 +281,20 @@ export default function MapView({ onNavigateToApply }) {
               type="button"
               onClick={() => setViewType('map')}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
-                viewType === 'map' && !mapError
+                viewType === 'map'
                   ? 'bg-graphite text-white shadow-sm'
                   : 'text-ink-soft hover:text-ink hover:bg-paper'
               }`}
               title="Реальная карта улиц OpenStreetMap (без API-ключей)"
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Карта</span>
+              <span>Карта OSM</span>
             </button>
             <button
               type="button"
               onClick={() => setViewType('scheme')}
               className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
-                viewType === 'scheme' || mapError
+                viewType === 'scheme'
                   ? 'bg-brand text-white shadow-sm'
                   : 'text-ink-soft hover:text-ink hover:bg-paper'
               }`}
@@ -300,12 +321,12 @@ export default function MapView({ onNavigateToApply }) {
         <div
           ref={mapContainerRef}
           className={`w-full h-full z-0 transition-opacity duration-300 ${
-            viewType === 'map' && !mapError ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'
+            viewType === 'map' ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'
           }`}
         />
 
-        {/* Интерактивная архитектурная векторная схема (когда viewType === 'scheme' или mapError) */}
-        {(viewType === 'scheme' || mapError) && (
+        {/* Интерактивная архитектурная векторная схема (когда viewType === 'scheme') */}
+        {viewType === 'scheme' && (
           <div className="w-full h-full flex flex-col p-4 pt-16 sm:pt-16 pb-20 overflow-y-auto bg-gradient-to-b from-stone-100 via-stone-50 to-stone-200">
             {mode === 'moscow' ? (
               /* Схема кампуса Москвы: Рябиновая, 44 */

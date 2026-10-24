@@ -679,9 +679,11 @@ export function AboutPanel({ nav }) {
 export function MapPanel({ nav }) {
   const navigator = useRouteNavigator()
   return (
-    <Panel id={nav}>
+    <Panel id={nav} nav={nav}>
       <PanelHeader delimiter="separator">Карта «Очаково»</PanelHeader>
-      <MapView onNavigateToApply={() => navigator.push(PATH[PANEL.APPLY])} />
+      <Suspense fallback={<div className="p-8 text-center text-xs font-bold text-ink-mute">Загрузка интерактивной карты…</div>}>
+        <MapView onNavigateToApply={() => navigator.push(PATH[PANEL.APPLY])} />
+      </Suspense>
     </Panel>
   )
 }
