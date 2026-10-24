@@ -59,6 +59,7 @@ import MerchShop from '../screens/finale/MerchShop.jsx'
 import CandidateForm, { Submitted } from '../screens/finale/CandidateForm.jsx'
 import FirstDayGuide from '../screens/finale/FirstDayGuide.jsx'
 import { StoryShareButton } from '../components/StoryShare.jsx'
+import { InviteFriendCard } from '../components/InviteFriend.jsx'
 import MascotChatPanel from '../screens/mascot/MascotChatPanel.jsx'
 import MascotStoryteller from '../components/MascotStoryteller.jsx'
 import { MerchTeaser, MerchTicketsBadge } from '../components/MerchCard.jsx'
@@ -417,6 +418,9 @@ export function VerdictPanel({ nav }) {
         <Div>
           <StoryShareButton onOpen={() => navigator.showModal(MODAL.STORY_SHARE)} />
         </Div>
+        <Div>
+          <InviteFriendCard />
+        </Div>
         <Spacing size={16} />
       </RewardsGate>
     </Screen>
@@ -577,6 +581,12 @@ export function MePanel({ nav }) {
       <Group header={<Header>Мои билеты мерча</Header>}>
         <Div>
           <MerchTicketsBadge tickets={state.tickets} colors={state.merchColors || {}} />
+        </Div>
+      </Group>
+
+      <Group header={<Header>Пригласи друга (+150 баллов)</Header>}>
+        <Div>
+          <InviteFriendCard />
         </Div>
       </Group>
 

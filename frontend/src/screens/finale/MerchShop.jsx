@@ -4,6 +4,7 @@ import { MERCH } from '../../data/content.js'
 import { Button, cx } from '../../components/ui.jsx'
 import { MerchCard, MerchTicketsBadge } from '../../components/MerchCard.jsx'
 import { MascotHead } from '../../components/MascotStoryteller.jsx'
+import { InviteFriendCard } from '../../components/InviteFriend.jsx'
 
 /** Витрина капсульной коллекции «PURE CRAFT 1978»: мокапы, цвет, идея предмета, обмен баллов на билет. */
 export default function MerchShop({ onForm }) {
@@ -27,6 +28,9 @@ export default function MerchShop({ onForm }) {
             {totalTickets}
           </div>
         </div>
+      </div>
+      <div className="mb-4">
+        <InviteFriendCard />
       </div>
       <div className="mb-4 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-brand">
         <span className="h-px w-5 bg-brand" />

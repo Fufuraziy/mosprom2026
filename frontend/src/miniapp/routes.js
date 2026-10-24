@@ -43,6 +43,7 @@ export const PANEL = {
 export const MODAL = {
   AGE: 'age_gate',
   STORY_SHARE: 'story_share',
+  INVITE_FRIEND: 'invite_friend',
 }
 
 export const PATH = {

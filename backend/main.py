@@ -52,7 +52,7 @@ from models import STATUS_LABELS, BotMessage, Candidate, ChatMessage, GameSessio
 from schemas import (
     BotMessageRequest, BotSendRequest, CandidateSubmitRequest, CandidateSubmitResponse, ContactCandidateRequest,
     EvaluateTelemetryRequest, EvaluateTelemetryResponse, FrontCandidateCreate, InviteDraftRequest, LoginRequest, MascotChatRequest,
-    MascotChatResponse, RaffleTicketRequest, RecommendationRequest, SessionCreate,
+    MascotChatResponse, RaffleTicketRequest, RecommendationRequest, ReferralClaimRequest, ReferralInviteRequest, SessionCreate,
 )
 from seed_data import seed_database
 from telemetry_engine import (
@@ -997,6 +997,12 @@ def apply_event(db: Session, s: GameSession, kind: str, payload: dict) -> None:
         calc["night_ok"] = bool(calc.get("night_ok")) or bool(payload.get("nights"))
         calc["last"] = payload
         t["calculator"] = calc
+    elif kind == "friend_invited":
+        t["friends_invited"] = int(t.get("friends_invited", 0)) + 1
+        t["referral_points"] = int(t.get("referral_points", 0)) + int(payload.get("points_awarded", 150))
+    elif kind == "referral_welcome_claimed":
+        t["welcome_bonus_claimed"] = True
+        t["referral_points"] = int(t.get("referral_points", 0)) + int(payload.get("points_awarded", 50))
     s.telemetry = t
     if kind == "asked_topics":
         topic = normalize_topic(payload.get("topic"))
@@ -1178,3 +1184,97 @@ def raffle_stats(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = De
     return {"total": len(tickets),
             "by_item": [{"item_id": i, "title": merch_title(i), "count": k} for i, k in Counter(t.item for t in tickets).most_common()],
             "catalog": [{"item_id": i, **meta} for i, meta in MERCH.items()]}
+
+# ======================================================================================
+# Реферальная программа «Пригласи друга»
+# ======================================================================================
+@app.post("/api/referrals/invite", tags=["referrals"])
+def referral_invite(req: ReferralInviteRequest, db: Session = Depends(get_db)):
+    """Регистрация приглашения друга (+150 баллов, лимит 5 друзей / 750 баллов)."""
+    s = get_or_create_session(db, req.session_id)
+    t = dict(s.telemetry or {})
+    count = int(t.get("friends_invited", 0))
+    MAX_INVITES = 5
+    POINTS_PER_INVITE = 150
+    if count < MAX_INVITES:
+        count += 1
+        awarded = POINTS_PER_INVITE
+        t["friends_invited"] = count
+        t["referral_points"] = int(t.get("referral_points", 0)) + awarded
+        t["total_points"] = int(t.get("total_points", 0)) + awarded
+        s.telemetry = t
+        log_event(db, s.id, "friend_invited", {
+            "channel": req.channel,
+            "ref_code": req.ref_code,
+            "invite_number": count,
+            "points_awarded": awarded,
+        })
+        db.commit()
+        return {
+            "ok": True,
+            "awarded": awarded,
+            "friends_invited": count,
+            "total_referral_points": t["referral_points"],
+            "total_points": t["total_points"],
+            "max_reached": count >= MAX_INVITES,
+            "message": f"Друг приглашен! Начислено +{awarded} баллов.",
+        }
+    return {
+        "ok": False,
+        "awarded": 0,
+        "friends_invited": count,
+        "total_referral_points": int(t.get("referral_points", 0)),
+        "total_points": int(t.get("total_points", 0)),
+        "max_reached": True,
+        "message": f"Достигнут лимит наград за друзей ({MAX_INVITES} друзей, макс. 750 баллов)",
+    }
+
+
+@app.post("/api/referrals/claim", tags=["referrals"])
+def referral_claim(req: ReferralClaimRequest, db: Session = Depends(get_db)):
+    """Активация приветственного бонуса по реферальной ссылке (+50 баллов единоразово)."""
+    s = get_or_create_session(db, req.session_id)
+    t = dict(s.telemetry or {})
+    if t.get("welcome_bonus_claimed"):
+        return {
+            "ok": False,
+            "awarded": 0,
+            "already_claimed": True,
+            "message": "Приветственный бонус по ссылке друга уже получен",
+        }
+    WELCOME_POINTS = 50
+    t["welcome_bonus_claimed"] = True
+    t["referred_by"] = req.ref_code
+    t["referral_points"] = int(t.get("referral_points", 0)) + WELCOME_POINTS
+    t["total_points"] = int(t.get("total_points", 0)) + WELCOME_POINTS
+    s.telemetry = t
+    log_event(db, s.id, "referral_welcome_claimed", {
+        "ref_code": req.ref_code,
+        "points_awarded": WELCOME_POINTS,
+    })
+    db.commit()
+    return {
+        "ok": True,
+        "awarded": WELCOME_POINTS,
+        "total_points": t["total_points"],
+        "message": f"Приветственный бонус +{WELCOME_POINTS} баллов от друга успешно начислен!",
+    }
+
+
+@app.get("/api/referrals/summary", tags=["referrals"])
+def referral_summary(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    """Сводка реферальной программы для HR-дашборда."""
+    events = demo_filter(db.query(TelemetryEvent), TelemetryEvent, include_demo).filter(
+        TelemetryEvent.type.in_(["friend_invited", "referral_welcome_claimed"])
+    ).all()
+    total_invites = sum(1 for e in events if e.type == "friend_invited")
+    welcome_claims = sum(1 for e in events if e.type == "referral_welcome_claimed")
+    points_distributed = sum(int((e.payload or {}).get("points_awarded", 0)) for e in events)
+    channels = Counter(str((e.payload or {}).get("channel", "vk_share")) for e in events if e.type == "friend_invited")
+    return {
+        "total_invites": total_invites,
+        "welcome_claims": welcome_claims,
+        "points_distributed": points_distributed,
+        "by_channel": dict(channels),
+    }
+

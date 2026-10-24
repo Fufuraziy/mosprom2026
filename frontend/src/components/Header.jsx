@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useSpring, useMotionValueEvent } from 'framer-
 import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound, Lock, Unlock, MapPin, Palette } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
 import { LogoPlate, cx } from './ui.jsx'
+import { InviteFriendButton } from './InviteFriend.jsx'
 
 function AnimatedNumber({ value }) {
   const spring = useSpring(value, { stiffness: 90, damping: 18 })
@@ -98,6 +99,7 @@ export default function Header({ embedded = false }) {
 
         <div className="ml-auto flex items-center gap-2 sm:gap-4">
           {!isHR && <CodeSlots digits={state.digits} />}
+          {!isHR && <InviteFriendButton onClick={actions.openInviteModal} />}
           {!isHR && <PointsPill points={balance} />}
 
           {isHrAuthenticated && (

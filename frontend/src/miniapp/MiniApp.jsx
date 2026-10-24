@@ -26,6 +26,7 @@ import { isInsideVK } from '../services/vk.js'
 import { MODAL, NO_TABBAR, PANEL, PATH, pathForScreen, router, VIEW, VIEW_PANELS } from './routes.js'
 import { PANELS } from './panels.jsx'
 import { StoryShareContent } from '../components/StoryShare.jsx'
+import { InviteFriendModalContent } from '../components/InviteFriend.jsx'
 
 const TABS = [
   { view: VIEW.QUEST, label: 'Квест', Icon: Icon28GameOutline, root: PATH[PANEL.HOME] },
@@ -160,6 +161,9 @@ export default function MiniApp() {
       />
       <ModalPage id={MODAL.STORY_SHARE} header={<ModalPageHeader>История ВКонтакте</ModalPageHeader>} onClose={() => navigator.hideModal()} title="История ВКонтакте">
         <StoryShareContent />
+      </ModalPage>
+      <ModalPage id={MODAL.INVITE_FRIEND} header={<ModalPageHeader>Пригласи друга</ModalPageHeader>} onClose={() => navigator.hideModal()} title="Пригласи друга">
+        <InviteFriendModalContent />
       </ModalPage>
     </ModalRoot>
   )

@@ -215,4 +215,69 @@ export async function storageSave(obj) {
   }
 }
 
+/* ------------------------------------------------------------------ Приглашение друга (VK Share / Wall / Link) */
+
+export function getReferralLink(refCode) {
+  if (typeof window === 'undefined') return ''
+  const code = refCode || 'ref_guest'
+  if (VK_APP_ID) {
+    return `https://vk.com/app${VK_APP_ID}#ref=${encodeURIComponent(code)}`
+  }
+  const url = new URL(window.location.href)
+  url.searchParams.set('ref', code)
+  return url.toString()
+}
+
+export async function shareInvite(link, text = 'Привет! Пройди квест комбината «Очаково» — получи +50 приветственных Крафт-баллов и выиграй фирменный мерч!') {
+  if (isInsideVK) {
+    try {
+      await send('VKWebAppShare', { link })
+      return { ok: true, source: 'vk' }
+    } catch (e) {
+      return { ok: false, source: 'vk', error: String(e?.message || e) }
+    }
+  }
+  if (typeof navigator !== 'undefined' && navigator?.share) {
+    try {
+      await navigator.share({ title: 'Очаково: Секретный код 1978', text, url: link })
+      return { ok: true, source: 'navigator' }
+    } catch (e) {
+      if (e?.name === 'AbortError') return { ok: false, canceled: true }
+    }
+  }
+  return copyInviteLink(link)
+}
+
+export async function postInviteToWall(link, message = 'Я участвую в квесте «Секретный код 1978» от АО МПБК «Очаково»! 🍻 Переходи по ссылке и забирай +50 Крафт-баллов на старте!') {
+  if (isInsideVK) {
+    try {
+      await send('VKWebAppShowWallPostBox', { message, attachments: link })
+      return { ok: true, source: 'vk' }
+    } catch (e) {
+      return { ok: false, source: 'vk', error: String(e?.message || e) }
+    }
+  }
+  return { ok: true, source: 'demo' }
+}
+
+export async function copyInviteLink(link) {
+  if (isInsideVK) {
+    try {
+      await send('VKWebAppCopyText', { text: link })
+      return { ok: true, source: 'vk' }
+    } catch {
+      /* fallback to clipboard */
+    }
+  }
+  if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(link)
+      return { ok: true, source: 'clipboard' }
+    } catch {
+      /* fallback */
+    }
+  }
+  return { ok: true, source: 'fallback' }
+}
+
 export { bridge }

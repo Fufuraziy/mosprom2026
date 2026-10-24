@@ -231,3 +231,52 @@ def test_hr_auth_token_and_jury_fallback(client):
     assert r_fallback.status_code == 200
     assert r_fallback.headers.get("X-HR-Auth-Mode") == "jury_open_fallback"
     assert r_fallback.json().get("auth_mode") == "jury_open_fallback"
+
+
+def test_referrals_invite_and_claim(client):
+    import uuid
+    sid = f"test-ref-session-{uuid.uuid4()}"
+    # 1. First invite
+    r = client.post("/api/referrals/invite", json={"session_id": sid, "channel": "vk_share", "ref_code": "ref_test1"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["ok"] is True
+    assert data["awarded"] == 150
+    assert data["friends_invited"] == 1
+    assert data["total_points"] == 150
+
+    # Invite 4 more friends (reaching 5 total)
+    for i in range(2, 6):
+        r = client.post("/api/referrals/invite", json={"session_id": sid, "channel": "wall_post"})
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+        assert r.json()["friends_invited"] == i
+
+    # 6th invite should hit limit
+    r6 = client.post("/api/referrals/invite", json={"session_id": sid, "channel": "copy_link"})
+    assert r6.status_code == 200
+    assert r6.json()["ok"] is False
+    assert r6.json()["max_reached"] is True
+    assert r6.json()["awarded"] == 0
+
+    # 2. Friend claims welcome bonus
+    friend_sid = f"test-friend-session-{uuid.uuid4()}"
+    r_claim = client.post("/api/referrals/claim", json={"session_id": friend_sid, "ref_code": "ref_test1"})
+    assert r_claim.status_code == 200
+    assert r_claim.json()["ok"] is True
+    assert r_claim.json()["awarded"] == 50
+    assert r_claim.json()["total_points"] == 50
+
+    # Second claim attempt should fail
+    r_claim_again = client.post("/api/referrals/claim", json={"session_id": friend_sid, "ref_code": "ref_test1"})
+    assert r_claim_again.status_code == 200
+    assert r_claim_again.json()["ok"] is False
+    assert r_claim_again.json()["already_claimed"] is True
+
+    # 3. Check summary
+    r_sum = client.get("/api/referrals/summary")
+    assert r_sum.status_code == 200
+    s_data = r_sum.json()
+    assert s_data["total_invites"] >= 5
+    assert s_data["welcome_claims"] >= 1
+    assert s_data["points_distributed"] >= 800

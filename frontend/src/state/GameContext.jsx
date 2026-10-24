@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { api, onStatusChange, isHrAuthStored, setHrToken } from '../services/api.js'
 import HrAuthModal from '../components/HrAuthModal.jsx'
+import { InviteFriendModal } from '../components/InviteFriend.jsx'
 import { uid } from '../services/localEngine.js'
 import { LEGACY_CODE, PPE_ITEMS, STATION_ORDER, newCapsuleCode } from '../data/content.js'
 import { nudgeMascot } from './mascotBus.js'
@@ -53,6 +54,13 @@ const initialState = () => ({
   vkProfile: null,
   ageOk: false, // показано и подтверждено предупреждение 18+ (правило ВК 2.1.5)
   juryMode: false, // «Режим жюри»: Панель HR и ВК-бот внутри мини-приложения
+  referral: {
+    code: null,
+    invitesCount: 0,
+    pointsEarned: 0,
+    claimedWelcome: false,
+    friends: [],
+  },
   bot: emptyBot(),
 })
 
@@ -72,7 +80,20 @@ function load() {
     const s = JSON.parse(raw)
     // сохранение до случайного кода: начатая игра доигрывается со старым кодом
     if (!Array.isArray(s.code) || s.code.length !== 4) s.code = (s.digits || []).some(Boolean) ? LEGACY_CODE : newCapsuleCode()
-    return { ...initialState(), ...s, telemetry: { ...emptyTelemetry(), ...(s.telemetry || {}) }, bot: s.bot?.threads ? s.bot : emptyBot() }
+    return {
+      ...initialState(),
+      ...s,
+      referral: {
+        code: null,
+        invitesCount: 0,
+        pointsEarned: 0,
+        claimedWelcome: false,
+        friends: [],
+        ...(s.referral || {}),
+      },
+      telemetry: { ...emptyTelemetry(), ...(s.telemetry || {}) },
+      bot: s.bot?.threads ? s.bot : emptyBot(),
+    }
   } catch {
     return initialState()
   }
@@ -222,6 +243,53 @@ function reducer(state, a) {
       return { ...state, juryMode: a.value }
     case 'AGE_OK':
       return { ...state, ageOk: true }
+    case 'INVITE_FRIEND': {
+      const ref = state.referral || { invitesCount: 0, pointsEarned: 0, friends: [] }
+      if (ref.invitesCount >= 5) return state
+      const newCount = ref.invitesCount + 1
+      const pts = a.points || 150
+      const friend = {
+        id: a.friendId || `friend_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        name: a.name || `Друг #${newCount}`,
+        date: new Date().toLocaleDateString('ru-RU'),
+        points: pts,
+        channel: a.channel || 'vk_share',
+      }
+      return {
+        ...state,
+        points: state.points + pts,
+        referral: {
+          ...ref,
+          invitesCount: newCount,
+          pointsEarned: (ref.pointsEarned || 0) + pts,
+          friends: [friend, ...(ref.friends || [])],
+        },
+        telemetry: {
+          ...t,
+          friends_invited: newCount,
+          referral_points: (t.referral_points || 0) + pts,
+        },
+      }
+    }
+    case 'CLAIM_WELCOME_REFERRAL': {
+      const ref = state.referral || {}
+      if (ref.claimedWelcome) return state
+      const pts = 50
+      return {
+        ...state,
+        points: state.points + pts,
+        referral: {
+          ...ref,
+          claimedWelcome: true,
+          pointsEarned: (ref.pointsEarned || 0) + pts,
+        },
+        telemetry: {
+          ...t,
+          welcome_bonus_claimed: true,
+          referral_points: (t.referral_points || 0) + pts,
+        },
+      }
+    }
     case 'RESET':
       return { ...initialState(), mode: state.mode, ageOk: state.ageOk, juryMode: state.juryMode }
     default:
@@ -264,6 +332,32 @@ export function GameProvider({ children }) {
   })
   const [hrAuthModalOpen, setHrAuthModalOpen] = useState(false)
   const [pendingHrTarget, setPendingHrTarget] = useState('hr')
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+
+  // Приветственный бонус +50 баллов при первом переходе по реферальной ссылке
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (state.referral?.claimedWelcome) return
+    try {
+      const url = new URL(window.location.href)
+      let refCode = url.searchParams.get('ref') || launchParams.vk_ref
+      if (!refCode && window.location.hash) {
+        const match = window.location.hash.match(/[#&?]ref=([^&]+)/)
+        if (match) refCode = decodeURIComponent(match[1])
+      }
+      if (refCode && refCode.startsWith('ref_')) {
+        api.referralClaim(state.sessionId, refCode).then((res) => {
+          if (res?.ok) {
+            dispatch({ type: 'CLAIM_WELCOME_REFERRAL' })
+            toast('🎉 +50 Крафт-баллов! Приветственный бонус от друга')
+            track('referral_welcome_claimed', { ref_code: refCode })
+          }
+        }).catch(() => {})
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [state.sessionId, state.referral?.claimedWelcome, track, toast])
 
   useEffect(() => {
     if (checkUrlJuryParam()) {
@@ -522,16 +616,40 @@ export function GameProvider({ children }) {
         dispatch({ type: 'VK_PROFILE', profile: { ...profile, source } })
         track('vk_autofill', { source })
       },
+      openInviteModal: () => setInviteModalOpen(true),
+      closeInviteModal: () => setInviteModalOpen(false),
+      inviteFriend: async (channel = 'vk_share', friendName) => {
+        const curCount = state.referral?.invitesCount || 0
+        if (curCount >= 5) {
+          toast('Лимит наград за друзей достигнут (макс. 5 друзей)')
+          return { ok: false }
+        }
+        const res = await api.referralInvite(state.sessionId, channel, state.sessionId)
+        dispatch({ type: 'INVITE_FRIEND', channel, name: friendName, points: res?.awarded || 150 })
+        toast(`+${res?.awarded || 150} Крафт-баллов · Друг присоединился!`)
+        track('friend_invited', { channel, invite_number: curCount + 1 })
+        return res
+      },
+      claimWelcomeBonus: async (refCode) => {
+        if (state.referral?.claimedWelcome) return { ok: false }
+        const res = await api.referralClaim(state.sessionId, refCode)
+        if (res?.ok) {
+          dispatch({ type: 'CLAIM_WELCOME_REFERRAL' })
+          toast('+50 Крафт-баллов · Приветственный бонус!')
+          track('referral_welcome_claimed', { ref_code: refCode })
+        }
+        return res
+      },
       reset: () => {
         dispatch({ type: 'RESET' })
         if (!navigation.go) window.scrollTo?.({ top: 0 })
       },
     }),
-    [toast, track, state.sessionId, isHrAuthenticated, pendingHrTarget],
+    [toast, track, state.sessionId, state.referral?.invitesCount, state.referral?.claimedWelcome, isHrAuthenticated, pendingHrTarget],
   )
 
   const balance = state.points - state.spent
-  const value = { state, balance, actions, toasts, toast, apiStatus, isHrAuthenticated, hrAuthModalOpen }
+  const value = { state, balance, actions, toasts, toast, apiStatus, isHrAuthenticated, hrAuthModalOpen, inviteModalOpen }
   return (
     <GameCtx.Provider value={value}>
       {children}
@@ -540,6 +658,10 @@ export function GameProvider({ children }) {
         onClose={() => setHrAuthModalOpen(false)}
         onSuccess={actions.loginHr}
         targetMode={pendingHrTarget}
+      />
+      <InviteFriendModal
+        isOpen={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
       />
     </GameCtx.Provider>
   )

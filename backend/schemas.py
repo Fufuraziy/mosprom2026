@@ -228,3 +228,15 @@ class LoginRequest(Flexible):
     login: Optional[str] = Field(default=None, max_length=128)
     vk_user_id: Optional[Any] = None
     sign: Optional[str] = None
+
+
+# ---------------------------------------------------------------- Реферальная программа «Пригласи друга»
+class ReferralInviteRequest(Flexible):
+    session_id: str
+    channel: str = 'vk_share'
+    ref_code: Optional[str] = None
+
+
+class ReferralClaimRequest(Flexible):
+    session_id: str
+    ref_code: str

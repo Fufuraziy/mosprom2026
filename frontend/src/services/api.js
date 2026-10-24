@@ -332,6 +332,46 @@ export const api = {
 
   /** CSV формируем на клиенте из уже загруженного списка — так работает и офлайн. */
   csv: (list) => local.toCSV(list),
+
+  /* ---------------------------------------------------------------- Реферальная программа */
+
+  /** Приглашение друга (+150 баллов, лимит 5 друзей / 750 баллов) */
+  referralInvite: (session_id, channel = 'vk_share', ref_code) =>
+    call(
+      'POST',
+      '/api/referrals/invite',
+      { session_id, channel, ref_code },
+      () => ({
+        ok: true,
+        awarded: 150,
+        friends_invited: 1,
+        total_points: 150,
+        message: 'Друг приглашен! (локальный режим)',
+      })
+    ),
+
+  /** Активация приветственного бонуса (+50 баллов единоразово) */
+  referralClaim: (session_id, ref_code) =>
+    call(
+      'POST',
+      '/api/referrals/claim',
+      { session_id, ref_code },
+      () => ({
+        ok: true,
+        awarded: 50,
+        total_points: 50,
+        message: 'Приветственный бонус +50 баллов начислен! (локальный режим)',
+      })
+    ),
+
+  /** Статистика реферальной программы для HR-дашборда */
+  referralSummary: () =>
+    call('GET', '/api/referrals/summary', undefined, () => ({
+      total_invites: 0,
+      welcome_claims: 0,
+      points_distributed: 0,
+      by_channel: {},
+    })),
 }
 
 export { local }
