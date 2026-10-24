@@ -1,0 +1,161 @@
+---
+description: Компонент, реализующий интерфейс с централизованной навигацией через закреплённую нижнюю панель.
+---
+
+<Overview group="navigation">
+
+# Epic [tag:component]
+
+Компонент, реализующий интерфейс с централизованной навигацией через закреплённую нижнюю панель ([`Tabbar`](#tabbar)). Принимает
+коллекцию [`Root`](/components/root) или [`View`](/components/view).
+
+Связанные страницы:
+
+- [Навигация](/overview/navigation)
+
+</Overview>
+
+import { FixedLayoutWrapper } from '@/components/wrappers';
+
+{/* @example-description: Базовая навигация через `Epic` с двумя историями и нижним `Tabbar`. */}
+<Playground Wrapper={FixedLayoutWrapper} style={{ maxWidth: 320, height: 415 }}>
+
+```jsx
+const [activeStory, setActiveStory] = useState('feed');
+return (
+  <Epic
+    activeStory={activeStory}
+    tabbar={
+      <Tabbar>
+        <TabbarItem
+          label="Лента"
+          selected={activeStory === 'feed'}
+          onClick={() => setActiveStory('feed')}
+        >
+          <Icon28NewsfeedOutline />
+        </TabbarItem>
+        <TabbarItem
+          label="Профиль"
+          selected={activeStory === 'profile'}
+          onClick={() => setActiveStory('profile')}
+        >
+          <Icon28UserCircleOutline />
+        </TabbarItem>
+      </Tabbar>
+    }
+  >
+    <View id="feed" activePanel="feed-panel">
+      <Panel id="feed-panel">
+        <PanelHeader>Лента</PanelHeader>
+        <Placeholder stretched>
+          <Icon56NewsfeedOutline />
+        </Placeholder>
+      </Panel>
+    </View>
+    <View id="profile" activePanel="profile-panel">
+      <Panel id="profile-panel">
+        <PanelHeader>Профиль</PanelHeader>
+        <Placeholder stretched>
+          <Icon56UserCircleOutline />
+        </Placeholder>
+      </Panel>
+    </View>
+  </Epic>
+);
+```
+
+</Playground>
+
+## Когда использовать? [#when-to-use]
+
+- Вы разрабатываете мобильное приложение ([`viewWidth <= SMALL_TABLET`](/overview/adaptivity#viewwidth)).
+- По дизайну требуется панель с быстрой навигацией на основные разделы.
+
+## Применение компонента
+
+Принимает необходимое количество [`View`](/components/view) и/или [`Root`](/components/root) с уникальным `id`. Далее `id` с нужным
+сценарием передаётся в свойство `activeStory`.
+
+```
+Epic
+  └─ View N
+    └─ Panel N
+      └─ PanelHeader
+      └─ <content>
+  └─ Root N
+    └─ View N
+      └─ Panel N
+        └─ PanelHeader
+        └─ <content>
+```
+
+## Tabbar
+
+import TabbarContent from './_partials/tabbar-content.mdx';
+
+<TabbarContent />
+
+## TabbarItem [#tabbar-item]
+
+import TabbarItemContent from './_partials/tabbar-item-content.mdx';
+
+<TabbarItemContent />
+
+## Адаптивность
+
+Если у вашего приложения есть настольный режим, то по дизайну скорей всего нужно будет заменять `tabbar` на другое меню. Чтобы
+спрятать `tabbar` на настольном экране – используйте хук [`useAdaptivityConditionalRender`](/components/use-adaptivity-conditional-render).
+
+```jsx showLineNumbers
+export default function App() {
+  const { viewWidth } = useAdaptivityConditionalRender();
+
+  return (
+    <Epic
+      activeStory={activeStory}
+      tabbar={
+        viewWidth.tabletPlus && (
+          <Tabbar className={viewWidth.tabletPlus.className}>
+            <TabbarItem label="Лента" selected onClick={() => setActiveStory('feed')}>
+              <Icon28NewsfeedOutline />
+            </TabbarItem>
+            <TabbarItem label="Профиль" onClick={() => setActiveStory('profile')}>
+              <Icon28UserCircleOutline />
+            </TabbarItem>
+          </Tabbar>
+        )
+      }
+    >
+      <View id="feed" activePanel="feed-panel">
+        <Panel id="feed-panel">
+          <PanelHeader>Лента</PanelHeader>
+          <Placeholder stretched>
+            <Icon28NewsfeedOutline />
+          </Placeholder>
+        </Panel>
+      </View>
+      <View id="profile" activePanel="profile-panel">
+        <Panel id="profile-panel">
+          <PanelHeader>Профиль</PanelHeader>
+          <Placeholder stretched>
+            <Icon28UserCircleOutline />
+          </Placeholder>
+        </Panel>
+      </View>
+    </Epic>
+  );
+}
+```
+
+Примеры замены `tabbar` на меню приведён на странице [Навигация | Пример](/overview/navigation#example-app).
+
+## Свойства и методы [#api]
+
+<PropsTable name={["Epic", "Tabbar", "TabbarItem"]}>
+### Epic [#epic-api]
+
+### Tabbar [#tabbar-api]
+
+### TabbarItem [#tabbar-item-api]
+
+</PropsTable>
