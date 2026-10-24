@@ -7,6 +7,7 @@ export const ROOT = 'root'
 /** Разделы нижней панели (Epic → View). */
 export const VIEW = {
   QUEST: 'quest',
+  MAP: 'map',
   REWARDS: 'rewards',
   MASCOT: 'mascot',
   PROFILE: 'profile',
@@ -16,6 +17,7 @@ export const VIEW = {
 /** Экраны (Panel). id уникальны во всём приложении. */
 export const PANEL = {
   HOME: 'home',
+  MAP: 'map',
   STORY: 'story',
   WHY: 'why',
   VALUES: 'values',
@@ -44,6 +46,7 @@ export const MODAL = {
 
 export const PATH = {
   [PANEL.HOME]: '/',
+  [PANEL.MAP]: '/map',
   [PANEL.STORY]: '/story',
   [PANEL.WHY]: '/why',
   [PANEL.VALUES]: '/values',
@@ -80,6 +83,7 @@ export const routes = RoutesConfig.create([
       createPanel(PANEL.STATION, PATH[PANEL.STATION], [], ['id']),
       panel(PANEL.CAPSULE),
     ]),
+    createView(VIEW.MAP, [panel(PANEL.MAP)]),
     createView(VIEW.REWARDS, [panel(PANEL.VERDICT), panel(PANEL.SALARY), panel(PANEL.MERCH), panel(PANEL.APPLY), panel(PANEL.APPLIED)]),
     createView(VIEW.MASCOT, [panel(PANEL.CHAT)]),
     createView(VIEW.PROFILE, [panel(PANEL.ME), panel(PANEL.ABOUT)]),
@@ -92,6 +96,7 @@ export const router = createHashRouter(routes.getRoutes())
 /** Порядок панелей внутри View = порядок переходов (нужно для правильной анимации VKUI). */
 export const VIEW_PANELS = {
   [VIEW.QUEST]: [PANEL.HOME, PANEL.STORY, PANEL.WHY, PANEL.VALUES, PANEL.LOCKER, PANEL.HUB, PANEL.STATION, PANEL.CAPSULE],
+  [VIEW.MAP]: [PANEL.MAP],
   [VIEW.REWARDS]: [PANEL.VERDICT, PANEL.SALARY, PANEL.MERCH, PANEL.APPLY, PANEL.APPLIED],
   [VIEW.MASCOT]: [PANEL.CHAT],
   [VIEW.PROFILE]: [PANEL.ME, PANEL.ABOUT],
@@ -115,6 +120,8 @@ export function pathForScreen(screen, stationId, state) {
       return stationPath(stationId)
     case 'finale':
       return state?.capsuleOpened ? PATH[PANEL.VERDICT] : PATH[PANEL.CAPSULE]
+    case 'map':
+      return PATH[PANEL.MAP]
     case 'rewards':
       return PATH[PANEL.VERDICT]
     case 'apply':

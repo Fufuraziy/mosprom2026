@@ -24,6 +24,9 @@ const emptyTelemetry = () => ({
   calculator: { interactions: 0, night_ok: false, last: null },
   asked_topics: {},
   skipped: [],
+  viewed_map_locations: [],
+  selected_map_workshop: null,
+  target_vacancy_from_map: null,
   started_at: new Date().toISOString(),
 })
 
@@ -106,6 +109,27 @@ function reducer(state, a) {
       return { ...state, screen: a.screen, stationId: a.stationId ?? null, mode: 'student' }
     case 'AWARD':
       return { ...state, points: state.points + a.points }
+    case 'MAP_LOCATION_VIEW': {
+      const cur = t.viewed_map_locations || []
+      if (cur.includes(a.name)) return state
+      return {
+        ...state,
+        points: state.points + 15,
+        telemetry: {
+          ...t,
+          viewed_map_locations: [...cur, a.name],
+        },
+      }
+    }
+    case 'MAP_WORKSHOP_SELECT':
+      return {
+        ...state,
+        telemetry: {
+          ...t,
+          selected_map_workshop: a.workshop?.name || null,
+          target_vacancy_from_map: a.workshop?.targetVacancy || null,
+        },
+      }
     case 'WHY_VIEW':
       if (t.why_ochakovo_cards_viewed.includes(a.id)) return state
       return {
@@ -388,6 +412,19 @@ export function GameProvider({ children }) {
         dispatch({ type: 'AWARD', points })
         toast(`+${points} Крафт-баллов · ${reason}`)
         track('points', { points, reason })
+      },
+      viewMapLocation: (loc) => {
+        const name = loc.name || loc.id
+        const cur = state.telemetry?.viewed_map_locations || []
+        if (!cur.includes(name)) {
+          dispatch({ type: 'MAP_LOCATION_VIEW', name })
+          toast('+15 Крафт-баллов · Изучен цех Очаково')
+          track('map_location_viewed', { id: loc.id, name })
+        }
+      },
+      selectMapWorkshop: (workshop) => {
+        dispatch({ type: 'MAP_WORKSHOP_SELECT', workshop })
+        track('map_workshop_selected', { id: workshop.id, vacancy: workshop.targetVacancy })
       },
       viewWhy: (id, isNew) => {
         dispatch({ type: 'WHY_VIEW', id })

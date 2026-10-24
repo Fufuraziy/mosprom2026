@@ -48,6 +48,7 @@ import { api } from '../services/api.js'
 import { BrandEssence, BrandsMarquee, BrandValues, CapsuleTeaser, HomeHero, Timeline, WhyCards } from '../screens/Home.jsx'
 import Locker from '../screens/Locker.jsx'
 import Hub from '../screens/Hub.jsx'
+import MapView from '../screens/map/MapView.jsx'
 import LabStation from '../screens/stations/LabStation.jsx'
 import EngineeringStation from '../screens/stations/EngineeringStation.jsx'
 import LineStation from '../screens/stations/LineStation.jsx'
@@ -612,8 +613,19 @@ export function AboutPanel({ nav }) {
   )
 }
 
+export function MapPanel({ nav }) {
+  const navigator = useRouteNavigator()
+  return (
+    <Panel id={nav}>
+      <PanelHeader delimiter="separator">Карта «Очаково»</PanelHeader>
+      <MapView onNavigateToApply={() => navigator.push(PATH[PANEL.APPLY])} />
+    </Panel>
+  )
+}
+
 export const PANELS = {
   [PANEL.HOME]: HomePanel,
+  [PANEL.MAP]: MapPanel,
   [PANEL.STORY]: StoryPanel,
   [PANEL.WHY]: WhyPanel,
   [PANEL.VALUES]: ValuesPanel,

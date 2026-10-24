@@ -19,7 +19,7 @@ import {
   View,
 } from '@vkontakte/vkui'
 import { useActiveVkuiLocation, useFirstPageCheck, usePopout, useRouteNavigator } from '@vkontakte/vk-mini-apps-router'
-import { Icon28GameOutline, Icon28GiftOutline, Icon28MessageOutline, Icon28UserCircleOutline, Icon28ViewOutline, Icon24CoinsOutline, Icon24TicketOutline, Icon24InfoCircleOutline, Icon56UserCircleOutline } from '@vkontakte/icons'
+import { Icon28GameOutline, Icon28PlaceOutline, Icon28GiftOutline, Icon28MessageOutline, Icon28UserCircleOutline, Icon28ViewOutline, Icon24CoinsOutline, Icon24TicketOutline, Icon24InfoCircleOutline, Icon56UserCircleOutline } from '@vkontakte/icons'
 import bridge from '@vkontakte/vk-bridge'
 import { navigation, useGame } from '../state/GameContext.jsx'
 import { isInsideVK } from '../services/vk.js'
@@ -29,13 +29,14 @@ import { StoryShareContent } from '../components/StoryShare.jsx'
 
 const TABS = [
   { view: VIEW.QUEST, label: 'Квест', Icon: Icon28GameOutline, root: PATH[PANEL.HOME] },
+  { view: VIEW.MAP, label: 'Карта', Icon: Icon28PlaceOutline, root: PATH[PANEL.MAP] },
   { view: VIEW.REWARDS, label: 'Награды', Icon: Icon28GiftOutline, root: PATH[PANEL.VERDICT] },
   { view: VIEW.MASCOT, label: 'Крафти', Icon: Icon28MessageOutline, root: PATH[PANEL.CHAT] },
   { view: VIEW.PROFILE, label: 'Профиль', Icon: Icon28UserCircleOutline, root: PATH[PANEL.ME] },
   { view: VIEW.JURY, label: 'Жюри', Icon: Icon28ViewOutline, root: PATH[PANEL.JURY_HOME], jury: true },
 ]
 
-const ROOT_PANEL = { [VIEW.QUEST]: PANEL.HOME, [VIEW.REWARDS]: PANEL.VERDICT, [VIEW.MASCOT]: PANEL.CHAT, [VIEW.PROFILE]: PANEL.ME, [VIEW.JURY]: PANEL.JURY_HOME }
+const ROOT_PANEL = { [VIEW.QUEST]: PANEL.HOME, [VIEW.MAP]: PANEL.MAP, [VIEW.REWARDS]: PANEL.VERDICT, [VIEW.MASCOT]: PANEL.CHAT, [VIEW.PROFILE]: PANEL.ME, [VIEW.JURY]: PANEL.JURY_HOME }
 
 export default function MiniApp() {
   const { state, actions, toasts } = useGame()
