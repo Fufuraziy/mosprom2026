@@ -90,7 +90,7 @@ export default function Header({ embedded = false }) {
         <button onClick={() => actions.setMode('hr')} className="flex shrink-0 items-center gap-2" aria-label="Панель HR">
           <LogoPlate className="h-9 w-auto sm:h-11" />
           <span className="hidden border-l border-line pl-3 text-[10px] font-bold uppercase leading-tight tracking-[0.16em] text-ink-soft md:block">
-            Крафт-код
+            Секретный код
             <br />
             <span className="text-brand">1978</span>
           </span>

@@ -72,7 +72,7 @@ def mode() -> str:
 # Тексты и клавиатуры
 # --------------------------------------------------------------------------------------
 B = ai_agents._btn
-APP_BUTTON = "🚀 Запустить игру КРАФТ-КОД 1978"
+APP_BUTTON = "🚀 Игра «Секретный код 1978»"
 
 MAIN_KEYBOARD = [
     [B(APP_BUTTON, "open_app", "primary")],
@@ -84,7 +84,7 @@ START_KEYBOARD = [[B("Начать", "start", "primary")]]
 
 
 def miniapp_attachment() -> dict:
-    return {"type": "miniapp", "title": "КРАФТ-КОД 1978", "sub": "VK Mini App · 4 станции · мерч за баллы",
+    return {"type": "miniapp", "title": "Секретный код 1978", "sub": "VK Mini App · 4 станции · мерч за баллы",
             "url": mini_app_url() or None}
 
 
@@ -95,7 +95,7 @@ GREETING = (
     "📄 для студентов нет испытательного срока — сразу договор по ТК РФ;\n"
     "🏠 общежитие на Рябиновой, 36к2 — 3 400 ₽ в месяц;\n"
     "🎓 экзамены в сезон можно сдавать прямо на заводе.\n\n"
-    "Берём строго с 18 лет. Запусти игру КРАФТ-КОД 1978 — 15 минут, 4 станции и мерч за баллы!"
+    "Берём строго с 18 лет. Запусти игру «Секретный код 1978»: 15 минут, 4 станции и мерч за баллы!"
 )
 SALARY_TEXT = (
     "💰 Доход на оплачиваемой практике (до вычета НДФЛ):\n"
@@ -175,7 +175,7 @@ async def respond(payload=None, text: str | None = None, ctx: dict | None = None
         return [_msg(GREETING, attachment=miniapp_attachment())]
     if cmd in ("open_app", "continue"):
         link = f"\n{mini_app_url()}" if mini_app_url() else ""
-        return [_msg(f"Открываю мини-приложение КРАФТ-КОД 1978. {_progress(ctx)}{link}", attachment=miniapp_attachment())]
+        return [_msg(f"Открываю мини-приложение «Секретный код 1978». {_progress(ctx)}{link}", attachment=miniapp_attachment())]
     if cmd == "salary":
         return [_msg(SALARY_TEXT, "salary", attachment=miniapp_attachment())]
     if cmd == "dorm":
