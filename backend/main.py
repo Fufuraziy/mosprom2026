@@ -7,16 +7,28 @@ import json
 import random
 import csv
 import io
+import hmac
+import hashlib
+import base64
+import time
+import uuid
+import threading
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date, timezone
 
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from .database import engine, Base, get_db, SessionLocal
+try:  # httpx — для запросов к VK API; без него сервер работает, просто не пишет в ВК
+    import httpx
+except ImportError:  # pragma: no cover
+    httpx = None
+
+from .database import engine, Base, get_db, SessionLocal, run_light_migrations
 from .models import GameSession, TelemetryEvent, Candidate, RaffleTicket, BotMessage
 from .schemas import (
     CandidateFormSchema, CandidateSubmitRequest,
@@ -30,9 +42,118 @@ from .bot import handle_bot_message
 
 # ------------------------------------------------------------- Конфигурация и авторизация HR
 
+# Корпоративный ключ доступа HR (вместо PIN 1978). Задаётся в .env: HR_ACCESS_KEY="Ochakovo#HR525!"
+HR_ACCESS_KEY = os.environ.get("HR_ACCESS_KEY", "Ochakovo#HR525!")
+# Обратная совместимость (fallback): старый PIN и старый статический токен принимаются, пока HR_ALLOW_LEGACY_PIN != "0".
 HR_ACCESS_PIN = os.environ.get("HR_ACCESS_PIN", "1978")
+HR_ALLOW_LEGACY_PIN = os.environ.get("HR_ALLOW_LEGACY_PIN", "1") != "0"
 HR_ADMIN_TOKEN = os.environ.get("HR_ADMIN_TOKEN", "ochakovo-hr-secret-1978")
+# Секрет подписи токенов сессии HR. Если не задан — выводится из HR_ACCESS_KEY (токены переживают перезапуск сервера).
+HR_TOKEN_SECRET = (os.environ.get("HR_TOKEN_SECRET") or hashlib.sha256(("ochakovo-hr|" + HR_ACCESS_KEY).encode()).hexdigest()).encode()
+HR_TOKEN_TTL = int(os.environ.get("HR_TOKEN_TTL", str(12 * 3600)))  # 12 часов
 VK_ADMIN_IDS = [x.strip() for x in os.environ.get("VK_ADMIN_IDS", "").split(",") if x.strip()]
+
+# ВК-бот: реальная отправка в личку через messages.send, если задан токен сообщества
+VK_GROUP_TOKEN = os.environ.get("VK_GROUP_TOKEN", "").strip()
+VK_API_HOST = os.environ.get("VK_API_HOST", "https://api.vk.ru/method/")
+VK_API_VERSION = os.environ.get("VK_API_VERSION", "5.199")
+HTTP_TIMEOUT = float(os.environ.get("HTTP_TIMEOUT", "4.0"))
+
+
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def _b64dec(data: str) -> bytes:
+    return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
+
+
+def secure_equals(a: Optional[str], b: Optional[str]) -> bool:
+    """Сравнение секретов за постоянное время (защита от timing-атак)."""
+    if not a or not b:
+        return False
+    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+
+def issue_hr_token(role: str = "hr_admin") -> str:
+    """Подписанный токен сессии HR: base64url(payload).base64url(HMAC-SHA256(payload))."""
+    now = int(time.time())
+    payload = _b64(json.dumps({"role": role, "iat": now, "exp": now + HR_TOKEN_TTL, "jti": uuid.uuid4().hex[:12]}, separators=(",", ":")).encode())
+    sig = _b64(hmac.new(HR_TOKEN_SECRET, payload.encode(), hashlib.sha256).digest())
+    return f"{payload}.{sig}"
+
+
+def verify_hr_token(token: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Возвращает payload, если подпись верна и срок не истёк; иначе None."""
+    if not token or "." not in token:
+        return None
+    payload, sig = token.rsplit(".", 1)
+    expected = _b64(hmac.new(HR_TOKEN_SECRET, payload.encode(), hashlib.sha256).digest())
+    if not hmac.compare_digest(sig.encode(), expected.encode()):
+        return None
+    try:
+        data = json.loads(_b64dec(payload))
+    except Exception:
+        return None
+    if int(data.get("exp", 0)) < int(time.time()):
+        return None
+    return data
+
+
+# ------------------------------------------------------------- Лёгкий TTL-кэш в памяти (дашборд HR)
+
+class TTLCache:
+    """Один процесс uvicorn → обычного dict с блокировкой достаточно. Инвалидация — по событиям записи."""
+
+    def __init__(self, ttl: float):
+        self.ttl = ttl
+        self._data: Dict[str, Any] = {}
+        self._lock = threading.Lock()
+
+    def get(self, key: str):
+        with self._lock:
+            item = self._data.get(key)
+            if not item:
+                return None
+            value, expires = item
+            if expires < time.monotonic():
+                self._data.pop(key, None)
+                return None
+            return value
+
+    def set(self, key: str, value: Any):
+        with self._lock:
+            self._data[key] = (value, time.monotonic() + self.ttl)
+
+    def clear(self):
+        with self._lock:
+            self._data.clear()
+
+
+DASHBOARD_CACHE = TTLCache(ttl=15.0)
+
+
+def invalidate_dashboard_cache():
+    DASHBOARD_CACHE.clear()
+
+
+# ------------------------------------------------------------- Общий HTTP-клиент (VK API / внешние ИИ)
+
+_http_client = None
+
+
+def get_http_client():
+    """Единый пул соединений с коротким таймаутом: сервер не зависает в ожидании внешнего API."""
+    global _http_client
+    if httpx is None:
+        return None
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(HTTP_TIMEOUT),
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        )
+    return _http_client
+
 
 def get_now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -49,12 +170,15 @@ def verify_hr_auth(request: Request) -> Dict[str, Any]:
     if not token and auth_hdr and auth_hdr.startswith("Bearer "):
         token = auth_hdr[7:].strip()
     
-    if token == HR_ADMIN_TOKEN:
+    if verify_hr_token(token):
+        return {"authenticated": True, "auth_mode": "hr_admin"}
+    if HR_ALLOW_LEGACY_PIN and secure_equals(token, HR_ADMIN_TOKEN):
         return {"authenticated": True, "auth_mode": "hr_admin"}
     return {"authenticated": True, "auth_mode": "jury_open_fallback"}
 
-# Создание таблиц БД
+# Создание таблиц БД + досоздание новых колонок и индексов в старой базе
 Base.metadata.create_all(bind=engine)
+run_light_migrations()
 
 # Инициализация демо-кандидатов при пустой БД
 def seed_initial_candidates():
@@ -182,6 +306,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Сжатие ответов: JSON дашборда HR и списка кандидатов уменьшается в несколько раз
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+
+@app.on_event("shutdown")
+async def _close_http_client():
+    global _http_client
+    if _http_client is not None:
+        await _http_client.aclose()
+        _http_client = None
+
+
 # Кастомный обработчик 422 ошибок для совместимости с React
 @app.exception_handler(Exception)
 async def custom_general_exception_handler(request: Request, exc: Exception):
@@ -193,18 +329,22 @@ async def custom_general_exception_handler(request: Request, exc: Exception):
 
 @app.post("/api/auth/login", response_model=LoginResponse)
 def auth_login(req: LoginRequest):
-    # 1. Проверка PIN-кода (по умолчанию 1978)
-    if req.pin and req.pin.strip() == HR_ACCESS_PIN:
-        return LoginResponse(authenticated=True, token=HR_ADMIN_TOKEN, role="hr_admin")
-    
-    # 2. Проверка через VK_ADMIN_IDS
+    key = (req.key or req.pin or "").strip()
+    # 1. Корпоративный ключ доступа HR (HR_ACCESS_KEY), сравнение за постоянное время
+    if secure_equals(key, HR_ACCESS_KEY):
+        return LoginResponse(authenticated=True, token=issue_hr_token("hr_admin"), role="hr_admin")
+
+    # 2. Обратная совместимость: старый PIN 1978 (отключается HR_ALLOW_LEGACY_PIN=0)
+    if HR_ALLOW_LEGACY_PIN and secure_equals(key, HR_ACCESS_PIN):
+        return LoginResponse(authenticated=True, token=issue_hr_token("hr_admin"), role="hr_admin")
+
+    # 3. Администраторы по VK ID (VK_ADMIN_IDS)
     if req.vk_user_id and str(req.vk_user_id).strip() in VK_ADMIN_IDS:
-        return LoginResponse(authenticated=True, token=HR_ADMIN_TOKEN, role="hr_admin")
-    
-    # Иначе 401
+        return LoginResponse(authenticated=True, token=issue_hr_token("hr_admin"), role="hr_admin")
+
     return JSONResponse(
         status_code=401,
-        content={"detail": "Неверный код доступа сотрудника HR Очаково"}
+        content={"detail": "Неверный код доступа сотрудника HR Очаково: нужен корпоративный ключ"}
     )
 
 # ------------------------------------------------------------- 1. Healthcheck
@@ -418,6 +558,7 @@ def submit_candidate(payload: CandidateSubmitRequest, db: Session = Depends(get_
     db.add(cand_obj)
     db.commit()
     db.refresh(cand_obj)
+    invalidate_dashboard_cache()
     
     return serialize_candidate(cand_obj)
 
@@ -548,6 +689,18 @@ def get_analytics_summary(request: Request, response: Response, db: Session = De
     auth = verify_hr_auth(request)
     response.headers["X-HR-Auth-Mode"] = auth["auth_mode"]
 
+    # TTL-кэш 15 с: пересчёт по всем кандидатам — самая тяжёлая операция; сбрасывается при новой анкете и сообщении HR
+    cached = DASHBOARD_CACHE.get("summary")
+    if cached is not None:
+        response.headers["X-Cache"] = "HIT"
+        return {**cached, "auth_mode": auth["auth_mode"]}
+    response.headers["X-Cache"] = "MISS"
+    data = _compute_analytics_summary(db)
+    DASHBOARD_CACHE.set("summary", data)
+    return {**data, "auth_mode": auth["auth_mode"]}
+
+
+def _compute_analytics_summary(db: Session) -> Dict[str, Any]:
     candidates = db.query(Candidate).all()
     serialized = [serialize_candidate(c) for c in candidates]
     
@@ -618,7 +771,6 @@ def get_analytics_summary(request: Request, response: Response, db: Session = De
         "by_block": by_block,
         "by_university": by_uni,
         "top_topics": top_topics,
-        "auth_mode": auth["auth_mode"],
         "source": "remote"
     }
 
@@ -653,32 +805,126 @@ def invite_draft(req: InviteDraftRequest, request: Request, response: Response, 
     draft["auth_mode"] = auth["auth_mode"]
     return draft
 
+async def vk_messages_send(user_id: str, text: str, random_id: int) -> Dict[str, Any]:
+    """Отправка в личку ВК от имени сообщества (messages.send). Возвращает {ok, error}."""
+    client = get_http_client()
+    if client is None:
+        return {"ok": False, "error": "httpx не установлен"}
+    try:
+        r = await client.post(
+            VK_API_HOST + "messages.send",
+            data={
+                "user_id": user_id,
+                "random_id": random_id,  # идемпотентность: повтор с тем же random_id ВК не дублирует
+                "message": text,
+                "access_token": VK_GROUP_TOKEN,
+                "v": VK_API_VERSION,
+            },
+        )
+        data = r.json()
+    except Exception as e:  # таймаут 4 с, сеть
+        return {"ok": False, "error": f"VK API недоступен: {e.__class__.__name__}"}
+    if "error" in data:
+        err = data["error"]
+        # 901 — пользователь не разрешил сообщения от сообщества
+        return {"ok": False, "error": f"{err.get('error_code')}: {err.get('error_msg')}"}
+    return {"ok": True, "message_id": data.get("response")}
+
+
+def serialize_bot_message(m: BotMessage, names: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    return {
+        "id": m.id,
+        "session_id": m.session_id,
+        "candidate_id": m.candidate_id,
+        "candidate_name": (names or {}).get(m.candidate_id) if m.candidate_id else None,
+        "from": "hr" if m.is_from_hr else (m.sender or "bot"),
+        "is_from_hr": bool(m.is_from_hr),
+        "kind": "invite" if m.is_from_hr else None,
+        "text": m.text,
+        "topic": m.topic,
+        "channel": m.channel,
+        "delivered": True if m.delivered is None else bool(m.delivered),
+        "created_at": m.created_at,
+    }
+
+
 @app.post("/api/bot/send")
-def bot_send(req: BotSendRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+async def bot_send(req: BotSendRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     auth = verify_hr_auth(request)
     response.headers["X-HR-Auth-Mode"] = auth["auth_mode"]
 
     cand = db.query(Candidate).filter(Candidate.id == req.candidate_id).first()
-    msg_id = f"msg_{int(datetime.now(timezone.utc).timestamp())}_{random.randint(1000, 9999)}"
-    
-    # Сохраняем отправленное сообщение в истории бота
+    msg_id = f"msg_{uuid.uuid4().hex}"
+    vk_user_id = str(req.vk_user_id or (cand.vk_user_id if cand else "") or "").strip()
+
+    # 1. Реальная доставка в личку ВК — если есть токен сообщества и числовой VK ID кандидата
+    channel, delivered, vk_error = "vk_demo", True, None
+    if VK_GROUP_TOKEN and vk_user_id.isdigit():
+        res = await vk_messages_send(vk_user_id, req.text, random_id=int(hashlib.sha1(msg_id.encode()).hexdigest()[:8], 16))
+        channel, delivered, vk_error = "vk", res["ok"], res.get("error")
+
+    # 2. Сообщение всегда сохраняется — его покажет вкладка «ВК-бот» (GET /api/bot/inbox)
     b_msg = BotMessage(
         id=msg_id,
-        session_id=cand.session_id if cand else "hr_outbox",
-        sender="bot",
+        session_id=(cand.session_id if cand and cand.session_id else None) or "hr_outbox",
+        candidate_id=req.candidate_id,
+        sender="hr",
+        is_from_hr=True,
+        channel=channel,
+        delivered=delivered,
         text=req.text,
         topic="hr_invite",
-        payload="invite"
+        payload="invite",
+        created_at=get_now_iso(),
     )
     db.add(b_msg)
     db.commit()
-    
+    invalidate_dashboard_cache()
+
     return {
         "ok": True,
-        "delivered": True,
-        "channel": "vk" if req.vk_user_id else "vk_demo",
+        "delivered": delivered,
+        "channel": channel,
         "message_id": msg_id,
+        "error": vk_error,
         "auth_mode": auth["auth_mode"]
+    }
+
+
+@app.get("/api/bot/inbox")
+def bot_inbox(
+    session_id: Optional[str] = None,
+    candidate_id: Optional[str] = None,
+    since: Optional[str] = None,
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """
+    Сообщения ВК-бота для вкладки «ВК-бот»:
+    - session_id — переписка игрока (ответы бота + приглашения HR этому игроку);
+    - candidate_id — всё, что HR отправил кандидату;
+    - без параметров — последние приглашения HR всем кандидатам.
+    since — ISO-время: вернуть только более новые (для дешёвого опроса раз в несколько секунд).
+    """
+    q = db.query(BotMessage)
+    if candidate_id:
+        q = q.filter(BotMessage.candidate_id == candidate_id)
+    elif session_id:
+        own_ids = [c.id for c in db.query(Candidate.id).filter(Candidate.session_id == session_id).all()]
+        q = q.filter((BotMessage.session_id == session_id) | (BotMessage.candidate_id.in_(own_ids)) if own_ids else (BotMessage.session_id == session_id))
+    else:
+        q = q.filter(BotMessage.is_from_hr == True)  # noqa: E712
+    if since:
+        q = q.filter(BotMessage.created_at > since)
+    rows = q.order_by(BotMessage.created_at.desc()).limit(limit).all()
+    rows.reverse()  # по времени: старые → новые
+
+    cand_ids = {m.candidate_id for m in rows if m.candidate_id}
+    names = {c.id: c.fio for c in db.query(Candidate.id, Candidate.fio).filter(Candidate.id.in_(cand_ids)).all()} if cand_ids else {}
+    return {
+        "items": [serialize_bot_message(m, names) for m in rows],
+        "server_time": get_now_iso(),
+        "source": "remote",
     }
 
 # ------------------------------------------------------------- 10. Экспорт в CSV
@@ -691,8 +937,7 @@ def export_csv(request: Request, response: Response, db: Session = Depends(get_d
     serialized = [serialize_candidate(c) for c in candidates]
     
     output = io.StringIO()
-    # Записываем BOM для идеального открытия в Excel
-    output.write("\ufeff")
+    # BOM для Excel добавляет кодировка utf-8-sig ниже
     writer = csv.writer(output, delimiter=";")
     
     writer.writerow([

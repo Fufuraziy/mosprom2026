@@ -130,6 +130,8 @@ async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = fa
             ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
             // внутри ВК — строка запуска с подписью: бэкенд проверяет sign и доверяет vk_user_id (BACKEND_HANDOFF.md, 7.1)
             ...(launchQuery ? { 'X-VK-Launch-Params': launchQuery } : {}),
+            // токен сессии HR (после входа по корпоративному ключу) — для эндпоинтов Панели HR
+            ...(getHrToken() ? { 'X-HR-Token': getHrToken() } : {}),
           },
           body: body !== undefined ? JSON.stringify(body) : undefined,
         },
@@ -180,20 +182,22 @@ const q = (params = {}) => {
 export const api = {
   health: () => checkHealth(true),
 
-  /** Вход в систему HR / Режим Жюри. Проверяет PIN (по умолчанию 1978) или vk_user_id */
-  login: (pin, vk_user_id) =>
+  /** Вход в систему HR / Режим Жюри: корпоративный ключ (Ochakovo#HR525!), старый PIN 1978 — fallback, или vk_user_id. */
+  login: (key, vk_user_id) =>
     call(
       'POST',
       '/api/auth/login',
-      { pin: pin ? String(pin).trim() : undefined, vk_user_id: vk_user_id || undefined },
+      { key: key ? String(key).trim() : undefined, vk_user_id: vk_user_id || undefined },
       () => {
-        if (String(pin).trim() === '1978') {
-          return { authenticated: true, token: 'ochakovo-hr-secret-1978', role: 'hr_admin' }
+        // офлайн (бэкенд недоступен): проверяем локально — демо-режим без сервера
+        const k = String(key || '').trim()
+        if (k === 'Ochakovo#HR525!' || k === '1978') {
+          return { authenticated: true, token: 'ochakovo-hr-secret-1978', role: 'hr_admin', source: 'local' }
         }
         const err = new Error('Неверный код доступа сотрудника HR Очаково')
         err.status = 401
-        err.detail = 'Неверный код доступа сотрудника HR Очаково'
-        err.errors = { pin: 'Неверный код доступа сотрудника HR Очаково' }
+        err.detail = 'Неверный код доступа сотрудника HR Очаково: нужен корпоративный ключ'
+        err.errors = { pin: err.detail }
         throw err
       },
     ).then((res) => {
@@ -273,6 +277,13 @@ export const api = {
     call('POST', '/api/bot/invite-draft', { candidate_id: candidate.id }, () => botLocal.inviteDraft(candidate), { timeout: LLM_TIMEOUT, slow: true }).then((r) =>
       r?.text ? { keyboard: botLocal.INVITE_KEYBOARD, ...r } : botLocal.inviteDraft(candidate),
     ),
+
+  /**
+   * Сообщения ВК-бота с сервера (GET /api/bot/inbox): приглашения HR, отправленные с любого устройства.
+   * params: { session_id?, candidate_id?, since?, limit? }. Офлайн — пустой список (всё уже в локальном симуляторе).
+   */
+  botInbox: (params = {}) =>
+    call('GET', `/api/bot/inbox${q(params)}`, undefined, () => ({ items: [], source: 'local' })).then((r) => (Array.isArray(r?.items) ? r : { items: [], source: 'local' })),
 
   /** Отправка сообщения кандидату от имени сообщества через ВК-бота. */
   botSend: (candidate, text) =>

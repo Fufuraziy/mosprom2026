@@ -32,7 +32,7 @@ class Candidate(Base):
     telegram = Column(String, default="")
     email = Column(String, default="")
     birth_date = Column(String, nullable=False)
-    vacancy = Column(String, nullable=False)
+    vacancy = Column(String, nullable=False, index=True)  # интересующая вакансия (target vacancy) — фильтры HR
     readiness = Column(String, nullable=False)
     university = Column(String, nullable=False)
     study_level = Column(String, default="")
@@ -43,7 +43,7 @@ class Candidate(Base):
     points = Column(Integer, default=0)
     telemetry_json = Column(Text, default="{}")
     tickets_json = Column(Text, default="{}")
-    created_at = Column(String, default=utc_now_iso)
+    created_at = Column(String, default=utc_now_iso, index=True)
     is_live = Column(Boolean, default=True)
     is_demo = Column(Boolean, default=False)
 
@@ -61,8 +61,12 @@ class BotMessage(Base):
 
     id = Column(String, primary_key=True, index=True)
     session_id = Column(String, index=True)
-    sender = Column(String, default="user") # user | bot
+    candidate_id = Column(String, index=True, nullable=True)  # кому адресовано приглашение HR
+    sender = Column(String, default="user")  # user | bot | hr
+    is_from_hr = Column(Boolean, default=False, index=True)
+    channel = Column(String, nullable=True)  # vk — ушло в личку ВК, vk_demo — только в симуляторе
+    delivered = Column(Boolean, default=True)
     text = Column(Text, default="")
     topic = Column(String, default="other")
     payload = Column(String, nullable=True)
-    created_at = Column(String, default=utc_now_iso)
+    created_at = Column(String, default=utc_now_iso, index=True)

@@ -138,7 +138,8 @@ class BotSendRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    pin: Optional[str] = None
+    key: Optional[str] = None  # корпоративный ключ HR (HR_ACCESS_KEY)
+    pin: Optional[str] = None  # старое поле, принимается как ключ (обратная совместимость)
     vk_user_id: Optional[Any] = None
     sign: Optional[str] = None
 

@@ -30,7 +30,7 @@ export default function InviteModal({ candidate, onClose }) {
   const send = async () => {
     setSending(true)
     const r = await api.botSend(candidate, text)
-    const threadId = hrSend(candidate, text, draft?.keyboard)
+    const threadId = hrSend(candidate, text, draft?.keyboard, r?.message_id)
     setSending(false)
     setSent({ ...r, threadId })
     toast(`ВК-бот: приглашение отправлено · ${candidate.fio.split(' ').slice(0, 2).join(' ')}`, 'info')

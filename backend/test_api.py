@@ -191,13 +191,29 @@ def test_static_index():
     assert "ОЧАКОВО" in r.text or "Vite" in r.text or "root" in r.text
 
 def test_auth_login_success_pin():
-    # Проверка корректного PIN-кода (1978 - год основания Очаково)
+    # Обратная совместимость: старый PIN 1978 по-прежнему пускает (fallback-режим)
     r = client.post("/api/auth/login", json={"pin": "1978"})
     assert r.status_code == 200
     data = r.json()
     assert data["authenticated"] is True
-    assert data["token"] == "ochakovo-hr-secret-1978"
     assert data["role"] == "hr_admin"
+    assert "." in data["token"]  # подписанный токен сессии
+
+
+def test_auth_login_corporate_key_and_signed_token():
+    r = client.post("/api/auth/login", json={"key": "Ochakovo#HR525!"})
+    assert r.status_code == 200
+    token = r.json()["token"]
+    # подписанный токен принимается защищёнными эндпоинтами
+    r2 = client.get("/api/hr/dashboard", headers={"X-HR-Token": token})
+    assert r2.status_code == 200
+    assert r2.headers.get("X-HR-Auth-Mode") == "hr_admin"
+    # подделанная подпись — не принимается (уходит в демо-fallback, а не в hr_admin)
+    forged = token[:-2] + ("aa" if not token.endswith("aa") else "bb")
+    r3 = client.get("/api/hr/dashboard", headers={"X-HR-Token": forged})
+    assert r3.headers.get("X-HR-Auth-Mode") == "jury_open_fallback"
+    # ключ через старое поле pin тоже работает
+    assert client.post("/api/auth/login", json={"pin": "Ochakovo#HR525!"}).status_code == 200
 
 def test_auth_login_invalid_pin():
     # Проверка некорректного PIN-кода
@@ -223,3 +239,45 @@ def test_hr_auth_token_and_jury_fallback():
     assert r_fallback.status_code == 200
     assert r_fallback.headers.get("X-HR-Auth-Mode") == "jury_open_fallback"
     assert r_fallback.json().get("auth_mode") == "jury_open_fallback"
+
+
+def test_dashboard_cache_and_invalidation():
+    first = client.get("/api/hr/dashboard")
+    second = client.get("/api/hr/dashboard")
+    assert second.headers.get("X-Cache") == "HIT"
+    total = second.json()["total_candidates"]
+    payload = {
+        "form": {
+            "fio": "Кэшев Тест Тестович", "phone": "+7 900 000-00-01", "birth_date": "2003-05-05",
+            "vacancy": "Оператор линии розлива", "readiness": "Летом", "university": "ИТМО", "consent": True,
+        },
+        "telemetry": {}, "points": 10, "session_id": "sess_cache_test",
+    }
+    assert client.post("/api/candidates", json=payload).status_code == 201
+    third = client.get("/api/hr/dashboard")
+    assert third.headers.get("X-Cache") == "MISS"  # новая анкета сбросила кэш
+    assert third.json()["total_candidates"] == total + 1
+
+
+def test_gzip_compression():
+    r = client.get("/api/candidates", headers={"Accept-Encoding": "gzip"})
+    assert r.status_code == 200
+    assert r.headers.get("content-encoding") == "gzip"
+
+
+def test_bot_send_saved_and_visible_in_inbox():
+    cands = client.get("/api/candidates").json()
+    cand = cands[0] if isinstance(cands, list) else cands["items"][0]
+    text = "Приглашаем на экскурсию в ЛЭП! Тест inbox"
+    r = client.post("/api/bot/send", json={"candidate_id": cand["id"], "text": text})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True and body["message_id"]
+    assert body["channel"] in ("vk", "vk_demo")
+
+    latest = client.get("/api/bot/inbox").json()["items"]
+    assert any(m["id"] == body["message_id"] and m["is_from_hr"] and m["text"] == text for m in latest)
+
+    by_cand = client.get("/api/bot/inbox", params={"candidate_id": cand["id"]}).json()["items"]
+    assert by_cand[-1]["id"] == body["message_id"]
+    assert by_cand[-1]["candidate_name"] == cand["fio"]
