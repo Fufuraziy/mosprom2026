@@ -9,7 +9,7 @@ from pathlib import Path
 
 _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = f"sqlite:///{Path(_tmp, 'test.db').as_posix()}"
-os.environ["SEED_DEMO_DATA"] = "false"
+os.environ.setdefault("SEED_DEMO_DATA", "true")
 os.environ["VK_GROUP_TOKEN"] = ""
 os.environ["LLM_PROVIDER"] = "off"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
