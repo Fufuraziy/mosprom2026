@@ -6,6 +6,7 @@
 // с теми же структурами данных. Контракт эндпоинтов: frontend/API_CONTRACT.md.
 import * as local from './localEngine.js'
 import * as botLocal from './botEngine.js'
+import { normalizeAnalytics, normalizeArchetype, normalizeTelemetry } from './normalize.js'
 
 export const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
@@ -163,7 +164,7 @@ export const api = {
   /** ИИ-агент №2 — архетип, мэтч вакансий, вердикт. */
   recommendation: (session_id, telemetry) =>
     call('POST', '/api/recommendation', { session_id, telemetry }, () => local.buildRecommendation(telemetry), { timeout: LLM_TIMEOUT, slow: true }).then((r) =>
-      r?.archetype && r?.matches ? r : local.buildRecommendation(telemetry),
+      r?.archetype && Array.isArray(r?.matches) ? { ...r, archetype: normalizeArchetype(r.archetype) } : local.buildRecommendation(telemetry),
     ),
 
   buyTicket: (session_id, item_id) =>
@@ -173,16 +174,19 @@ export const api = {
 
   listCandidates: (filters = {}) =>
     call('GET', `/api/candidates${q(filters)}`, undefined, () => local.listCandidates(filters)).then((r) =>
-      Array.isArray(r) ? r.map(local.enrichCandidate) : Array.isArray(r?.items) ? r.items.map(local.enrichCandidate) : local.listCandidates(filters),
+      Array.isArray(r) || Array.isArray(r?.items)
+        ? (Array.isArray(r) ? r : r.items).map((c) => local.enrichCandidate({ ...c, telemetry: normalizeTelemetry(c.telemetry || {}) }))
+        : local.listCandidates(filters),
     ),
 
   /** candidate (необязательно) — уже загруженный объект: нужен, чтобы офлайн-досье строилось и для кандидатов с бэкенда. */
   dossier: (id, candidate) =>
     call('GET', `/api/candidates/${encodeURIComponent(id)}/dossier`, undefined, () => local.buildDossier(candidate || id)).then((r) =>
-      r?.competencies && r?.candidate ? r : local.buildDossier(candidate || id),
+      r?.competencies && r?.candidate ? { ...r, archetype: normalizeArchetype(r.archetype) } : local.buildDossier(candidate || id),
     ),
 
-  analytics: () => call('GET', '/api/analytics/summary', undefined, () => local.analytics()),
+  /** Принимает и фронтовую форму ответа, и вариант бэкенда (submitted, funnel[].label/count, blocks, top_universities, asked_topics). */
+  analytics: () => call('GET', '/api/analytics/summary', undefined, () => local.analytics()).then((r) => (r?.source === 'local' ? r : normalizeAnalytics(r) || local.analytics())),
 
   exportMirapolis: (id, candidate) =>
     call('POST', `/api/candidates/${encodeURIComponent(id)}/mirapolis`, {}, () => local.mirapolisExport(candidate || id)),
