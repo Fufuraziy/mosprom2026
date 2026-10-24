@@ -20,7 +20,8 @@ import {
   GraduationCap,
   Home,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -45,6 +46,7 @@ L.Icon.Default.mergeOptions({
 export default function MapView({ onNavigateToApply }) {
   const { state, actions, toast } = useGame()
   const [mode, setMode] = useState('moscow') // 'russia' | 'moscow'
+  const [viewType, setViewType] = useState('map') // 'map' | 'scheme'
   const [selectedItem, setSelectedItem] = useState(null)
   const [activePhoto, setActivePhoto] = useState(0)
   const [mapError, setMapError] = useState(false)
@@ -56,7 +58,7 @@ export default function MapView({ onNavigateToApply }) {
   const viewedLocations = state.telemetry?.viewed_map_locations || []
   const selectedWorkshopName = state.telemetry?.selected_map_workshop || null
 
-  // Инициализация карты Leaflet
+  // Инициализация карты Leaflet с чистыми открытыми тайлами OpenStreetMap
   useEffect(() => {
     if (!mapContainerRef.current) return
 
@@ -72,15 +74,23 @@ export default function MapView({ onNavigateToApply }) {
           attributionControl: false,
         })
 
-        // Тайлы CartoDB Voyager — быстрые, современные, чистые
-        const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        // Чистые тайлы OpenStreetMap без ограничений и водяных знаков
+        const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
-          subdomains: 'abcd',
+          attribution: '&copy; OpenStreetMap contributors',
         })
 
+        let tileErrors = 0
         tileLayer.on('tileerror', () => {
-          // Если возникла сетевая ошибка подгрузки тайлов — мягко включаем векторный режим
-          setMapError(true)
+          tileErrors += 1
+          if (tileErrors > 4) {
+            // Резервное открытое зеркало HOT OSM
+            try {
+              tileLayer.setUrl('https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png')
+            } catch {
+              setMapError(true)
+            }
+          }
         })
 
         tileLayer.addTo(map)
@@ -98,6 +108,16 @@ export default function MapView({ onNavigateToApply }) {
     }
   }, [])
 
+  // Автоматический пересчет размеров Leaflet при смене режима или переключении вкладки
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize()
+      }
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [mode, viewType])
+
   // Обновление маркеров при переключении режима (РФ / Москва)
   useEffect(() => {
     const map = mapInstanceRef.current
@@ -111,14 +131,14 @@ export default function MapView({ onNavigateToApply }) {
     const targetCenter = mode === 'moscow' ? MOSCOW_CAMPUS_CENTER : RUSSIA_CENTER
     const targetZoom = mode === 'moscow' ? MOSCOW_CAMPUS_ZOOM : RUSSIA_ZOOM
 
-    map.flyTo(targetCenter, targetZoom, { duration: 1.2 })
+    map.flyTo(targetCenter, targetZoom, { duration: 1.0 })
 
     items.forEach((item) => {
       const isSelected = selectedItem?.id === item.id
       const isWorkshop = mode === 'moscow'
       const isViewed = viewedLocations.includes(item.name || item.id)
 
-      // Кастомный HTML-маркер в фирменном стиле «Очаково»
+      // Кастомный HTML-маркер в цветах брендбука «Очаково»
       const iconHtml = `
         <div class="relative flex items-center justify-center cursor-pointer group">
           ${
@@ -175,7 +195,7 @@ export default function MapView({ onNavigateToApply }) {
       actions.viewMapLocation(item)
     }
 
-    if (mapInstanceRef.current && item.coords) {
+    if (mapInstanceRef.current && item.coords && viewType === 'map') {
       mapInstanceRef.current.panTo(item.coords, { animate: true, duration: 0.8 })
     }
   }
@@ -195,24 +215,25 @@ export default function MapView({ onNavigateToApply }) {
   }
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-64px)] min-h-[580px] bg-paper overflow-hidden select-none">
-      {/* Верхняя плашка управления режимом */}
-      <div className="absolute top-3 left-3 right-3 z-[400] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pointer-events-none">
-        <div className="flex p-1 bg-white/95 backdrop-blur-md rounded-lg shadow-md border border-line pointer-events-auto">
+    <div className="relative w-full h-[calc(100vh-125px)] sm:h-[calc(100vh-140px)] flex flex-col overflow-hidden bg-stone-100">
+      {/* Верхняя панель управления: выбор локации + переключатель Карта/Схема */}
+      <div className="absolute top-3 left-3 right-3 z-[400] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 pointer-events-none">
+        {/* Режим 1 / Режим 2 (Москва / Россия) */}
+        <div className="flex p-1 bg-white/95 backdrop-blur-md rounded-xl shadow-md border border-line pointer-events-auto">
           <button
             type="button"
             onClick={() => {
               setMode('moscow')
               setSelectedItem(null)
             }}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${
               mode === 'moscow'
                 ? 'bg-brand text-white shadow-sm'
                 : 'text-ink-soft hover:text-ink hover:bg-paper'
             }`}
           >
-            <Building2 className="w-4 h-4" />
-            <span>🏭 Кампус Москва (Рябиновая, 44)</span>
+            <Building2 className="w-4 h-4 shrink-0" />
+            <span className="truncate">🏭 Кампус Москва (Рябиновая, 44)</span>
           </button>
           <button
             type="button"
@@ -220,56 +241,406 @@ export default function MapView({ onNavigateToApply }) {
               setMode('russia')
               setSelectedItem(null)
             }}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${
               mode === 'russia'
                 ? 'bg-brand text-white shadow-sm'
                 : 'text-ink-soft hover:text-ink hover:bg-paper'
             }`}
           >
-            <Compass className="w-4 h-4" />
-            <span>🌍 География в РФ (10 заводов)</span>
+            <Compass className="w-4 h-4 shrink-0" />
+            <span className="truncate">🌍 География в РФ (10 заводов)</span>
           </button>
         </div>
 
-        {/* Быстрый бейдж счетчика изученных цехов */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-graphite/90 backdrop-blur-md text-white rounded-lg shadow-md text-xs font-bold pointer-events-auto self-start sm:self-auto">
-          <Sparkles className="w-4 h-4 text-malt-light" />
-          <span>
-            Изучено цехов: {viewedLocations.length} из {MOSCOW_WORKSHOPS.length} (+15 баллов за каждый)
-          </span>
+        {/* Правая секция: переключатель режима отображения и счётчик баллов */}
+        <div className="flex items-center gap-2 pointer-events-auto self-start md:self-auto">
+          {/* Переключатель Карта OSM / Векторная Схема */}
+          <div className="flex p-1 bg-white/95 backdrop-blur-md rounded-xl shadow-md border border-line">
+            <button
+              type="button"
+              onClick={() => setViewType('map')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                viewType === 'map' && !mapError
+                  ? 'bg-graphite text-white shadow-sm'
+                  : 'text-ink-soft hover:text-ink hover:bg-paper'
+              }`}
+              title="Реальная карта улиц OpenStreetMap (без API-ключей)"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Карта</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewType('scheme')}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                viewType === 'scheme' || mapError
+                  ? 'bg-brand text-white shadow-sm'
+                  : 'text-ink-soft hover:text-ink hover:bg-paper'
+              }`}
+              title="Интерактивная архитектурная план-схема предприятия"
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              <span>Схема</span>
+            </button>
+          </div>
+
+          {/* Счётчик изученных цехов */}
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-graphite/95 backdrop-blur-md text-white rounded-xl shadow-md text-xs font-bold">
+            <Sparkles className="w-3.5 h-3.5 text-malt-light shrink-0" />
+            <span>
+              {viewedLocations.length}/{MOSCOW_WORKSHOPS.length} цехов (+15 б.)
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Основной контейнер карты */}
       <div className="relative flex-1 w-full h-full">
-        {!mapError ? (
-          <div ref={mapContainerRef} className="w-full h-full z-0" />
-        ) : (
-          /* Красивый векторный Fallback на случай отсутствия сети / тайлов */
-          <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-stone-100 to-stone-200">
-            <div className="max-w-md text-center bg-white p-6 rounded-xl border border-line shadow-lg">
-              <Compass className="w-12 h-12 text-brand mx-auto mb-3" />
-              <h3 className="text-base font-bold text-ink">
-                Интерактивная карта «Очаково»
-              </h3>
-              <p className="text-xs text-ink-soft mt-1 mb-4">
-                {mode === 'moscow'
-                  ? 'Кампус Москва: выберите цех из интерактивного списка ниже для изучения оборудования и зарплат.'
-                  : 'Федеральная сеть «Очаково»: 10 заводов от Москвы до Тюмени.'}
-              </p>
-              <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
-                {(mode === 'moscow' ? MOSCOW_WORKSHOPS : RUSSIA_LOCATIONS).map((it) => (
-                  <button
-                    key={it.id}
-                    onClick={() => handleSelectItem(it)}
-                    className="flex items-center justify-between p-2.5 text-left border rounded-lg hover:border-brand hover:bg-paper transition"
+        {/* Реальная карта Leaflet (OpenStreetMap) */}
+        <div
+          ref={mapContainerRef}
+          className={`w-full h-full z-0 transition-opacity duration-300 ${
+            viewType === 'map' && !mapError ? 'opacity-100' : 'opacity-0 pointer-events-none absolute inset-0'
+          }`}
+        />
+
+        {/* Интерактивная архитектурная векторная схема (когда viewType === 'scheme' или mapError) */}
+        {(viewType === 'scheme' || mapError) && (
+          <div className="w-full h-full flex flex-col p-4 pt-16 sm:pt-16 pb-20 overflow-y-auto bg-gradient-to-b from-stone-100 via-stone-50 to-stone-200">
+            {mode === 'moscow' ? (
+              /* Схема кампуса Москвы: Рябиновая, 44 */
+              <div className="max-w-4xl mx-auto w-full space-y-4">
+                <div className="bg-white/90 backdrop-blur p-4 rounded-2xl border border-line shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-brand" />
+                      <span>Генеральный план кампуса «Очаково» (ул. Рябиновая, 44)</span>
+                    </h3>
+                    <p className="text-xs text-ink-soft mt-0.5">
+                      Кликните на любой цех или объект для изучения оборудования, условий и уровня зарплаты.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-malt-light/40 text-graphite border border-line self-start sm:self-auto">
+                    Площадь комбината: 15 га
+                  </span>
+                </div>
+
+                {/* Интерактивная SVG-схема территории */}
+                <div className="bg-white p-3 sm:p-5 rounded-2xl border-2 border-line shadow-md relative overflow-hidden">
+                  <div className="absolute top-3 right-3 text-[10px] font-bold text-ink-soft bg-paper px-2 py-1 rounded border border-line">
+                    м. Озёрная · авт. 275, 610
+                  </div>
+
+                  <svg
+                    viewBox="0 0 800 460"
+                    className="w-full h-auto max-h-[380px] drop-shadow-sm select-none"
                   >
-                    <span className="text-xs font-bold text-ink">{it.name}</span>
-                    <ChevronRight className="w-4 h-4 text-ink-soft shrink-0" />
-                  </button>
-                ))}
+                    {/* Фон территории завода */}
+                    <rect x="20" y="20" width="760" height="420" rx="16" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+                    
+                    {/* Улица Рябиновая вдоль территории */}
+                    <rect x="20" y="20" width="760" height="34" fill="#334155" />
+                    <text x="360" y="42" fill="#ffffff" fontSize="12" fontWeight="bold" letterSpacing="1">
+                      УЛИЦА РЯБИНОВАЯ (ГЛАВНЫЙ ВЪЕЗД И КПП)
+                    </text>
+                    <line x1="20" y1="37" x2="780" y2="37" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="8 6" />
+
+                    {/* Газоны и благоустройство */}
+                    <rect x="35" y="70" width="730" height="30" rx="6" fill="#ecfdf5" stroke="#a7f3d0" strokeWidth="1" />
+                    <text x="50" y="89" fill="#047857" fontSize="10" fontWeight="bold">
+                      🌳 Озеленение и аллея ветеранов Олимпиады-80
+                    </text>
+
+                    {/* Цех 1: Центральная Лаборатория и R&D */}
+                    <g
+                      onClick={() => handleSelectItem(MOSCOW_WORKSHOPS.find((w) => w.id === 'lab'))}
+                      className="cursor-pointer group"
+                    >
+                      <rect
+                        x="45"
+                        y="120"
+                        width="215"
+                        height="100"
+                        rx="10"
+                        fill={selectedItem?.id === 'lab' ? '#991b1b' : '#ffffff'}
+                        stroke="#b91c1c"
+                        strokeWidth={selectedItem?.id === 'lab' ? '3' : '2'}
+                        className="transition-all duration-200 group-hover:filter group-hover:brightness-95"
+                      />
+                      <rect x="45" y="120" width="215" height="24" rx="8" fill="#fee2e2" />
+                      <text x="55" y="136" fill="#991b1b" fontSize="10" fontWeight="bold">
+                        🔬 R&D ЛАБОРАТОРИЯ
+                      </text>
+                      <text x="55" y="162" fill={selectedItem?.id === 'lab' ? '#ffffff' : '#0f172a'} fontSize="11" fontWeight="bold">
+                        Контроль качества & Вкусы
+                      </text>
+                      <text x="55" y="180" fill={selectedItem?.id === 'lab' ? '#fecaca' : '#64748b'} fontSize="9.5">
+                        Рефрактометры ATAGO RX-7000i
+                      </text>
+                      <rect x="55" y="194" width="95" height="18" rx="4" fill="#b91c1c" />
+                      <text x="63" y="206" fill="#ffffff" fontSize="9" fontWeight="bold">
+                        от 60 000 ₽ / мес
+                      </text>
+                    </g>
+
+                    {/* Цех 2: Технологический цех (Варка, CO2, ЛЭП) */}
+                    <g
+                      onClick={() => handleSelectItem(MOSCOW_WORKSHOPS.find((w) => w.id === 'tech'))}
+                      className="cursor-pointer group"
+                    >
+                      <rect
+                        x="280"
+                        y="120"
+                        width="240"
+                        height="130"
+                        rx="10"
+                        fill={selectedItem?.id === 'tech' ? '#991b1b' : '#ffffff'}
+                        stroke="#d97706"
+                        strokeWidth={selectedItem?.id === 'tech' ? '3' : '2'}
+                        className="transition-all duration-200 group-hover:filter group-hover:brightness-95"
+                      />
+                      <rect x="280" y="120" width="240" height="24" rx="8" fill="#fef3c7" />
+                      <text x="290" y="136" fill="#b45309" fontSize="10" fontWeight="bold">
+                        🍺 ТЕХНОЛОГИЧЕСКИЙ ЦЕХ
+                      </text>
+                      <text x="290" y="162" fill={selectedItem?.id === 'tech' ? '#ffffff' : '#0f172a'} fontSize="11" fontWeight="bold">
+                        Варка кваса и станция CO₂
+                      </text>
+                      <text x="290" y="180" fill={selectedItem?.id === 'tech' ? '#fef08a' : '#64748b'} fontSize="9.5">
+                        Чан ЛЭП №1 · Schenk · МЭА-контур
+                      </text>
+                      <rect x="290" y="204" width="95" height="18" rx="4" fill="#d97706" />
+                      <text x="298" y="216" fill="#ffffff" fontSize="9" fontWeight="bold">
+                        от 70 000 ₽ / мес
+                      </text>
+                    </g>
+
+                    {/* Цех 3: Цех розлива и упаковки */}
+                    <g
+                      onClick={() => handleSelectItem(MOSCOW_WORKSHOPS.find((w) => w.id === 'bottling'))}
+                      className="cursor-pointer group"
+                    >
+                      <rect
+                        x="540"
+                        y="120"
+                        width="225"
+                        height="150"
+                        rx="10"
+                        fill={selectedItem?.id === 'bottling' ? '#991b1b' : '#ffffff'}
+                        stroke="#b91c1c"
+                        strokeWidth={selectedItem?.id === 'bottling' ? '3' : '2'}
+                        className="transition-all duration-200 group-hover:filter group-hover:brightness-95"
+                      />
+                      <rect x="540" y="120" width="225" height="24" rx="8" fill="#fee2e2" />
+                      <text x="550" y="136" fill="#991b1b" fontSize="10" fontWeight="bold">
+                        🥫 ЦЕХ РОЗЛИВА И УПАКОВКИ
+                      </text>
+                      <text x="550" y="162" fill={selectedItem?.id === 'bottling' ? '#ffffff' : '#0f172a'} fontSize="11" fontWeight="bold">
+                        Скоростные линии SMI SK 500 P
+                      </text>
+                      <text x="550" y="180" fill={selectedItem?.id === 'bottling' ? '#fecaca' : '#64748b'} fontSize="9.5">
+                        Банки, ПЭТ, термоусадка и паллетайзеры
+                      </text>
+                      <rect x="550" y="222" width="95" height="18" rx="4" fill="#b91c1c" />
+                      <text x="558" y="234" fill="#ffffff" fontSize="9" fontWeight="bold">
+                        от 70 000 ₽ / мес
+                      </text>
+                    </g>
+
+                    {/* Цех 4: Офис ИТ, Учебный центр и Музей */}
+                    <g
+                      onClick={() => handleSelectItem(MOSCOW_WORKSHOPS.find((w) => w.id === 'office'))}
+                      className="cursor-pointer group"
+                    >
+                      <rect
+                        x="45"
+                        y="245"
+                        width="215"
+                        height="105"
+                        rx="10"
+                        fill={selectedItem?.id === 'office' ? '#991b1b' : '#ffffff'}
+                        stroke="#6366f1"
+                        strokeWidth={selectedItem?.id === 'office' ? '3' : '2'}
+                        className="transition-all duration-200 group-hover:filter group-hover:brightness-95"
+                      />
+                      <rect x="45" y="245" width="215" height="24" rx="8" fill="#e0e7ff" />
+                      <text x="55" y="261" fill="#4338ca" fontSize="10" fontWeight="bold">
+                        🏛️ МУЗЕЙ, ИТ И КАБ. 525
+                      </text>
+                      <text x="55" y="287" fill={selectedItem?.id === 'office' ? '#ffffff' : '#0f172a'} fontSize="11" fontWeight="bold">
+                        Учебный центр и Дизайн
+                      </text>
+                      <text x="55" y="305" fill={selectedItem?.id === 'office' ? '#e0e7ff' : '#64748b'} fontSize="9.5">
+                        Mirapolis, сдача сессий на заводе
+                      </text>
+                      <rect x="55" y="320" width="130" height="18" rx="4" fill="#4f46e5" />
+                      <text x="63" y="332" fill="#ffffff" fontSize="9" fontWeight="bold">
+                        Оплачиваемые стажировки
+                      </text>
+                    </g>
+
+                    {/* Цех 5: Логистический склад */}
+                    <g
+                      onClick={() => handleSelectItem(MOSCOW_WORKSHOPS.find((w) => w.id === 'warehouse'))}
+                      className="cursor-pointer group"
+                    >
+                      <rect
+                        x="280"
+                        y="275"
+                        width="240"
+                        height="100"
+                        rx="10"
+                        fill={selectedItem?.id === 'warehouse' ? '#991b1b' : '#ffffff'}
+                        stroke="#475569"
+                        strokeWidth={selectedItem?.id === 'warehouse' ? '3' : '2'}
+                        className="transition-all duration-200 group-hover:filter group-hover:brightness-95"
+                      />
+                      <rect x="280" y="275" width="240" height="24" rx="8" fill="#f1f5f9" />
+                      <text x="290" y="291" fill="#334155" fontSize="10" fontWeight="bold">
+                        📦 СКЛАДСКОЙ КОМПЛЕКС
+                      </text>
+                      <text x="290" y="317" fill={selectedItem?.id === 'warehouse' ? '#ffffff' : '#0f172a'} fontSize="11" fontWeight="bold">
+                        WMS · Экспорт в 60 регионов
+                      </text>
+                      <text x="290" y="335" fill={selectedItem?.id === 'warehouse' ? '#e2e8f0' : '#64748b'} fontSize="9.5">
+                        Электропогрузчики и автоэстакада
+                      </text>
+                      <rect x="290" y="347" width="95" height="18" rx="4" fill="#334155" />
+                      <text x="298" y="359" fill="#ffffff" fontSize="9" fontWeight="bold">
+                        от 60 000 ₽ / мес
+                      </text>
+                    </g>
+
+                    {/* Объект 6: Общежитие комбината */}
+                    <g
+                      onClick={() => handleSelectItem(MOSCOW_WORKSHOPS.find((w) => w.id === 'dorm'))}
+                      className="cursor-pointer group"
+                    >
+                      <rect
+                        x="540"
+                        y="290"
+                        width="225"
+                        height="85"
+                        rx="10"
+                        fill={selectedItem?.id === 'dorm' ? '#991b1b' : '#ffffff'}
+                        stroke="#059669"
+                        strokeWidth={selectedItem?.id === 'dorm' ? '3' : '2'}
+                        className="transition-all duration-200 group-hover:filter group-hover:brightness-95"
+                      />
+                      <rect x="540" y="290" width="225" height="24" rx="8" fill="#d1fae5" />
+                      <text x="550" y="306" fill="#047857" fontSize="10" fontWeight="bold">
+                        🏠 ОБЩЕЖИТИЕ (РЯБИНОВАЯ, 36К2)
+                      </text>
+                      <text x="550" y="332" fill={selectedItem?.id === 'dorm' ? '#ffffff' : '#0f172a'} fontSize="11" fontWeight="bold">
+                        Столовая -50% & Комнаты
+                      </text>
+                      <rect x="550" y="347" width="105" height="18" rx="4" fill="#059669" />
+                      <text x="558" y="359" fill="#ffffff" fontSize="9" fontWeight="bold">
+                        3 400 ₽ / мес (50% скидка)
+                      </text>
+                    </g>
+
+                    {/* Дорожки и логистика внутри завода */}
+                    <path
+                      d="M260 170 H280 M520 180 H540 M150 220 V245 M400 250 V275 M650 270 V290"
+                      stroke="#94a3b8"
+                      strokeWidth="3"
+                      strokeDasharray="4 4"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+
+                {/* Быстрые карточки для мгновенного выбора */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                  {MOSCOW_WORKSHOPS.map((it) => {
+                    const isViewed = viewedLocations.includes(it.name || it.id)
+                    const isSelected = selectedItem?.id === it.id
+                    return (
+                      <button
+                        key={it.id}
+                        type="button"
+                        onClick={() => handleSelectItem(it)}
+                        className={`p-3 text-left rounded-xl border-2 transition shadow-sm flex flex-col justify-between ${
+                          isSelected
+                            ? 'bg-brand text-white border-brand scale-[1.02]'
+                            : 'bg-white border-line hover:border-brand/40 text-ink'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-paper text-ink-soft'
+                            }`}
+                          >
+                            {it.badge}
+                          </span>
+                          {isViewed && (
+                            <CheckCircle className={`w-3.5 h-3.5 ${isSelected ? 'text-lime-light' : 'text-lime'}`} />
+                          )}
+                        </div>
+                        <div className="text-xs font-bold leading-snug line-clamp-2">{it.name}</div>
+                        <div className={`text-[11px] font-bold mt-2 ${isSelected ? 'text-white' : 'text-brand'}`}>
+                          {it.salary || 'Практика и трудоустройство'}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            ) : (
+              /* Схема 10 заводов в России */
+              <div className="max-w-4xl mx-auto w-full space-y-4">
+                <div className="bg-white/90 backdrop-blur p-4 rounded-2xl border border-line shadow-sm">
+                  <h3 className="text-sm sm:text-base font-bold text-ink flex items-center gap-2">
+                    <Compass className="w-5 h-5 text-brand" />
+                    <span>География «Очаково» в России (10 заводов, построенных с нуля)</span>
+                  </h3>
+                  <p className="text-xs text-ink-soft mt-0.5">
+                    100% отечественный капитал без иностранных инвесторов. Собственные солодовни, заводы и виноградники.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {RUSSIA_LOCATIONS.map((loc) => {
+                    const isSelected = selectedItem?.id === loc.id
+                    return (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        onClick={() => handleSelectItem(loc)}
+                        className={`p-4 rounded-xl border-2 text-left transition shadow-sm ${
+                          isSelected
+                            ? 'bg-brand text-white border-brand'
+                            : 'bg-white border-line hover:border-brand/40 text-ink'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-paper text-brand'
+                            }`}
+                          >
+                            {loc.badge}
+                          </span>
+                          <span className={`text-[11px] font-bold ${isSelected ? 'text-white/80' : 'text-ink-soft'}`}>
+                            с {loc.year} г.
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-bold mt-2">{loc.name}</h4>
+                        <p className={`text-xs mt-1 line-clamp-2 ${isSelected ? 'text-white/90' : 'text-ink-soft'}`}>
+                          {loc.description}
+                        </p>
+                        <div className="flex items-center gap-1 mt-3 text-xs font-bold underline">
+                          <span>Подробнее о предприятии</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
