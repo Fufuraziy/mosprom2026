@@ -88,6 +88,7 @@ class Candidate(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
     full_name: Mapped[str] = mapped_column(String(160))
+    fio: Mapped[str | None] = mapped_column(String(160), nullable=True, default=None)
     birth_date: Mapped[date] = mapped_column(Date)
     contact_info: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -109,6 +110,7 @@ class Candidate(Base):
     consent_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     total_points: Mapped[int] = mapped_column(Integer, default=0)
+    points: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
     purchased_merch_tickets: Mapped[list] = mapped_column(JSON, default=list)
     promo_code: Mapped[str] = mapped_column(String(32), unique=True)
     telemetry: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -121,6 +123,17 @@ class Candidate(Base):
     invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    def __init__(self, **kwargs):
+        if 'full_name' in kwargs and 'fio' not in kwargs:
+            kwargs['fio'] = kwargs['full_name']
+        elif 'fio' in kwargs and 'full_name' not in kwargs:
+            kwargs['full_name'] = kwargs['fio']
+        if 'total_points' in kwargs and 'points' not in kwargs:
+            kwargs['points'] = kwargs['total_points']
+        elif 'points' in kwargs and 'total_points' not in kwargs:
+            kwargs['total_points'] = kwargs['points']
+        super().__init__(**kwargs)
+
 
 class RaffleTicket(Base):
     """Билеты на мерч/розыгрыш, купленные за игровые баллы."""
@@ -130,10 +143,18 @@ class RaffleTicket(Base):
     session_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     candidate_id: Mapped[str | None] = mapped_column(ForeignKey("candidates.id"), nullable=True)
     item: Mapped[str] = mapped_column(String(160))
+    item_id: Mapped[str | None] = mapped_column(String(160), nullable=True, default=None)
     cost: Mapped[int] = mapped_column(Integer, default=0)
     ticket_no: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    def __init__(self, **kwargs):
+        if 'item' in kwargs and 'item_id' not in kwargs:
+            kwargs['item_id'] = kwargs['item']
+        elif 'item_id' in kwargs and 'item' not in kwargs:
+            kwargs['item'] = kwargs['item_id']
+        super().__init__(**kwargs)
 
 
 class BotMessage(Base):

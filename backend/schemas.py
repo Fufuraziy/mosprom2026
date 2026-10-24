@@ -225,4 +225,6 @@ class LoginRequest(Flexible):
     key: Optional[str] = Field(default=None, max_length=128)
     pin: Optional[str] = Field(default=None, max_length=128)
     code: Optional[str] = Field(default=None, max_length=128)
-    vk_user_id: Optional[str | int] = None
+    login: Optional[str] = Field(default=None, max_length=128)
+    vk_user_id: Optional[Any] = None
+    sign: Optional[str] = None

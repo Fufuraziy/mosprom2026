@@ -130,7 +130,9 @@ export default function Header({ embedded = false }) {
                     <span className="hidden xl:inline">{full}</span>
                     <span className="hidden lg:inline xl:hidden">{short}</span>
                     {id === 'bot' && unread > 0 && (
-                      <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-vk px-1 text-[10px] font-bold text-white">{unread}</span>
+                      <span className="absolute -right-2 -top-2 flex items-center justify-center rounded-full bg-[#D50032] px-1.5 py-0.5 font-mono text-[10px] font-extrabold text-white shadow-md animate-pulse">
+                        🔴 {unread}
+                      </span>
                     )}
                   </button>
                 )

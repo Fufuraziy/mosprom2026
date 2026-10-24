@@ -208,12 +208,16 @@ function Panel({ onDone, onPhase }) {
   useEffect(() => {
     if (phase !== 'run') return
     const onKey = (e) => {
+      if (['ArrowUp', 'ArrowDown', ' ', '+', '-'].includes(e.key)) {
+        e.preventDefault()
+      }
       if (e.key === 'ArrowUp' || e.key === '+') adjust(0.08)
       if (e.key === 'ArrowDown' || e.key === '-') adjust(-0.08)
+      if (e.key === ' ' || e.key === 'Enter') turnValve()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [phase])
+  }, [phase, meaAlarm])
 
   const adjust = (d) => setPressure((p) => Math.max(1, Math.min(3, p + d)))
   const turnValve = () => {
@@ -236,7 +240,23 @@ function Panel({ onDone, onPhase }) {
   const zone = pressure >= LOW && pressure <= HIGH ? 'ok' : pressure >= 1.6 && pressure <= 2.4 ? 'warn' : 'bad'
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div>
+      {/* Условие смены строго НАВЕРХУ */}
+      <div className="mb-5 rounded-sm border-2 border-brand/40 bg-kraft-light p-4 text-ink shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-mono text-xs font-bold uppercase tracking-wider text-brand">
+            ⚠️ Регламент смены · SCADA техцеха ОЧАКОВО
+          </span>
+          <span className="rounded bg-brand px-2.5 py-0.5 font-mono text-xs font-bold text-white shadow-sm">
+            Норма давления: 1,8 – 2,2 бар
+          </span>
+        </div>
+        <p className="mt-1.5 text-xs sm:text-sm font-semibold leading-relaxed text-ink-soft">
+          Твоя задача — удерживать давление в абсорбере в зелёной зоне кнопками <b>«+ ПОДАЧА»</b> и <b>«− СБРОС»</b> (или клавишами ↑/↓). При падении потока МЭА (красный сигнал тревоги) моментально нажимай кнопку <b>«ПЕРЕКЛЮЧИТЬ ВЕНТИЛЬ»</b>!
+        </p>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="overflow-hidden rounded-sm border border-line bg-[#0E1A24] shadow-pop">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#13283A] px-4 py-2 font-mono text-xs text-[#9FB3C2]">
           <span>SCADA · Участок получения CO₂ · Мнемосхема</span>
@@ -278,7 +298,7 @@ function Panel({ onDone, onPhase }) {
               <div className="max-w-md">
                 <VerbTag>Контролируй и управляй</VerbTag>
                 <p className="mt-3 text-sm text-[#CFE0EA]">
-                  24 секунды смены. Держи давление в абсорбере в <b className="text-[#3DD6A0]">зелёной зоне 1,8–2,2 бар</b> кнопками «Сброс / Подача» (или стрелками ↑↓). Когда загорится авария МЭА, как можно быстрее поверни красный вентиль.
+                  24 секунды смены. Держи давление в абсорбере в <b className="text-[#3DD6A0]">зелёной зоне 1,8–2,2 бар</b> крупными кнопками на экране или клавишами ↑↓.
                 </p>
                 <Button className="mt-4" size="lg" onClick={() => setPhase('run')}>
                   <Play className="h-5 w-5" /> Принять смену
@@ -287,6 +307,43 @@ function Panel({ onDone, onPhase }) {
             </div>
           )}
         </div>
+
+        {/* Крупные кнопки управления на экране: Подача / Сброс / Вентиль */}
+        {phase === 'run' && (
+          <div className="border-t border-white/10 bg-[#13283A] p-3 sm:p-4">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <button
+                type="button"
+                onClick={() => adjust(0.08)}
+                className="flex items-center justify-center gap-2 rounded-sm border-2 border-emerald-400 bg-[#3DD6A0] py-3.5 px-4 font-mono text-sm sm:text-base font-extrabold text-slate-950 shadow-md transition active:scale-95 hover:bg-emerald-300"
+              >
+                <Plus className="h-5 w-5 stroke-[3]" /> [ + ПОДАЧА ]
+              </button>
+              <button
+                type="button"
+                onClick={() => adjust(-0.08)}
+                className="flex items-center justify-center gap-2 rounded-sm border-2 border-rose-400 bg-[#FF4D6D] py-3.5 px-4 font-mono text-sm sm:text-base font-extrabold text-white shadow-md transition active:scale-95 hover:bg-rose-600"
+              >
+                <Minus className="h-5 w-5 stroke-[3]" /> [ − СБРОС ]
+              </button>
+              <button
+                type="button"
+                onClick={turnValve}
+                className={cx(
+                  'flex items-center justify-center gap-2 rounded-sm border-2 py-3.5 px-4 font-mono text-sm sm:text-base font-extrabold shadow-md transition active:scale-95',
+                  meaAlarm
+                    ? 'border-white bg-[#FFD21F] text-slate-950 animate-bounce ring-4 ring-[#FF4D6D]'
+                    : 'border-white/30 bg-[#1B3346] text-white hover:bg-[#25455E]'
+                )}
+              >
+                ⚙️ [ ПЕРЕКЛЮЧИТЬ ВЕНТИЛЬ ]
+              </button>
+            </div>
+            <div className="mt-2 text-center text-[11px] font-mono text-[#9FB3C2]">
+              Горячие клавиши: [↑] Подача · [↓] Сброс · [Пробел] Вентиль
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -352,6 +409,7 @@ function Panel({ onDone, onPhase }) {
           </Card>
         )}
       </div>
+    </div>
     </div>
   )
 }

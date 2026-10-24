@@ -372,8 +372,8 @@ export function GameProvider({ children }) {
         setHrAuthModalOpen(true)
       },
       closeHrAuth: () => setHrAuthModalOpen(false),
-      loginHr: async (pin) => {
-        const res = await api.login(pin)
+      loginHr: async (pin, login) => {
+        const res = await api.login(pin, login)
         setIsHrAuthenticated(true)
         setHrAuthModalOpen(false)
         toast('Вход выполнен: Отдел подбора Очаково')

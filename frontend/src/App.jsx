@@ -5,9 +5,23 @@ import { Coins, Ticket, Info } from 'lucide-react'
 import { useGame } from './state/GameContext.jsx'
 import Header from './components/Header.jsx'
 import { Logo } from './components/ui.jsx'
-import HRPanel from './screens/hr/HRPanel.jsx'
-import BotScreen from './screens/bot/BotScreen.jsx'
-import MapView from './screens/map/MapView.jsx'
+import { lazy, Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
+
+const HRPanel = lazy(() => import('./screens/hr/HRPanel.jsx'))
+const BotScreen = lazy(() => import('./screens/bot/BotScreen.jsx'))
+const MapView = lazy(() => import('./screens/map/MapView.jsx'))
+
+function ScreenLoader() {
+  return (
+    <div className="flex h-[60vh] w-full flex-col items-center justify-center gap-3">
+      <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      <span className="font-mono text-xs font-bold uppercase tracking-wider text-ink-mute">
+        Загрузка модуля ОЧАКОВО…
+      </span>
+    </div>
+  )
+}
 import { PhoneInline } from './components/PhoneFrame.jsx'
 
 function Toasts() {
@@ -79,7 +93,9 @@ export default function App() {
       <main className="flex-1">
         <AnimatePresence mode="wait">
           <motion.div key={mode} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.25 }}>
-            {screen}
+            <Suspense fallback={<ScreenLoader />}>
+              {screen}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>

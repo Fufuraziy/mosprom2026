@@ -63,6 +63,22 @@ def migrate_columns() -> list[str]:
                     ddl = column.type.compile(dialect=engine.dialect)
                     conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN "{column.name}" {ddl}'))
                     added.append(f"{table.name}.{column.name}")
+        if insp.has_table("candidates"):
+            cols = {c["name"] for c in insp.get_columns("candidates")}
+            if "fio" in cols and "full_name" in cols:
+                conn.execute(text("UPDATE candidates SET full_name = fio WHERE (full_name IS NULL OR full_name = '') AND fio IS NOT NULL"))
+                conn.execute(text("UPDATE candidates SET fio = full_name WHERE (fio IS NULL OR fio = '') AND full_name IS NOT NULL"))
+            if "vacancy" in cols and "target_vacancy" in cols:
+                conn.execute(text("UPDATE candidates SET target_vacancy = vacancy WHERE (target_vacancy IS NULL OR target_vacancy = '') AND vacancy IS NOT NULL"))
+            if "readiness" in cols and "readiness_date" in cols:
+                conn.execute(text("UPDATE candidates SET readiness_date = readiness WHERE (readiness_date IS NULL OR readiness_date = '') AND readiness IS NOT NULL"))
+            if "points" in cols and "total_points" in cols:
+                conn.execute(text("UPDATE candidates SET total_points = points WHERE (total_points IS NULL OR total_points = 0) AND points IS NOT NULL"))
+        if insp.has_table("raffle_tickets"):
+            cols = {c["name"] for c in insp.get_columns("raffle_tickets")}
+            if "item_id" in cols and "item" in cols:
+                conn.execute(text("UPDATE raffle_tickets SET item = item_id WHERE (item IS NULL OR item = '') AND item_id IS NOT NULL"))
+                conn.execute(text("UPDATE raffle_tickets SET item_id = item WHERE (item_id IS NULL OR item_id = '') AND item IS NOT NULL"))
     return added
 
 

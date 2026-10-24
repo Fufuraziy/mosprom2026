@@ -107,6 +107,8 @@ def _rank_faq(message: str) -> list[tuple[int, dict]]:
     ranked = []
     for item in FAQ:
         score = sum(len(kw) for kw in item["keywords"] if kw.replace("ё", "е") in t)
+        if any(term in t for term in ("сесси", "экзамен", "зачет")) and item["topic"] == "session":
+            score += 15
         if score:
             ranked.append((score, item))
     ranked.sort(key=lambda x: x[0], reverse=True)
@@ -304,7 +306,7 @@ def template_invite(c: dict) -> dict:
     mentor = d["mentor"]
     text = (f"{name}, привет! Это HR ОЧАКОВО 👋 Ты прошёл(-ла) «Секретный код 1978» на {cand.get('points', 0)} баллов — {strengths}. "
             f"ИИ-наставник видит в тебе «{d['archetype']['name']}», а это {top['match']}% совпадения с вакансией «{top['title']}». "
-            f"Приглашаем познакомиться {interview_slot()}: ул. Рябиновая, 44 (Учебный центр, каб. 525). "
+            f"Приглашаем познакомиться {interview_slot()}: ул. Рябиновая, д. 44 (Учебный центр, каб. 525). "
             + (" ".join(tips) + " " if tips else "")
             + f"Твоим наставником будет {mentor['name']} ({mentor['role']}). Записать тебя?")
     if len(text) > 700 and len(tips) > 1:

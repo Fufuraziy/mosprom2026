@@ -1,6 +1,6 @@
 // Экраны мини-приложения. Каждый — Panel с собственной шапкой PanelHeader (правило ВК 3.3.1).
 // Содержимое игры (станции, финал, анкета) — прежние брендовые компоненты; каркас — VKUI.
-import { useMemo } from 'react'
+import { useMemo, lazy, Suspense } from 'react'
 import {
   Alert,
   Button,
@@ -48,7 +48,6 @@ import { api } from '../services/api.js'
 import { BrandEssence, BrandsMarquee, BrandValues, CapsuleTeaser, HomeHero, Timeline, WhyCards } from '../screens/Home.jsx'
 import Locker from '../screens/Locker.jsx'
 import Hub from '../screens/Hub.jsx'
-import MapView from '../screens/map/MapView.jsx'
 import LabStation from '../screens/stations/LabStation.jsx'
 import EngineeringStation from '../screens/stations/EngineeringStation.jsx'
 import LineStation from '../screens/stations/LineStation.jsx'
@@ -60,8 +59,10 @@ import CandidateForm, { Submitted } from '../screens/finale/CandidateForm.jsx'
 import FirstDayGuide from '../screens/finale/FirstDayGuide.jsx'
 import { StoryShareButton } from '../components/StoryShare.jsx'
 import MascotChatPanel from '../screens/mascot/MascotChatPanel.jsx'
-import HRPanel from '../screens/hr/HRPanel.jsx'
-import BotScreen from '../screens/bot/BotScreen.jsx'
+
+const MapView = lazy(() => import('../screens/map/MapView.jsx'))
+const HRPanel = lazy(() => import('../screens/hr/HRPanel.jsx'))
+const BotScreen = lazy(() => import('../screens/bot/BotScreen.jsx'))
 import { MODAL, PANEL, PATH, stationPath } from './routes.js'
 
 const STATION_SCREENS = { lab: LabStation, engineering: EngineeringStation, line: LineStation, design: DesignStation }
@@ -174,7 +175,7 @@ export function JuryHRPanel({ nav }) {
 export function JuryBotPanel({ nav }) {
   return (
     <Screen nav={nav} title="ВК-бот ОЧАКОВО" subtitle="Режим жюри" parent={PATH[PANEL.JURY_HOME]}>
-      <BotScreen />
+      <Suspense fallback={<Div className="p-8 text-center text-xs font-bold text-ink-mute">Загрузка диалогов бота…</Div>}><BotScreen /></Suspense>
     </Screen>
   )
 }

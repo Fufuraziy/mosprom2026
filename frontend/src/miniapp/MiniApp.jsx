@@ -1,6 +1,6 @@
 // Оболочка VK Mini App: разделы на нижней панели (Epic + Tabbar), в каждом — стек экранов (View),
 // модальные окна, попауты (Alert), уведомления (Snackbar). Навигация — vk-mini-apps-router (hash).
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Badge,
   Button,
@@ -111,24 +111,52 @@ export default function MiniApp() {
   const history = modal || popout ? [] : panelsHistory
   const rewardsNew = state.capsuleOpened && !state.candidate
 
-  const closeAge = () => {
-    if (!state.ageOk) actions.ageOk()
+  const [underageView, setUnderageView] = useState(false)
+
+  const confirmAge = () => {
+    actions.ageOk()
     navigator.hideModal()
   }
 
   const modals = (
-    <ModalRoot activeModal={modal} onClose={() => (modal === MODAL.AGE ? closeAge() : navigator.hideModal())}>
+    <ModalRoot activeModal={modal} onClose={() => (modal === MODAL.AGE ? undefined : navigator.hideModal())}>
       <ModalCard
         id={MODAL.AGE}
         icon={<Icon56UserCircleOutline />}
-        title="Игра для тех, кому есть 18"
-        description="Практика, стажировки и работа на заводе ОЧАКОВО — только с 18 лет. Результаты игры увидит HR, только если ты сам(а) отправишь анкету."
-        actions={
-          <Button size="l" mode="primary" stretched onClick={closeAge}>
-            Мне есть 18, начинаем
-          </Button>
+        title={underageView ? 'Ждём тебя в команде Очаково после 18-летия!' : 'Игра для тех, кому есть 18'}
+        description={
+          underageView ? (
+            <div className="space-y-3 text-left text-xs leading-relaxed">
+              <p>
+                По трудовому законодательству РФ и нормам охраны труда пищевого комбината работа на автоматизированных линиях и в цехах допускается <b>строго с 18 лет</b>.
+              </p>
+              <div className="rounded-lg border border-brand/20 bg-cream/70 p-3 text-ink">
+                <div className="font-extrabold uppercase text-brand tracking-wider">🏛️ Экскурсии в Музей «Очаково»:</div>
+                Посетить наш уникальный <b>Музей традиционных русских напитков</b> и осмотреть варочные порядки и линии розлива можно в любом возрасте!
+                <br />
+                📍 Москва, ул. Рябиновая, 44 · Запись: 8 800 100 77 77 доб. 1155.
+              </div>
+            </div>
+          ) : (
+            'Практика, стажировки и работа на заводе ОЧАКОВО — строго с 18 лет. Результаты игры увидит HR, только если ты сам(а) отправишь анкету.'
+          )
         }
-        onClose={closeAge}
+        actions={
+          underageView ? (
+            <Button size="l" mode="primary" stretched onClick={() => setUnderageView(false)}>
+              Я ошибся(лась), мне уже есть 18 лет
+            </Button>
+          ) : (
+            <div className="w-full space-y-2">
+              <Button size="l" mode="primary" stretched onClick={confirmAge}>
+                Мне есть 18, начинаем
+              </Button>
+              <Button size="l" mode="secondary" stretched onClick={() => setUnderageView(true)}>
+                Мне меньше 18 лет
+              </Button>
+            </div>
+          )
+        }
       />
       <ModalPage id={MODAL.STORY_SHARE} header={<ModalPageHeader>История ВКонтакте</ModalPageHeader>} onClose={() => navigator.hideModal()} title="История ВКонтакте">
         <StoryShareContent />

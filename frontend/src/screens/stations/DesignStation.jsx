@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, RotateCcw, Check, X, Smartphone, Wifi, BatteryFull } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
@@ -192,6 +192,16 @@ function Mirapolis({ onDone }) {
   const [chosen, setChosen] = useState(null)
   const [correct, setCorrect] = useState(0)
   const step = MIRAPOLIS_STEPS[i]
+
+  // Shuffle tools dynamically per question
+  const shuffledTools = useMemo(() => {
+    const list = [...MIRAPOLIS_TOOLS]
+    for (let j = list.length - 1; j > 0; j--) {
+      const r = Math.floor(Math.random() * (j + 1));
+      [list[j], list[r]] = [list[r], list[j]]
+    }
+    return list
+  }, [i])
   const answer = (t) => {
     if (chosen) return
     setChosen(t)
@@ -229,7 +239,7 @@ function Mirapolis({ onDone }) {
                 <div className="text-[11px] font-bold uppercase text-[#1D3B6E]">Вопрос {i + 1} из 4 · сопоставьте цель и метод</div>
                 <p className="mt-2 text-sm font-bold leading-snug text-ink">{step.task}</p>
                 <div className="mt-3 space-y-2">
-                  {MIRAPOLIS_TOOLS.map((t) => {
+                  {shuffledTools.map((t) => {
                     const ok = chosen && t === step.answer
                     const bad = chosen === t && t !== step.answer
                     return (

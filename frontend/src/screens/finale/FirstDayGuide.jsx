@@ -114,7 +114,18 @@ export default function FirstDayGuide() {
                 {r.tag && <Sticker rotate={3}>{r.tag}</Sticker>}
               </button>
             ))}
-            {route && <p className="text-xs text-ink-mute">До приезда позвони в отдел подбора: 8 800 100 77 77, доб. 1155.</p>}
+            {route && (
+              <p className="text-xs text-ink-mute">
+                До приезда позвони в отдел подбора:{' '}
+                <a href="tel:+78001007777,1155" className="font-bold underline text-brand hover:text-red-700">
+                  8 800 100 77 77 доб. 1155
+                </a>{' '}
+                или мобильный HR:{' '}
+                <a href="tel:+79035910013" className="font-bold underline text-brand hover:text-red-700">
+                  +7 (903) 591-00-13
+                </a>.
+              </p>
+            )}
           </div>
         </div>
       )}
