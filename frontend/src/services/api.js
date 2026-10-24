@@ -364,6 +364,15 @@ export const api = {
       })
     ),
 
+  /** Друзья, пришедшие по ссылке игрока (сервер уже начислил за них +150) */
+  referralStatus: (session_id) =>
+    call('GET', `/api/referrals/status?session_id=${encodeURIComponent(session_id)}`, undefined, () => ({
+      friends_invited: 0,
+      referral_points: 0,
+      points_per_friend: 150,
+      link_friends: [],
+    })),
+
   /** Статистика реферальной программы для HR-дашборда */
   referralSummary: () =>
     call('GET', '/api/referrals/summary', undefined, () => ({
