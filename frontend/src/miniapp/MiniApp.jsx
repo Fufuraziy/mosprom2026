@@ -6,6 +6,8 @@ import {
   Button,
   Epic,
   ModalCard,
+  ModalPage,
+  ModalPageHeader,
   ModalRoot,
   PanelHeader,
   SplitCol,
@@ -23,6 +25,7 @@ import { navigation, useGame } from '../state/GameContext.jsx'
 import { isInsideVK } from '../services/vk.js'
 import { MODAL, NO_TABBAR, PANEL, PATH, pathForScreen, router, VIEW, VIEW_PANELS } from './routes.js'
 import { PANELS } from './panels.jsx'
+import { StoryShareContent } from '../components/StoryShare.jsx'
 
 const TABS = [
   { view: VIEW.QUEST, label: 'Квест', Icon: Icon28GameOutline, root: PATH[PANEL.HOME] },
@@ -119,6 +122,9 @@ export default function MiniApp() {
         }
         onClose={closeAge}
       />
+      <ModalPage id={MODAL.STORY_SHARE} header={<ModalPageHeader>История ВКонтакте</ModalPageHeader>} onClose={() => navigator.hideModal()} title="История ВКонтакте">
+        <StoryShareContent />
+      </ModalPage>
     </ModalRoot>
   )
 

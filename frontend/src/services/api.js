@@ -7,6 +7,7 @@
 import * as local from './localEngine.js'
 import * as botLocal from './botEngine.js'
 import { normalizeAnalytics, normalizeArchetype, normalizeTelemetry } from './normalize.js'
+import { launchParams, launchQuery } from './vk.js'
 
 export const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
@@ -91,7 +92,11 @@ async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = fa
         API_URL + path,
         {
           method,
-          headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+          headers: {
+            ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+            // внутри ВК — строка запуска с подписью: бэкенд проверяет sign и доверяет vk_user_id (BACKEND_HANDOFF.md, 7.1)
+            ...(launchQuery ? { 'X-VK-Launch-Params': launchQuery } : {}),
+          },
           body: body !== undefined ? JSON.stringify(body) : undefined,
         },
         timeout,
@@ -143,7 +148,7 @@ export const api = {
 
   /** Новая игровая сессия (анонимная, до анкеты). */
   startSession: () =>
-    call('POST', '/api/sessions', { started_at: new Date().toISOString() }, () => ({
+    call('POST', '/api/sessions', { started_at: new Date().toISOString(), vk_platform: launchParams.vk_platform || null, vk_ref: launchParams.vk_ref || null }, () => ({
       session_id: local.uid('sess'),
       source: 'local',
     })),

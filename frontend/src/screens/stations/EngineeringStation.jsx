@@ -190,6 +190,21 @@ function Panel({ onDone, onPhase }) {
     return () => clearInterval(id)
   }, [phase])
 
+  // приложение свернули (VKWebAppViewHide) посреди смены — смена прерывается, её можно начать заново
+  useEffect(() => {
+    if (phase !== 'run') return
+    const onPause = () => {
+      sim.current = { drift: 0, green: 0, ticks: 0, alarmAt: 0, alarmStart: 0, reaction: null, handled: false }
+      setMeaAlarm(false)
+      setValveOpen(true)
+      setPressure(2.0)
+      setT(0)
+      setPhase('idle')
+    }
+    window.addEventListener('och:pause', onPause)
+    return () => window.removeEventListener('och:pause', onPause)
+  }, [phase])
+
   useEffect(() => {
     if (phase !== 'run') return
     const onKey = (e) => {

@@ -16,10 +16,11 @@ import './index.css'
 import './brand-tokens.css'
 import AppConfig from './miniapp/AppConfig.jsx'
 import { GameProvider } from './state/GameContext.jsx'
-import { initVK } from './services/vk.js'
+import { initVK, listenViewEvents } from './services/vk.js'
 import { FrameCapsule } from './components/PhoneFrame.jsx'
 
 initVK() // VKWebAppInit до рендера (правило ВК 2.2.1); вне ВК — ничего не делает
+listenViewEvents() // сворачивание приложения → пауза мини-игр и сохранение прогресса
 
 const VK_FRAME = new URLSearchParams(window.location.search).has('vk_frame')
 

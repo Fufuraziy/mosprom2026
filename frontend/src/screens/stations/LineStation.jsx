@@ -63,7 +63,7 @@ function LineGame({ onFinish }) {
     g.current.last = performance.now()
     const loop = (ts) => {
       const s = g.current
-      const dt = ts - s.last
+      const dt = Math.min(ts - s.last, 100) // после сворачивания приложения не «проматываем» конвейер
       s.last = ts
       s.elapsed += dt
       if (s.elapsed - s.lastSpawn > SPAWN_MS && s.elapsed < GAME_MS - TRAVEL_MS - 250) {
@@ -81,6 +81,13 @@ function LineGame({ onFinish }) {
     raf.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf.current)
   }, [status])
+
+  // приложение свернули (VKWebAppViewHide) — ставим линию на паузу, как аварийный стоп без штрафа
+  useEffect(() => {
+    const onPause = () => setStatus((st) => (st === 'run' ? 'pause' : st))
+    window.addEventListener('och:pause', onPause)
+    return () => window.removeEventListener('och:pause', onPause)
+  }, [])
 
   // банки, доехавшие до туннеля
   useEffect(() => {
@@ -195,7 +202,7 @@ function LineGame({ onFinish }) {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {status === 'idle' || status === 'pause' ? (
-            <button onClick={() => setStatus('run')} className="flex items-center justify-center gap-1 rounded-sm border-2 border-white bg-[#3DD68C] py-3 font-extrabold text-ink active:scale-95">
+            <button onClick={() => setStatus('run')} className="flex items-center justify-center gap-1 rounded-sm border-2 border-white bg-[#3DD68C] py-3 font-extrabold text-[#1f1f1f] active:scale-95">
               <Play className="h-5 w-5" /> ПУСК
             </button>
           ) : (

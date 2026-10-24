@@ -53,9 +53,9 @@ import { AIVerdict, SalaryCalculator } from '../screens/finale/Verdict.jsx'
 import MerchShop from '../screens/finale/MerchShop.jsx'
 import CandidateForm, { Submitted } from '../screens/finale/CandidateForm.jsx'
 import FirstDayGuide from '../screens/finale/FirstDayGuide.jsx'
-import StoryShare from '../components/StoryShare.jsx'
+import { StoryShareButton } from '../components/StoryShare.jsx'
 import MascotChatPanel from '../screens/mascot/MascotChatPanel.jsx'
-import { PANEL, PATH, stationPath } from './routes.js'
+import { MODAL, PANEL, PATH, stationPath } from './routes.js'
 
 const STATION_SCREENS = { lab: LabStation, engineering: EngineeringStation, line: LineStation, design: DesignStation }
 
@@ -272,6 +272,9 @@ export function VerdictPanel({ nav }) {
           <AIVerdict />
         </div>
         <NextButton onClick={() => navigator.push(PATH[PANEL.SALARY])}>Дальше: доход и график</NextButton>
+        <Div>
+          <StoryShareButton onOpen={() => navigator.showModal(MODAL.STORY_SHARE)} />
+        </Div>
         <Spacing size={16} />
       </RewardsGate>
     </Screen>
@@ -429,11 +432,13 @@ export function MePanel({ nav }) {
         </SimpleCell>
       </Group>
 
-      <Group header={<Header>Поделиться</Header>}>
-        <Div>
-          <StoryShare className="w-full" />
-        </Div>
-      </Group>
+      {state.capsuleOpened && (
+        <Group header={<Header>Поделиться</Header>}>
+          <Div>
+            <StoryShareButton onOpen={() => navigator.showModal(MODAL.STORY_SHARE)} />
+          </Div>
+        </Group>
+      )}
 
       <Group>
         <SimpleCell Component="label" after={<Switch checked={state.demoFast} onChange={(e) => actions.setDemo(e.target.checked)} />} subtitle="Кнопка «Пропустить мини-игру» на станциях">

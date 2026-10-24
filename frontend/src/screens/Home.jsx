@@ -84,24 +84,21 @@ export function HomeHero({ onWhy }) {
       <section className="bg-paper">
         <div className="mx-auto grid max-w-7xl lg:grid-cols-2">
           {/* красная заливка с текстом */}
-          <div className="relative bg-brand px-5 pb-12 pt-10 text-white sm:px-10 lg:pb-16 lg:pt-14">
-            <div className="mb-6 flex flex-wrap items-center gap-2">
+          <div className="relative bg-brand px-5 pb-8 pt-7 text-white sm:px-10 sm:pb-12 sm:pt-10 lg:pb-16 lg:pt-14">
+            <div className="mb-5 flex flex-wrap items-center gap-2">
               <RecBadge label="REC · ДЕЛО № 1978" />
               <span className="border border-white/50 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em]">18+ · практика и стажировки</span>
             </div>
             <h1 className="font-display uppercase leading-[0.92] tracking-tight">
-              <span className="block text-[44px] font-extralight sm:text-7xl">Секретный</span>
-              <span className="block text-[52px] font-extrabold sm:text-[88px]">код 1978</span>
+              <span className="block text-[40px] font-extralight sm:text-7xl">Секретный</span>
+              <span className="block text-[48px] font-extrabold sm:text-[88px]">код 1978</span>
             </h1>
-            <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-white/90 sm:text-base">{STORY.lead}</p>
-            <p className="mt-3 max-w-xl text-[15px] font-semibold leading-relaxed sm:text-base">{STORY.mission}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/90 sm:text-base">{STORY.lead}</p>
+            <p className="mt-3 max-w-xl text-sm font-semibold leading-relaxed sm:text-base">{STORY.mission}</p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button variant="dark" size="lg" onClick={start}>
                 {started ? 'Продолжить расследование' : 'Начать расследование'}
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Button>
-              <Button size="lg" className="border border-white/70 bg-transparent hover:bg-white/10" onClick={onWhy}>
-                Почему ОЧАКОВО?
               </Button>
             </div>
             <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[13px] font-semibold text-white/90">

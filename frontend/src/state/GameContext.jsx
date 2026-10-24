@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { api, onStatusChange } from '../services/api.js'
 import { uid } from '../services/localEngine.js'
 import { CODE } from '../data/content.js'
-import { initVK } from '../services/vk.js'
+import { initVK, haptic, launchParams, storageLoad, storageSave, vkStorageEnabled } from '../services/vk.js'
 
 const LS_KEY = 'ochakovo1978_game_v1'
 
@@ -192,13 +192,39 @@ export function GameProvider({ children }) {
   const [apiStatus, setApiStatus] = useState({ online: null, mode: 'local' })
   const sessionStarted = useRef(false)
 
+  // Сохранение: localStorage сразу, VK Storage (внутри ВК) — не чаще раза в 15 с и при сворачивании приложения.
+  const vkDirty = useRef(false)
+  const latest = useRef(state)
+  latest.current = state
   useEffect(() => {
     try {
-      window.localStorage.setItem(LS_KEY, JSON.stringify(state))
+      window.localStorage.setItem(LS_KEY, JSON.stringify({ ...state, savedAt: Date.now() }))
     } catch {
       /* ignore */
     }
+    vkDirty.current = true
   }, [state])
+
+  useEffect(() => {
+    if (!vkStorageEnabled) return
+    const flush = () => {
+      if (!vkDirty.current) return
+      vkDirty.current = false
+      const s = latest.current
+      // бот — только для страницы HR; чат — последние 30 реплик (лимиты VK Storage)
+      storageSave({ ...s, bot: undefined, chatHistory: s.chatHistory.slice(-30), savedAt: Date.now() })
+    }
+    const id = setInterval(flush, 15000)
+    window.addEventListener('och:pause', flush)
+    // при старте — забираем прогресс с другого устройства, если он новее
+    storageLoad().then((r) => {
+      if (r?.state && (r.savedAt || 0) > (latest.current.savedAt || 0)) dispatch({ type: 'LOAD', state: r.state })
+    })
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('och:pause', flush)
+    }
+  }, [])
 
   useEffect(() => onStatusChange(setApiStatus), [])
 
@@ -226,7 +252,7 @@ export function GameProvider({ children }) {
     if (sessionStarted.current) return
     sessionStarted.current = true
     api.health()
-    api.track(state.sessionId, 'session_open', { screen: state.screen })
+    api.track(state.sessionId, 'session_open', { screen: state.screen, vk_platform: launchParams.vk_platform || null, vk_ref: launchParams.vk_ref || null })
   }, [state.sessionId, state.screen])
 
   const toast = useCallback((msg, kind = 'points') => {
@@ -267,19 +293,23 @@ export function GameProvider({ children }) {
         }
       },
       ppeAttempt: (wrong, missing) => {
+        if (wrong.length || missing.length) haptic('error')
         dispatch({ type: 'PPE_ATTEMPT', wrong })
         track('ppe_attempt', { wrong, missing })
       },
       ppeDone: () => {
+        haptic('success')
         dispatch({ type: 'PPE_DONE' })
         toast('+100 Крафт-баллов · Допуск к смене получен')
         track('ppe_done', {})
       },
       quiz: (station, idx, correct) => {
+        haptic(correct ? 'success' : 'error')
         dispatch({ type: 'QUIZ', correct })
         track('quiz_answer', { station, idx, correct })
       },
       stationDone: (id, points, result, skipped = false) => {
+        haptic('success')
         dispatch({ type: 'STATION_DONE', id, points, result, skipped })
         toast(`+${points} Крафт-баллов · Станция пройдена`)
         track('station_done', { id, points, result, skipped })
@@ -289,11 +319,13 @@ export function GameProvider({ children }) {
         track('capsule_attempt', { code })
       },
       capsuleOpen: () => {
+        haptic('success')
         dispatch({ type: 'CAPSULE_OPEN' })
         toast('+150 Крафт-баллов · Капсула 1978 открыта!')
         track('capsule_open', {})
       },
       buy: (item) => {
+        haptic('medium')
         dispatch({ type: 'BUY', id: item.id, price: item.price })
         api.buyTicket(state.sessionId, item.id)
         toast(`Билет на розыгрыш: ${item.title}`, 'ticket')
