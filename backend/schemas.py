@@ -135,3 +135,14 @@ class BotSendRequest(BaseModel):
     candidate_id: str
     vk_user_id: Optional[Any] = None
     text: str
+
+
+class LoginRequest(BaseModel):
+    pin: Optional[str] = None
+    vk_user_id: Optional[Any] = None
+    sign: Optional[str] = None
+
+class LoginResponse(BaseModel):
+    authenticated: bool
+    token: str
+    role: str = "hr_admin"

@@ -97,28 +97,16 @@ export function Screen({ nav, title, subtitle, parent, onBack, before, children 
  * Включает вкладку «Жюри» с Панелью HR и симулятором ВК-бота — в том числе внутри ВКонтакте.
  */
 function JuryButton() {
-  const { state, actions } = useGame()
+  const { state, actions, isHrAuthenticated } = useGame()
   const navigator = useRouteNavigator()
   const open = () => {
+    if (!isHrAuthenticated) {
+      actions.openHrAuth('jury')
+      return
+    }
     if (state.juryMode) return navigator.push(PATH[PANEL.JURY_HOME])
-    navigator.showPopout(
-      <Alert
-        title="👁 Режим жюри"
-        description="Покажем Панель HR и симулятор ВК-бота прямо в мини-приложении — так эксперты увидят всю экосистему. Выключается в Профиле."
-        actions={[
-          { title: 'Отмена', mode: 'cancel' },
-          {
-            title: 'Включить',
-            mode: 'default',
-            action: () => {
-              actions.setJury(true)
-              navigator.push(PATH[PANEL.JURY_HOME])
-            },
-          },
-        ]}
-        onClosed={() => navigator.hidePopout()}
-      />,
-    )
+    actions.setJury(true)
+    navigator.push(PATH[PANEL.JURY_HOME])
   }
   return (
     <PanelHeaderButton onClick={open} label="Режим жюри" aria-label="Режим жюри">
@@ -149,13 +137,23 @@ export function JuryHomePanel({ nav }) {
           ВК-бот ОЧАКОВО
         </Cell>
         <Cell
+          before={<Icon28LockOutline />}
+          subtitle="Завершить сессию HR и вернуться в режим студента"
+          onClick={() => {
+            actions.logoutHr()
+            navigator.replace(PATH[PANEL.HOME])
+          }}
+        >
+          🔓 Выйти из сессии HR (студент)
+        </Cell>
+        <Cell
           before={<Icon28ViewOutline />}
           onClick={() => {
             actions.setJury(false)
             navigator.replace(PATH[PANEL.HOME])
           }}
         >
-          Выключить режим жюри
+          Скрыть вкладку режима жюри
         </Cell>
       </Group>
     </Screen>
