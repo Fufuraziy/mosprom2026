@@ -43,14 +43,30 @@ jobs:
       - name: Build
         run: npm run build
 
-      # vk-miniapps-deploy без вопросов: noprompt + обновить адреса prod и dev
+      # vk-miniapps-deploy без вопросов: noprompt + обновить адреса prod и dev + патч устойчивости к репликации ВК
       - name: Configure non-interactive deploy
         run: |
           node -e "const f='vk-hosting-config.json';const c=require('./'+f);Object.assign(c,{noprompt:true,update_prod:1,update_dev:1});require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+          node scripts/patch-deploy.cjs
 
       - name: Deploy to VK Mini Apps hosting
+        timeout-minutes: 5
         env:
           MINI_APPS_ACCESS_TOKEN: ${{ secrets.VK_MINI_APPS_TOKEN }}
           MINI_APPS_APP_ID: '54849953'
           CI_URLS: 'true'
-        run: npx vk-miniapps-deploy
+        run: |
+          MAX_RETRIES=3
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "=== Deploy attempt $i of $MAX_RETRIES ==="
+            if npx vk-miniapps-deploy; then
+              echo "=== Deploy succeeded on attempt $i ==="
+              exit 0
+            fi
+            if [ $i -lt $MAX_RETRIES ]; then
+              echo "Deploy attempt $i failed. Retrying in 15s..."
+              sleep 15
+            fi
+          done
+          echo "=== All $MAX_RETRIES deploy attempts failed ==="
+          exit 1
