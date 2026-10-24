@@ -40,6 +40,12 @@ const TABS = [
 
 const ROOT_PANEL = { [VIEW.QUEST]: PANEL.HOME, [VIEW.MAP]: PANEL.MAP, [VIEW.REWARDS]: PANEL.VERDICT, [VIEW.MASCOT]: PANEL.CHAT, [VIEW.PROFILE]: PANEL.ME, [VIEW.JURY]: PANEL.JURY_HOME }
 
+/** Экран, которому принадлежит адрес (`/station/lab` → STATION). */
+function panelOfPath(pathname) {
+  if (pathname.startsWith('/station/')) return PANEL.STATION
+  return Object.keys(PATH).find((p) => PATH[p] === pathname) || null
+}
+
 export default function MiniApp() {
   const { state, actions, toasts } = useGame()
   const navigator = useRouteNavigator()
@@ -50,11 +56,14 @@ export default function MiniApp() {
   const [snackbar, snackbarHolder] = useSnackbarManager()
 
   // Последний открытый экран каждого раздела: тап по вкладке возвращает туда, где человек был.
+  // Адрес берём из роутера, только если он указывает на этот же экран: во время перехода роутер уже на новой
+  // вкладке, а `view` ещё старый — без проверки вкладка запоминала чужой адрес и потом открывала не тот раздел.
   const lastPanel = useRef({ ...ROOT_PANEL })
   const lastPath = useRef(Object.fromEntries(TABS.map((t) => [t.view, t.root])))
   if (VIEW_PANELS[view]?.includes(panel)) {
     lastPanel.current[view] = panel
-    lastPath.current[view] = router.state.location.pathname || '/'
+    const pathname = router.state.location.pathname || '/'
+    if (panelOfPath(pathname) === panel) lastPath.current[view] = pathname
   }
 
   // actions.go(screen, id) из экранов игры → переход роутера.
@@ -179,11 +188,16 @@ export default function MiniApp() {
           indicator={v === VIEW.REWARDS && rewardsNew && view !== v ? <Badge mode="prominent">Новое</Badge> : null}
           onClick={() => {
             haptic('light')
-            if (view === v) {
-              if (panel !== ROOT_PANEL[v]) navigator.push(root)
+            // Где мы на самом деле — по адресу роутера, а не по отрисованному `view`: пока грузится ленивый экран
+            // (карта), на экране ещё старая вкладка, и тап по ней раньше считался «уже здесь» и терялся.
+            const curPanel = panelOfPath(router.state.location.pathname || '/')
+            const curView = Object.keys(VIEW_PANELS).find((k) => VIEW_PANELS[k].includes(curPanel)) || view
+            if (curView === v) {
+              if (curPanel !== ROOT_PANEL[v]) navigator.push(root)
               return
             }
-            navigator.push(lastPath.current[v] || root)
+            const saved = lastPath.current[v]
+            navigator.push(saved && VIEW_PANELS[v].includes(panelOfPath(saved)) ? saved : root)
           }}
         >
           <Icon />
