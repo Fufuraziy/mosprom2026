@@ -1188,14 +1188,42 @@ def raffle_stats(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = De
 # ======================================================================================
 # Реферальная программа «Пригласи друга»
 # ======================================================================================
+REFERRAL_MAX_INVITES = 5
+REFERRAL_INVITE_POINTS = 150
+REFERRAL_WELCOME_POINTS = 50
+
+
+def find_referrer(db: Session, ref_code: str | None) -> GameSession | None:
+    """Сессия пригласившего по коду из ссылки: ref_<id сессии без префикса sess_>.
+
+    Старые ссылки несли только первые 8 символов — их принимаем, если префикс однозначный.
+    """
+    key = (ref_code or "").strip()
+    if not key.startswith("ref_"):
+        return None
+    key = key[4:]
+    if not re.fullmatch(r"[A-Za-z0-9_-]{4,60}", key):
+        return None
+    s = db.get(GameSession, f"sess_{key}") or db.get(GameSession, key)
+    if s or not re.fullmatch(r"[a-z0-9]{6,12}", key):
+        return s
+    matches = db.query(GameSession).filter(GameSession.id.like(f"sess_{key}%")).limit(2).all()
+    return matches[0] if len(matches) == 1 else None
+
+
+def referral_friend_id(session_id: str) -> str:
+    """Публичный id друга для пригласившего — без раскрытия чужого id сессии."""
+    return "link_" + hashlib.sha256(session_id.encode()).hexdigest()[:10]
+
+
 @app.post("/api/referrals/invite", tags=["referrals"])
 def referral_invite(req: ReferralInviteRequest, db: Session = Depends(get_db)):
     """Регистрация приглашения друга (+150 баллов, лимит 5 друзей / 750 баллов)."""
     s = get_or_create_session(db, req.session_id)
     t = dict(s.telemetry or {})
     count = int(t.get("friends_invited", 0))
-    MAX_INVITES = 5
-    POINTS_PER_INVITE = 150
+    MAX_INVITES = REFERRAL_MAX_INVITES
+    POINTS_PER_INVITE = REFERRAL_INVITE_POINTS
     if count < MAX_INVITES:
         count += 1
         awarded = POINTS_PER_INVITE
@@ -1231,8 +1259,8 @@ def referral_invite(req: ReferralInviteRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/api/referrals/claim", tags=["referrals"])
-def referral_claim(req: ReferralClaimRequest, db: Session = Depends(get_db)):
-    """Активация приветственного бонуса по реферальной ссылке (+50 баллов единоразово)."""
+def referral_claim(req: ReferralClaimRequest, request: Request, db: Session = Depends(get_db)):
+    """Вход по ссылке друга: новичку +50 баллов единоразово, пригласившему +150 (до 5 друзей)."""
     s = get_or_create_session(db, req.session_id)
     t = dict(s.telemetry or {})
     if t.get("welcome_bonus_claimed"):
@@ -1240,9 +1268,20 @@ def referral_claim(req: ReferralClaimRequest, db: Session = Depends(get_db)):
             "ok": False,
             "awarded": 0,
             "already_claimed": True,
+            "referrer_credited": False,
             "message": "Приветственный бонус по ссылке друга уже получен",
         }
-    WELCOME_POINTS = 50
+    referrer = find_referrer(db, req.ref_code)
+    friend_vk = vk_user_from_request(request)[0] or s.vk_user_id
+    if referrer and (referrer.id == s.id or (friend_vk and referrer.vk_user_id == str(friend_vk))):
+        return {
+            "ok": False,
+            "awarded": 0,
+            "self_referral": True,
+            "referrer_credited": False,
+            "message": "Это твоя собственная ссылка — отправь её другу",
+        }
+    WELCOME_POINTS = REFERRAL_WELCOME_POINTS
     t["welcome_bonus_claimed"] = True
     t["referred_by"] = req.ref_code
     t["referral_points"] = int(t.get("referral_points", 0)) + WELCOME_POINTS
@@ -1252,12 +1291,51 @@ def referral_claim(req: ReferralClaimRequest, db: Session = Depends(get_db)):
         "ref_code": req.ref_code,
         "points_awarded": WELCOME_POINTS,
     })
+
+    credited = False
+    if referrer:
+        rt = dict(referrer.telemetry or {})
+        friends = list(rt.get("referral_friends") or [])
+        count = max(int(rt.get("friends_invited", 0)), len(friends))
+        known_vk = {f.get("vk_user_id") for f in friends if f.get("vk_user_id")}
+        if count < REFERRAL_MAX_INVITES and not (friend_vk and str(friend_vk) in known_vk):
+            count += 1
+            friends.append({"session_id": s.id, "vk_user_id": str(friend_vk) if friend_vk else None,
+                            "at": datetime.now(timezone.utc).isoformat()})
+            rt["referral_friends"] = friends
+            rt["friends_invited"] = count
+            rt["referral_points"] = int(rt.get("referral_points", 0)) + REFERRAL_INVITE_POINTS
+            rt["total_points"] = int(rt.get("total_points", 0)) + REFERRAL_INVITE_POINTS
+            referrer.telemetry = rt
+            log_event(db, referrer.id, "friend_invited", {
+                "channel": "referral_link",
+                "ref_code": req.ref_code,
+                "invite_number": count,
+                "points_awarded": REFERRAL_INVITE_POINTS,
+            })
+            credited = True
     db.commit()
     return {
         "ok": True,
         "awarded": WELCOME_POINTS,
         "total_points": t["total_points"],
+        "referrer_credited": credited,
         "message": f"Приветственный бонус +{WELCOME_POINTS} баллов от друга успешно начислен!",
+    }
+
+
+@app.get("/api/referrals/status", tags=["referrals"])
+def referral_status(session_id: str = Query(..., max_length=64), db: Session = Depends(get_db)):
+    """Друзья, пришедшие по ссылке игрока: фронт пригласившего забирает отсюда свои +150."""
+    s = db.get(GameSession, session_id.strip())
+    rt = dict(s.telemetry or {}) if s else {}
+    friends = list(rt.get("referral_friends") or [])
+    return {
+        "session_id": session_id,
+        "friends_invited": max(int(rt.get("friends_invited", 0)), len(friends)),
+        "referral_points": int(rt.get("referral_points", 0)),
+        "points_per_friend": REFERRAL_INVITE_POINTS,
+        "link_friends": [{"id": referral_friend_id(f["session_id"]), "at": f.get("at")} for f in friends if f.get("session_id")],
     }
 
 

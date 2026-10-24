@@ -246,6 +246,7 @@ function reducer(state, a) {
     case 'INVITE_FRIEND': {
       const ref = state.referral || { invitesCount: 0, pointsEarned: 0, friends: [] }
       if (ref.invitesCount >= 5) return state
+      if (a.friendId && (ref.friends || []).some((f) => f.id === a.friendId)) return state
       const newCount = ref.invitesCount + 1
       const pts = a.points || 150
       const friend = {
@@ -360,6 +361,8 @@ export function GameProvider({ children }) {
             dispatch({ type: 'CLAIM_WELCOME_REFERRAL' })
             toast('🎉 +50 Крафт-баллов! Приветственный бонус от друга')
             track('referral_welcome_claimed', { ref_code: refCode })
+          } else if (res?.self_referral) {
+            toast(res.message, 'info')
           }
         }).catch(() => {})
       }
@@ -387,6 +390,37 @@ export function GameProvider({ children }) {
     }
     vkDirty.current = true
   }, [state])
+
+  // Друзья, пришедшие по ссылке игрока: сервер уже начислил пригласившему +150, здесь забираем их в счёт.
+  // Опрос только при живом бэкенде (sessionRegistered) и открытом приложении.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !state.sessionRegistered) return
+    let alive = true
+    const sync = () => {
+      if (document.visibilityState === 'hidden') return
+      api
+        .referralStatus(state.sessionId)
+        .then((res) => {
+          if (!alive) return
+          const ref = latest.current.referral || {}
+          const known = new Set((ref.friends || []).map((f) => f.id))
+          const room = Math.max(0, 5 - (ref.invitesCount || 0))
+          const fresh = (res?.link_friends || []).filter((f) => !known.has(f.id)).slice(0, room)
+          const pts = res?.points_per_friend || 150
+          fresh.forEach((f) => dispatch({ type: 'INVITE_FRIEND', friendId: f.id, name: 'Друг по твоей ссылке', channel: 'referral_link', points: pts }))
+          if (fresh.length) toast(`+${pts * fresh.length} Крафт-баллов · друг зашёл по твоей ссылке!`)
+        })
+        .catch(() => {})
+    }
+    sync()
+    const id = setInterval(sync, 20000)
+    document.addEventListener('visibilitychange', sync)
+    return () => {
+      alive = false
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', sync)
+    }
+  }, [state.sessionRegistered, state.sessionId, toast])
 
   useEffect(() => {
     if (!vkStorageEnabled) return

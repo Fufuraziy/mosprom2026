@@ -280,3 +280,35 @@ def test_referrals_invite_and_claim(client):
     assert s_data["total_invites"] >= 5
     assert s_data["welcome_claims"] >= 1
     assert s_data["points_distributed"] >= 800
+
+
+def test_referral_link_credits_inviter(client):
+    import uuid
+    key = uuid.uuid4().hex[:13]
+    inviter_sid = f"sess_{key}"
+    client.post("/api/sessions", json={"session_id": inviter_sid})
+    ref = f"ref_{key}"
+
+    # Своя ссылка не даёт ни +50, ни +150
+    r_self = client.post("/api/referrals/claim", json={"session_id": inviter_sid, "ref_code": ref})
+    assert r_self.json()["ok"] is False
+    assert r_self.json()["self_referral"] is True
+
+    # Каждый друг по ссылке: себе +50, пригласившему +150; после 5 друзей начисления пригласившему нет
+    for i in range(1, 7):
+        r = client.post("/api/referrals/claim", json={"session_id": f"sess_friend{i}{key}", "ref_code": ref})
+        assert r.json()["ok"] is True
+        assert r.json()["awarded"] == 50
+        assert r.json()["referrer_credited"] is (i <= 5)
+
+    st = client.get("/api/referrals/status", params={"session_id": inviter_sid}).json()
+    assert st["friends_invited"] == 5
+    assert st["referral_points"] == 750
+    assert len(st["link_friends"]) == 5
+    assert all(f["id"].startswith("link_") for f in st["link_friends"])
+
+
+def test_referral_status_unknown_session(client):
+    st = client.get("/api/referrals/status", params={"session_id": "sess_nobody"}).json()
+    assert st["friends_invited"] == 0
+    assert st["link_friends"] == []

@@ -31,8 +31,8 @@ export function InviteFriendCard({ className, onAfterInvite }) {
   const maxPoints = 750
   const progressPct = Math.min(100, (invitesCount / maxInvites) * 100)
 
-  // Реферальный код на основе сессии игрока
-  const refCode = state.sessionId ? `ref_${state.sessionId.replace(/^sess_?/, '').slice(0, 8)}` : 'ref_ochakovo'
+  // Реферальный код = id сессии игрока: по нему сервер находит пригласившего и начисляет ему +150
+  const refCode = state.sessionId ? `ref_${state.sessionId.replace(/^sess_?/, '')}` : 'ref_ochakovo'
   const link = getReferralLink(refCode)
 
   const handleCopy = async () => {
