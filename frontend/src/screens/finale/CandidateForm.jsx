@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Send, ShieldCheck, Loader2, BadgeCheck } from 'lucide-react'
+import { Send, ShieldCheck, Loader2, BadgeCheck, MapPin } from 'lucide-react'
 import { getVKProfile } from '../../services/vk.js'
 import { useGame } from '../../state/GameContext.jsx'
 import { api } from '../../services/api.js'
@@ -37,7 +37,7 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
     telegram: '',
     email: '',
     birth_date: '',
-    vacancy: suggestedVacancy || '',
+    vacancy: suggestedVacancy || state.telemetry?.target_vacancy_from_map || '',
     readiness: '',
     university: '',
     study_level: '',
@@ -111,6 +111,12 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
         <span className="font-mono text-xs text-white/70">приложим твой игровой профиль: {balance} баллов</span>
       </div>
       <form onSubmit={submit} className="grid gap-4 p-5 sm:grid-cols-2" noValidate>
+        {state.telemetry?.selected_map_workshop && (
+          <div className="sm:col-span-2 flex items-center gap-2 p-2.5 rounded-lg border border-brand/30 bg-brand/5 text-xs font-bold text-graphite shadow-sm">
+            <MapPin className="h-4 w-4 text-brand shrink-0" />
+            <span>Цех выбран на карте: <strong className="text-brand font-extrabold">{state.telemetry.selected_map_workshop}</strong></span>
+          </div>
+        )}
         <div className="sm:col-span-2">
           {!vk || vk.source === 'error' ? (
             <button type="button" onClick={fillFromVK} disabled={vkLoading} className="flex w-full items-center justify-center gap-3 rounded-lg bg-vk px-4 py-3.5 text-[15px] font-semibold text-white transition hover:bg-vk-dark disabled:opacity-60">

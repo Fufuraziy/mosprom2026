@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, useSpring, useMotionValueEvent } from 'framer-motion'
-import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound, Lock, Unlock } from 'lucide-react'
+import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound, Lock, Unlock, MapPin } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
 import { LogoPlate, cx } from './ui.jsx'
 
@@ -75,6 +75,7 @@ function CodeSlots({ digits }) {
 
 const TABS = [
   { id: 'student', Icon: Smartphone, full: 'VK Mini App · Игра', short: 'Mini App', active: 'bg-brand text-white' },
+  { id: 'map', Icon: MapPin, full: 'Карта цехов и РФ', short: 'Карта', active: 'bg-brand text-white' },
   { id: 'bot', Icon: MessageCircle, full: 'ВК-бот ОЧАКОВО', short: 'ВК-бот', active: 'bg-vk text-white' },
   { id: 'hr', Icon: BarChart3, full: 'Панель HR', short: 'HR', active: 'bg-graphite text-white' },
 ]

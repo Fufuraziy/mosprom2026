@@ -242,6 +242,11 @@ export default function HRPanel() {
                   <td className="max-w-[200px] px-3 py-3 text-xs font-semibold">{c.university}</td>
                   <td className="max-w-[200px] px-3 py-3 text-xs">
                     <div className="font-semibold">{c.vacancy}</div>
+                    {c.telemetry?.selected_map_workshop && (
+                      <div className="text-[10px] font-bold text-brand" title="Выбранный цех на карте">
+                        📍 {c.telemetry.selected_map_workshop}
+                      </div>
+                    )}
                     <div className="text-ink-mute">мэтч {c.top_match?.match}%</div>
                   </td>
                   <td className="px-3 py-3">

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
-import { MessageCircle, X, Phone, Send, Mail, GraduationCap, Download, MessageCircleQuestion, AlertTriangle, Bot, Handshake, Moon, Loader2, CalendarDays, MessagesSquare } from 'lucide-react'
+import { MessageCircle, X, Phone, Send, Mail, GraduationCap, Download, MessageCircleQuestion, AlertTriangle, Bot, Handshake, Moon, Loader2, CalendarDays, MessagesSquare, MapPin, CheckCircle } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
 import { api } from '../../services/api.js'
 import { BLOCKS, WHY_CARDS } from '../../data/content.js'
@@ -174,6 +174,32 @@ export default function Dossier({ candidate, onClose }) {
               {d.why_cards.length > 0 && (
                 <div className="mt-3 text-xs text-ink-soft">
                   <b className="text-ink">Открытые аргументы «Почему ОЧАКОВО»:</b> {d.why_cards.map((id) => WHY_CARDS.find((w) => w.id === id)?.title).filter(Boolean).join(' · ')}
+                </div>
+              )}
+              {((c.telemetry?.viewed_map_locations && c.telemetry.viewed_map_locations.length > 0) || c.telemetry?.selected_map_workshop) && (
+                <div className="mt-3 rounded-sm border-2 border-brand/30 bg-white p-3.5 shadow-sm space-y-2">
+                  <div className="flex items-center gap-2 font-display font-extrabold text-ink">
+                    <MapPin className="h-4 w-4 text-brand" />
+                    <span>Осознанный интерес по карте цехов</span>
+                  </div>
+                  {c.telemetry.selected_map_workshop && (
+                    <div className="p-2 rounded bg-brand/10 border border-brand/20 text-xs font-bold text-graphite flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-brand shrink-0" />
+                      <span>Приоритетный выбор кандидата: <strong className="text-brand font-extrabold">{c.telemetry.selected_map_workshop}</strong></span>
+                    </div>
+                  )}
+                  {c.telemetry.viewed_map_locations && c.telemetry.viewed_map_locations.length > 0 && (
+                    <div className="text-xs text-ink-soft">
+                      <b className="text-ink">Изучено цехов на карте ({c.telemetry.viewed_map_locations.length}):</b>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {c.telemetry.viewed_map_locations.map((loc, idx) => (
+                          <span key={idx} className="px-2 py-0.5 rounded bg-paper border border-line text-[11px] font-semibold text-ink">
+                            {loc}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

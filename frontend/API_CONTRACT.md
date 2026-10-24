@@ -45,7 +45,7 @@
 | POST | `/api/sessions` | `{started_at}` | `{session_id}` |
 | POST | `/api/telemetry` | `{session_id, event, payload, ts}` | `{ok: true}` |
 
-Основные `event`: `session_open`, `navigate`, `points`, `why_ochakovo_cards_viewed` (`{id}`),
+Основные `event`: `session_open`, `navigate`, `points`, `why_ochakovo_cards_viewed` (`{id}`), `map_location_viewed` (`{id, name}`), `map_workshop_selected` (`{id, vacancy}`),
 `ppe_attempt` (`{wrong:[], missing:[]}`), `ppe_done`, `quiz_answer` (`{station, idx, correct}`),
 `station_done` (`{id, points, result, skipped}`), `capsule_attempt` (`{code}`), `capsule_open`,
 `raffle_ticket` (`{item, price}`), `calculator` (`{dept, nights, dorm, meals}`),
@@ -68,6 +68,8 @@
   "capsule_attempts": 1,
   "calculator": {"interactions": 5, "night_ok": true, "last": {"dept": "bottling", "nights": 7, "dorm": true, "meals": true}},
   "asked_topics": {"dorm": 2, "military": 1},
+  "viewed_map_locations": ["Центральная Лаборатория и R&D-центр Дегустаций", "Технологический цех (Варка, участок CO2 и ЛЭП)"],
+  "selected_map_workshop": "Технологический цех (Варка, участок CO2 и ЛЭП)",
   "skipped": [],
   "started_at": "2026-10-24T10:00:00Z"
 }

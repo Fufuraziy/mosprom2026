@@ -7,6 +7,7 @@ import Header from './components/Header.jsx'
 import { Logo } from './components/ui.jsx'
 import HRPanel from './screens/hr/HRPanel.jsx'
 import BotScreen from './screens/bot/BotScreen.jsx'
+import MapView from './screens/map/MapView.jsx'
 import { PhoneInline } from './components/PhoneFrame.jsx'
 
 function Toasts() {
@@ -56,7 +57,20 @@ function Footer() {
 export default function App() {
   const { state } = useGame()
   const mode = state.mode
-  const screen = mode === 'hr' ? <HRPanel /> : mode === 'bot' ? <BotScreen /> : <PhoneInline />
+  const screen =
+    mode === 'hr' ? (
+      <HRPanel />
+    ) : mode === 'bot' ? (
+      <BotScreen />
+    ) : mode === 'map' ? (
+      <div className="mx-auto max-w-7xl p-4 sm:p-6">
+        <div className="border-2 border-brand bg-white shadow-xl overflow-hidden rounded-xl">
+          <MapView onNavigateToApply={() => actions.setMode('student')} />
+        </div>
+      </div>
+    ) : (
+      <PhoneInline />
+    )
 
   return (
     <div className="flex min-h-screen flex-col">
