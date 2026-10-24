@@ -1,744 +1,947 @@
-﻿"""
-FastAPI Backend для кейса «ОЧАКОВО: Крафт-код 1978»
-Хакатон «Открой#Моспром» 2026.
-"""
-import os
-import json
-import random
-import csv
-import io
-from typing import Optional, List, Dict, Any
-from datetime import datetime, date, timezone
+"""ОЧАКОВО: СЕКРЕТНЫЙ КОД 1978 — backend (FastAPI + SQLite) для связки «ВК-бот + VK Mini App + Панель HR».
 
-from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response, status
+Запуск:  uvicorn main:app --reload --port 8000
+Документация: http://localhost:8000/docs
+Форматы ответов для фронтенда — frontend/API_CONTRACT.md.
+"""
+from __future__ import annotations
+
+import asyncio
+import base64
+import csv
+import hashlib
+import hmac
+import io
+import logging
+import os
+import random
+import re
+import secrets
+import string
+import sys
+import uuid
+from collections import Counter
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timedelta, timezone
+from statistics import mean
+from typing import Any
+from urllib.parse import parse_qsl, urlencode
+
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from sqlalchemy.orm import Session
 
-from .database import engine, Base, get_db, SessionLocal
-from .models import GameSession, TelemetryEvent, Candidate, RaffleTicket, BotMessage
-from .schemas import (
-    CandidateFormSchema, CandidateSubmitRequest,
-    SessionStartRequest, SessionStartResponse,
-    TelemetryEventRequest, MascotChatRequest, MascotChatResponse,
-    RecommendationRequest, BuyTicketRequest, BotMessageRequest,
-    InviteDraftRequest, BotSendRequest, LoginRequest, LoginResponse, calculate_age
+import ai_agents
+import vk_bot
+from database import Base, SessionLocal, engine, get_db, migrate_columns
+from knowledge_base import (
+    AGE_ERROR, BLOCKS, COMPANY_AVG_AGE, MERCH, MIN_AGE, STAGES, merch_id, merch_title, normalize_topic, topic_label,
 )
-from .ai_agents import MascotAgent, RecSysAgent, TOPIC_LABELS, MENTORS
-from .bot import handle_bot_message
+from models import STATUS_LABELS, BotMessage, Candidate, ChatMessage, GameSession, RaffleTicket, TelemetryEvent, utcnow
+from schemas import (
+    BotMessageRequest, BotSendRequest, CandidateSubmitRequest, CandidateSubmitResponse, ContactCandidateRequest,
+    EvaluateTelemetryRequest, EvaluateTelemetryResponse, FrontCandidateCreate, InviteDraftRequest, MascotChatRequest,
+    MascotChatResponse, RaffleTicketRequest, RecommendationRequest, SessionCreate,
+)
+from seed_data import seed_database
+from telemetry_engine import (
+    FUNNEL_STAGES, STATION_LABELS, best_station, build_dossier, enrich_candidate, session_funnel_stage, topic_counts,
+)
 
-# ------------------------------------------------------------- Конфигурация и авторизация HR
-
-HR_ACCESS_PIN = os.environ.get("HR_ACCESS_PIN", "1978")
-HR_ADMIN_TOKEN = os.environ.get("HR_ADMIN_TOKEN", "ochakovo-hr-secret-1978")
-VK_ADMIN_IDS = [x.strip() for x in os.environ.get("VK_ADMIN_IDS", "").split(",") if x.strip()]
-
-def get_now_iso():
-    return datetime.now(timezone.utc).isoformat()
-
-def verify_hr_auth(request: Request) -> Dict[str, Any]:
-    """
-    Проверка доступа сотрудника HR / Жюри.
-    СТРАХОВКА ДЛЯ ДЕМО: если заголовок передан и верный — режим 'authenticated'.
-    Если не передан или старый вызов — НЕ блокируем 401 ошибкой, отдаем со статусом 200 OK
-    и пометкой 'jury_open_fallback', чтобы ни один тест жюри не упал!
-    """
-    token = request.headers.get("X-HR-Token") or request.headers.get("x-hr-token")
-    auth_hdr = request.headers.get("Authorization") or request.headers.get("authorization")
-    if not token and auth_hdr and auth_hdr.startswith("Bearer "):
-        token = auth_hdr[7:].strip()
-    
-    if token == HR_ADMIN_TOKEN:
-        return {"authenticated": True, "auth_mode": "hr_admin"}
-    return {"authenticated": True, "auth_mode": "jury_open_fallback"}
-
-# Создание таблиц БД
-Base.metadata.create_all(bind=engine)
-
-# Инициализация демо-кандидатов при пустой БД
-def seed_initial_candidates():
-    db = SessionLocal()
+for _stream in (sys.stdout, sys.stderr):  # консоль Windows не должна падать на кириллице/эмодзи
     try:
-        if db.query(Candidate).count() == 0:
-            demo_data = [
-                {
-                    "id": "seed_01", "fio": "Смирнова Алина Олеговна", "phone": "+7 916 000-11-21", "telegram": "@alina_chem", "email": "alina.s@example.ru",
-                    "birth_date": "2004-03-14", "vacancy": "Химик-лаборант", "readiness": "К началу сезона (март–апрель)", "university": "РХТУ им. Д. И. Менделеева", "study_level": "4 курс", "specialty": "Химическая технология",
-                    "points": 1180, "created_at": "2026-10-22T10:12:00+03:00",
-                    "telemetry": {"why_ochakovo_cards_viewed": ["giant", "noprobation", "money", "dorm", "mentors"], "stations": {"lab": {"titration_accuracy": 96, "brix_correct": 4, "brix_total": 4, "tasting_done": True}, "engineering": {"pressure_stability": 78, "mea_reaction_ms": 2100, "inspections_correct": 3}, "line": {"defects_caught": 9, "defects_missed": 2, "false_rejects": 0, "ttn_correct": 3}, "design": {"pantone_match": 81, "mirapolis_correct": 4}}, "calculator": {"interactions": 6, "night_ok": False, "last": {"dept": "lab", "nights": 0}}, "asked_topics": {"session": 2, "schedule": 1}}
-                },
-                {
-                    "id": "seed_02", "fio": "Ковалёв Денис Андреевич", "phone": "+7 925 000-32-10", "telegram": "@den_kip", "email": "",
-                    "birth_date": "2003-07-02", "vacancy": "Наладчик / специалист по автоматизации", "readiness": "Готов(а) выйти сразу", "university": "МГТУ им. Н. Э. Баумана", "study_level": "Выпускник", "specialty": "Автоматизация технологических процессов",
-                    "points": 1240, "created_at": "2026-10-22T13:40:00+03:00",
-                    "telemetry": {"stations": {"lab": {"titration_accuracy": 71, "brix_correct": 3, "brix_total": 4}, "engineering": {"pressure_stability": 94, "mea_reaction_ms": 1200, "inspections_correct": 3}, "line": {"defects_caught": 12, "defects_missed": 1, "false_rejects": 1, "ttn_correct": 3}, "design": {"pantone_match": 64, "mirapolis_correct": 4}}, "calculator": {"interactions": 4, "night_ok": True, "last": {"dept": "tech", "nights": 7}}, "asked_topics": {"salary": 1, "military": 1}}
-                },
-                {
-                    "id": "seed_03", "fio": "Ибрагимов Тимур Рустамович", "phone": "+7 987 000-45-67", "telegram": "", "email": "timur.i@example.ru",
-                    "birth_date": "2006-01-19", "vacancy": "Оператор линии розлива", "readiness": "Готов(а) выйти сразу", "university": "Колледж автоматизации и информационных технологий № 20", "study_level": "Колледж / СПО", "specialty": "Монтаж и эксплуатация оборудования",
-                    "points": 1010, "created_at": "2026-10-23T09:05:00+03:00",
-                    "telemetry": {"ppe_attempts": 2, "ppe_wrong_picks": ["headphones"], "stations": {"lab": {"titration_accuracy": 52, "brix_correct": 2, "brix_total": 4}, "engineering": {"pressure_stability": 70, "mea_reaction_ms": 2900, "inspections_correct": 2}, "line": {"defects_caught": 14, "defects_missed": 1, "false_rejects": 0, "ttn_correct": 3}, "design": {"pantone_match": 55, "mirapolis_correct": 2}}, "calculator": {"interactions": 9, "night_ok": True, "last": {"dept": "bottling", "nights": 8}}, "asked_topics": {"dorm": 3, "salary": 2, "military": 1, "transport": 1}}
-                },
-                {
-                    "id": "seed_04", "fio": "Лебедева Полина Игоревна", "phone": "+7 903 000-77-08", "telegram": "@polina_food", "email": "p.lebedeva@example.ru",
-                    "birth_date": "2004-11-30", "vacancy": "Технолог пищевого производства", "readiness": "После сессии / летом", "university": "Росбиотех (МГУПП)", "study_level": "4 курс", "specialty": "Технология продуктов брожения",
-                    "points": 1150, "created_at": "2026-10-21T18:22:00+03:00",
-                    "telemetry": {"why_ochakovo_cards_viewed": ["giant", "mentors", "noprobation"], "stations": {"lab": {"titration_accuracy": 88, "brix_correct": 4, "brix_total": 4}, "engineering": {"pressure_stability": 85, "mea_reaction_ms": 1800, "inspections_correct": 3}, "line": {"defects_caught": 8, "defects_missed": 3, "false_rejects": 1, "ttn_correct": 2}, "design": {"pantone_match": 77, "mirapolis_correct": 3}}, "calculator": {"interactions": 3, "night_ok": False, "last": {"dept": "tech", "nights": 0}}, "asked_topics": {"session": 1, "brands": 2, "mentor": 1}}
-                },
-                {
-                    "id": "seed_05", "fio": "Орлов Максим Сергеевич", "phone": "+7 977 000-19-44", "telegram": "@orlov_mx", "email": "",
-                    "birth_date": "2005-05-08", "vacancy": "Оператор склада / кладовщик", "readiness": "Через 2 недели", "university": "Пензенский государственный университет", "study_level": "3 курс", "specialty": "Логистика",
-                    "points": 890, "created_at": "2026-10-23T11:31:00+03:00",
-                    "telemetry": {"why_ochakovo_cards_viewed": ["money", "dorm"], "stations": {"lab": {"titration_accuracy": 60, "brix_correct": 2, "brix_total": 4}, "engineering": {"pressure_stability": 66, "mea_reaction_ms": 3400, "inspections_correct": 2}, "line": {"defects_caught": 11, "defects_missed": 2, "false_rejects": 2, "ttn_correct": 3}, "design": {"pantone_match": 50, "mirapolis_correct": 3}}, "calculator": {"interactions": 5, "night_ok": True, "last": {"dept": "warehouse", "nights": 4}}, "asked_topics": {"dorm": 2, "food": 1, "transport": 2}}
-                },
-                {
-                    "id": "seed_06", "fio": "Ким Виктория Александровна", "phone": "+7 926 000-55-31", "telegram": "@vika_design", "email": "v.kim@example.ru",
-                    "birth_date": "2003-09-21", "vacancy": "Практика: дизайн, IT, оцифровка линии", "readiness": "Пока присматриваюсь", "university": "Университет ИТМО", "study_level": "Магистратура", "specialty": "Цифровой дизайн",
-                    "points": 1060, "created_at": "2026-10-20T16:05:00+03:00",
-                    "telemetry": {"why_ochakovo_cards_viewed": ["giant", "mentors"], "stations": {"lab": {"titration_accuracy": 63, "brix_correct": 3, "brix_total": 4}, "engineering": {"pressure_stability": 61, "mea_reaction_ms": 2600, "inspections_correct": 2}, "line": {"defects_caught": 7, "defects_missed": 4, "false_rejects": 1, "ttn_correct": 2}, "design": {"pantone_match": 97, "mirapolis_correct": 4}}, "asked_topics": {"practice_docs": 2, "brands": 1}}
-                },
-                {
-                    "id": "seed_07", "fio": "Петров Артём Владимирович", "phone": "+7 915 000-62-90", "telegram": "", "email": "artem.p@example.ru",
-                    "birth_date": "2002-12-12", "vacancy": "Машинист технологических установок", "readiness": "Готов(а) выйти сразу", "university": "НИУ МЭИ", "study_level": "Выпускник", "specialty": "Теплоэнергетика",
-                    "points": 1120, "created_at": "2026-10-22T20:48:00+03:00",
-                    "telemetry": {"why_ochakovo_cards_viewed": ["giant", "noprobation", "money", "mentors"], "stations": {"lab": {"titration_accuracy": 68, "brix_correct": 3, "brix_total": 4}, "engineering": {"pressure_stability": 91, "mea_reaction_ms": 1400, "inspections_correct": 3}, "line": {"defects_caught": 10, "defects_missed": 2, "false_rejects": 0, "ttn_correct": 3}, "design": {"pantone_match": 60, "mirapolis_correct": 3}}, "calculator": {"interactions": 7, "night_ok": True, "last": {"dept": "tech", "nights": 7}}, "asked_topics": {"schedule": 2, "salary": 1}}
-                },
-                {
-                    "id": "seed_08", "fio": "Захарова Дарья Михайловна", "phone": "+7 999 000-08-17", "telegram": "@dasha_z", "email": "",
-                    "birth_date": "2005-02-27", "vacancy": "Химик-лаборант", "readiness": "К началу сезона (март–апрель)", "university": "КубГТУ", "study_level": "3 курс", "specialty": "Биотехнология",
-                    "points": 980, "created_at": "2026-10-23T08:14:00+03:00",
-                    "telemetry": {"ppe_attempts": 2, "ppe_wrong_picks": ["scarf"], "stations": {"lab": {"titration_accuracy": 84, "brix_correct": 3, "brix_total": 4}, "engineering": {"pressure_stability": 72, "mea_reaction_ms": 2400, "inspections_correct": 2}, "line": {"defects_caught": 9, "defects_missed": 3, "false_rejects": 1, "ttn_correct": 2}, "design": {"pantone_match": 70, "mirapolis_correct": 3}}, "calculator": {"interactions": 2, "night_ok": False, "last": {"dept": "lab", "nights": 0}}, "asked_topics": {"dorm": 2, "session": 1}}
-                },
-                {
-                    "id": "seed_09", "fio": "Сидоренко Илья Павлович", "phone": "+7 950 000-23-56", "telegram": "@ilya_line", "email": "",
-                    "birth_date": "2006-06-03", "vacancy": "Оператор линии розлива", "readiness": "Через 2 недели", "university": "Тюменский индустриальный университет", "study_level": "1–2 курс", "specialty": "Машиностроение",
-                    "points": 760, "created_at": "2026-10-21T12:00:00+03:00",
-                    "telemetry": {"ppe_attempts": 3, "ppe_wrong_picks": ["slippers", "hoodie"], "why_ochakovo_cards_viewed": ["money"], "stations": {"lab": {"titration_accuracy": 45, "brix_correct": 2, "brix_total": 4}, "engineering": {"pressure_stability": 58, "mea_reaction_ms": None, "inspections_correct": 1}, "line": {"defects_caught": 10, "defects_missed": 4, "false_rejects": 3, "ttn_correct": 2}, "design": {"pantone_match": 48, "mirapolis_correct": 2}}, "calculator": {"interactions": 1, "night_ok": True, "last": {"dept": "bottling", "nights": 6}}, "asked_topics": {"dorm": 1, "military": 2, "salary": 1}}
-                },
-                {
-                    "id": "seed_10", "fio": "Николаева Софья Дмитриевна", "phone": "+7 916 000-90-12", "telegram": "", "email": "s.nikolaeva@example.ru",
-                    "birth_date": "2004-08-16", "vacancy": "Технолог пищевого производства", "readiness": "Готов(а) выйти сразу", "university": "Росбиотех (МГУПП)", "study_level": "Выпускник", "specialty": "Технология безалкогольных напитков",
-                    "points": 1210, "created_at": "2026-10-23T14:26:00+03:00",
-                    "telemetry": {"why_ochakovo_cards_viewed": ["giant", "noprobation", "money", "dorm", "mentors"], "stations": {"lab": {"titration_accuracy": 92, "brix_correct": 4, "brix_total": 4}, "engineering": {"pressure_stability": 88, "mea_reaction_ms": 1600, "inspections_correct": 3}, "line": {"defects_caught": 11, "defects_missed": 1, "false_rejects": 0, "ttn_correct": 3}, "design": {"pantone_match": 74, "mirapolis_correct": 4}}, "calculator": {"interactions": 5, "night_ok": True, "last": {"dept": "tech", "nights": 5}}, "asked_topics": {"brands": 1, "mentor": 1}}
-                },
-                {
-                    "id": "seed_11", "fio": "Гусев Роман Евгеньевич", "phone": "+7 985 000-44-02", "telegram": "@roma_auto", "email": "",
-                    "birth_date": "2003-04-25", "vacancy": "Наладчик / специалист по автоматизации", "readiness": "После сессии / летом", "university": "Московский Политех", "study_level": "4 курс", "specialty": "Мехатроника и робототехника",
-                    "points": 1090, "created_at": "2026-10-22T08:58:00+03:00",
-                    "telemetry": {"stations": {"lab": {"titration_accuracy": 58, "brix_correct": 2, "brix_total": 4}, "engineering": {"pressure_stability": 89, "mea_reaction_ms": 1700, "inspections_correct": 3}, "line": {"defects_caught": 13, "defects_missed": 2, "false_rejects": 1, "ttn_correct": 3}, "design": {"pantone_match": 79, "mirapolis_correct": 4}}, "calculator": {"interactions": 3, "night_ok": False, "last": {"dept": "tech", "nights": 0}}, "asked_topics": {"session": 2, "practice_docs": 1}}
-                },
-                {
-                    "id": "seed_12", "fio": "Мельникова Ксения Романовна", "phone": "+7 903 000-31-75", "telegram": "@ksu_mirea", "email": "ksenia.m@example.ru",
-                    "birth_date": "2005-10-09", "vacancy": "Оператор склада / кладовщик", "readiness": "Пока присматриваюсь", "university": "МИРЭА — Российский технологический университет", "study_level": "3 курс", "specialty": "Информационные системы",
-                    "points": 840, "created_at": "2026-10-20T19:37:00+03:00",
-                    "telemetry": {"why_ochakovo_cards_viewed": ["money", "dorm", "noprobation"], "stations": {"lab": {"titration_accuracy": 66, "brix_correct": 3, "brix_total": 4}, "engineering": {"pressure_stability": 63, "mea_reaction_ms": 3100, "inspections_correct": 2}, "line": {"defects_caught": 9, "defects_missed": 3, "false_rejects": 1, "ttn_correct": 2}, "design": {"pantone_match": 83, "mirapolis_correct": 4}}, "asked_topics": {"schedule": 1, "food": 1, "contract": 1}}
-                }
-            ]
-            for d in demo_data:
-                c = Candidate(
-                    id=d["id"],
-                    session_id=f"sess_{d['id']}",
-                    fio=d["fio"],
-                    phone=d["phone"],
-                    telegram=d["telegram"],
-                    email=d["email"],
-                    birth_date=d["birth_date"],
-                    vacancy=d["vacancy"],
-                    readiness=d["readiness"],
-                    university=d["university"],
-                    study_level=d["study_level"],
-                    specialty=d["specialty"],
-                    consent=True,
-                    points=d["points"],
-                    telemetry_json=json.dumps(d["telemetry"], ensure_ascii=False),
-                    tickets_json="{}",
-                    created_at=d["created_at"],
-                    is_live=False,
-                    is_demo=True
-                )
-                db.add(c)
-            db.commit()
-    except Exception as e:
-        db.rollback()
-        print(f"Error seeding demo candidates: {e}")
-    finally:
-        db.close()
+        _stream.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("ochakovo")
 
-seed_initial_candidates()
+VERSION = "1.1.0"
+SHOW_DEMO_DEFAULT = os.getenv("SHOW_DEMO_DATA", "true").lower() != "false"
+CONSENT_VERSION = os.getenv("CONSENT_VERSION", "2026-10")
+BASELINE_CONVERSION_PCT = 0.02     # конверсия в найм до проекта (данные кейса)
+BASELINE_PROBATION_DROPOUT = 38    # отсев на испытательном сроке до проекта (данные кейса)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    added = migrate_columns()
+    if added:
+        log.info("БД: добавлены колонки %s", ", ".join(added))
+    if os.getenv("SEED_DEMO_DATA", "true").lower() != "false":
+        with SessionLocal() as db:
+            created = seed_database(db)
+            if created:
+                log.info("Демо-данные: создано %s кандидатов и анонимные сессии для воронки", created)
+    log.info("LLM: %s", f"{ai_agents.llm.provider} ({ai_agents.llm.model})" if ai_agents.llm.provider
+             else "не настроена — работает детерминированный движок")
+    log.info("ВК-бот: режим %s", {"simulation": "симуляции (VK_GROUP_TOKEN не задан)", "longpoll": "Long Poll",
+                                  "callback": "Callback API (/api/vk/callback)"}[vk_bot.mode()])
+    vk_bot.runner.start()
+    yield
+    await vk_bot.runner.stop()
+
 
 app = FastAPI(
-    title="ОЧАКОВО: Крафт-код 1978 API",
-    description="Backend API для хакатона «Открой#Моспром» 2026",
-    version="1.0.0"
+    title="ОЧАКОВО: СЕКРЕТНЫЙ КОД 1978 — API",
+    description="Связка «ВК-бот + VK Mini App + Панель HR» АО МПБК «ОЧАКОВО»: игра, ИИ-маскот Крафти, ИИ-профайлинг, "
+                "ВК-бот сообщества и панель HR.",
+    version=VERSION,
+    lifespan=lifespan,
 )
-
-# Настройка CORS для работы в браузере, локальной разработки и VK Mini App
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"],   # в т.ч. X-VK-Launch-Params
 )
 
-# Кастомный обработчик 422 ошибок для совместимости с React
-@app.exception_handler(Exception)
-async def custom_general_exception_handler(request: Request, exc: Exception):
-    if isinstance(exc, HTTPException):
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-    return JSONResponse(status_code=500, content={"detail": str(exc)})
 
-# ------------------------------------------------------------- 0. Аутентификация HR и Жюри
+# ======================================================================================
+# Вспомогательные функции
+# ======================================================================================
+def calc_age(birth: date, today: date | None = None) -> int:
+    today = today or date.today()
+    return today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
 
-@app.post("/api/auth/login", response_model=LoginResponse)
-def auth_login(req: LoginRequest):
-    # 1. Проверка PIN-кода (по умолчанию 1978)
-    if req.pin and req.pin.strip() == HR_ACCESS_PIN:
-        return LoginResponse(authenticated=True, token=HR_ADMIN_TOKEN, role="hr_admin")
-    
-    # 2. Проверка через VK_ADMIN_IDS
-    if req.vk_user_id and str(req.vk_user_id).strip() in VK_ADMIN_IDS:
-        return LoginResponse(authenticated=True, token=HR_ADMIN_TOKEN, role="hr_admin")
-    
-    # Иначе 401
-    return JSONResponse(
-        status_code=401,
-        content={"detail": "Неверный код доступа сотрудника HR Очаково"}
-    )
 
-# ------------------------------------------------------------- 1. Healthcheck
-
-@app.get("/api/health")
-@app.get("/health")
-def healthcheck():
-    return {
-        "status": "ok",
-        "version": "1.0.0",
-        "service": "ochakovo-backend",
-        "framework": "FastAPI",
-        "time": get_now_iso()
-    }
-
-# ------------------------------------------------------------- 2. Игровая сессия
-
-@app.post("/api/sessions", response_model=SessionStartResponse)
-@app.post("/api/game/start-session", response_model=SessionStartResponse)
-def start_game_session(req: Optional[SessionStartRequest] = None, db: Session = Depends(get_db)):
-    sess_id = (req.session_id if req and req.session_id else None) or f"sess_{int(datetime.now(timezone.utc).timestamp())}_{random.randint(1000, 9999)}"
-    existing = db.query(GameSession).filter(GameSession.id == sess_id).first()
-    if existing and existing.secret_code:
-        return SessionStartResponse(session_id=sess_id, secret_code=existing.secret_code, target_code=list(existing.secret_code), source="remote")
-
-    client_code = req.target_code if req and req.target_code else None
-    if client_code and len(client_code) == 4 and all(len(str(d)) == 1 and str(d).isdigit() for d in client_code):
-        secret_code = "".join(str(d) for d in client_code)
-    else:
-        secret_code = "".join(random.SystemRandom().choice("0123456789") for _ in range(4))
-    target_code = list(secret_code)
-
-    session_obj = GameSession(
-        id=sess_id,
-        started_at=(req.started_at if req and req.started_at else get_now_iso()),
-        secret_code=secret_code
-    )
-    db.add(session_obj)
-    db.commit()
-    
-    return SessionStartResponse(
-        session_id=sess_id,
-        secret_code=secret_code,
-        target_code=target_code,
-        source="remote"
-    )
-
-# ------------------------------------------------------------- 3. Телеметрия
-
-@app.post("/api/telemetry")
-@app.post("/api/game/evaluate-telemetry")
-def track_telemetry(req: TelemetryEventRequest, db: Session = Depends(get_db)):
-    event_obj = TelemetryEvent(
-        session_id=req.session_id,
-        event=req.event,
-        payload_json=json.dumps(req.payload or {}, ensure_ascii=False),
-        ts=req.ts or get_now_iso()
-    )
-    db.add(event_obj)
-    db.commit()
-    return {"ok": True, "event": req.event, "status": "recorded"}
-
-# ------------------------------------------------------------- 4. ИИ-Агент №1 («Крафти»)
-
-@app.post("/api/mascot/chat", response_model=MascotChatResponse)
-@app.post("/api/ai/mascot-chat", response_model=MascotChatResponse)
-def mascot_chat(req: MascotChatRequest, db: Session = Depends(get_db)):
-    res = MascotAgent.chat(req.message, req.history)
-    
-    # Логируем тему в БД
-    if req.session_id:
-        evt = TelemetryEvent(
-            session_id=req.session_id,
-            event="asked_topics",
-            payload_json=json.dumps({"topic": res["topic"], "message": req.message}, ensure_ascii=False)
-        )
-        db.add(evt)
-        db.commit()
-        
-    return MascotChatResponse(
-        reply=res["reply"],
-        topic=res["topic"],
-        topic_label=res["topic_label"],
-        suggestions=res["suggestions"]
-    )
-
-# ------------------------------------------------------------- 5. ИИ-Агент №2 (Рекомендатель)
-
-@app.post("/api/recommendation")
-def get_recommendation(req: RecommendationRequest):
-    return RecSysAgent.build_recommendation(req.telemetry or {})
-
-# ------------------------------------------------------------- 6. Розыгрыш мерча
-
-@app.post("/api/raffle/tickets")
-def buy_ticket(req: BuyTicketRequest, db: Session = Depends(get_db)):
-    ticket_no = f"OCH-1978-{random.randint(10000, 99999)}"
-    t_obj = RaffleTicket(
-        session_id=req.session_id,
-        item_id=req.item_id,
-        ticket_no=ticket_no
-    )
-    db.add(t_obj)
-    db.commit()
-    
-    # Считаем текущие билеты сессии
-    tickets_count = db.query(RaffleTicket).filter(RaffleTicket.session_id == req.session_id).count()
-    return {
-        "ok": True,
-        "tickets": {req.item_id: tickets_count},
-        "ticket_no": ticket_no
-    }
-
-# ------------------------------------------------------------- 7. Кандидаты (18+)
-
-def serialize_candidate(c: Candidate) -> Dict[str, Any]:
-    telemetry = {}
-    if c.telemetry_json:
+def parse_birth_date(value: Any) -> date | None:
+    if isinstance(value, date):
+        return value
+    if not value:
+        return None
+    text = str(value).strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
         try:
-            telemetry = json.loads(c.telemetry_json)
-        except Exception:
-            pass
-            
-    tickets = {}
-    if c.tickets_json:
-        try:
-            tickets = json.loads(c.tickets_json)
-        except Exception:
-            pass
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
 
-    age = calculate_age(c.birth_date)
-    block = "profile" if any(w in c.vacancy.lower() for w in ["лаборант", "технолог"]) else (
-        "engineering" if any(w in c.vacancy.lower() for w in ["машинист", "наладчик", "автоматиз"]) else (
-            "free" if "дизайн" in c.vacancy.lower() or "практика" in c.vacancy.lower() else "line"
-        )
-    )
 
+def new_promo_code(db: Session) -> str:
+    alphabet = string.ascii_uppercase + string.digits
+    while True:
+        code = "OCHAKOVO-1978-" + "".join(secrets.choice(alphabet) for _ in range(4))
+        if not db.query(Candidate).filter(Candidate.promo_code == code).first():
+            return code
+
+
+def iso(dt: datetime | None) -> str | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
+def aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def get_or_create_session(db: Session, session_id: str | None, **fields) -> GameSession:
+    sid = (str(session_id or "")).strip()[:64] or f"sess_{uuid.uuid4().hex[:12]}"
+    s = db.get(GameSession, sid)
+    if not s:
+        s = GameSession(id=sid, telemetry={}, asked_topics=[])
+        db.add(s)
+    for k, v in fields.items():
+        if v is not None:
+            setattr(s, k, v)
+    return s
+
+
+def merged_telemetry(session: GameSession | None, incoming: dict | None) -> dict:
+    """Снимок телеметрии с фронта + накопленное на сервере. Темы вопросов: максимум из двух счётчиков."""
+    base = dict(session.telemetry or {}) if session else {}
+    data = {**base, **{k: v for k, v in (incoming or {}).items() if v not in (None, [], {})}}
+    server, client = topic_counts(base.get("asked_topics")), topic_counts((incoming or {}).get("asked_topics"))
+    data["asked_topics"] = {t: max(server.get(t, 0), client.get(t, 0)) for t in {**server, **client}}
+    return data
+
+
+def log_event(db: Session, session_id: str, kind: str, payload: dict | None = None) -> None:
+    db.add(TelemetryEvent(session_id=session_id, type=kind, payload=payload or {}))
+
+
+def demo_filter(query, model, include_demo: bool):
+    return query if include_demo else query.filter(model.is_demo.is_(False))
+
+
+def contact_links(c: Candidate) -> dict:
+    links = {}
+    if c.phone:
+        links["phone"] = "tel:" + re.sub(r"[^\d+]", "", c.phone)
+    if c.telegram:
+        links["telegram"] = f"https://t.me/{c.telegram.lstrip('@')}"
+    if c.email:
+        links["email"] = f"mailto:{c.email}"
+    if c.vk_user_id:
+        links["vk"] = c.vk_profile_url or f"https://vk.com/id{c.vk_user_id}"
+    return links
+
+
+def front_candidate(c: Candidate) -> dict:
+    """Кандидат в форме фронтенда (без производных полей)."""
     return {
-        "id": c.id,
-        "session_id": c.session_id,
-        "fio": c.fio,
-        "phone": c.phone,
-        "telegram": c.telegram,
-        "email": c.email,
-        "birth_date": c.birth_date,
-        "age": age,
-        "vacancy": c.vacancy,
-        "block": block,
-        "readiness": c.readiness,
-        "university": c.university,
-        "study_level": c.study_level,
-        "specialty": c.specialty,
-        "consent": c.consent,
-        "vk_user_id": c.vk_user_id,
-        "vk_source": c.vk_source,
-        "points": c.points,
-        "tickets": tickets,
-        "telemetry": telemetry,
-        "created_at": c.created_at,
-        "is_live": c.is_live,
-        "is_demo": c.is_demo
+        "id": c.id, "session_id": c.session_id, "fio": c.full_name, "phone": c.phone or "", "telegram": c.telegram or "",
+        "email": c.email or "", "birth_date": c.birth_date.isoformat(), "vacancy": c.target_vacancy or "",
+        "readiness": c.readiness_date or "", "university": c.university or "", "study_level": c.course_or_grad_year or "",
+        "specialty": c.specialty or "", "vk_user_id": c.vk_user_id, "vk_source": c.vk_source, "points": c.total_points,
+        "telemetry": c.telemetry or {}, "created_at": iso(c.created_at), "is_live": not c.is_demo, "block": c.block,
+        "age": calc_age(c.birth_date),
     }
 
-@app.post("/api/candidates", status_code=status.HTTP_201_CREATED)
-@app.post("/api/candidates/submit", status_code=status.HTTP_201_CREATED)
-def submit_candidate(payload: CandidateSubmitRequest, db: Session = Depends(get_db)):
-    f = payload.form
-    # Серверная строгая валидация возраста
-    age = calculate_age(f.birth_date)
-    if age is None or age < 18:
-        return JSONResponse(
-            status_code=422,
-            content={"errors": {"birth_date": "В ОЧАКОВО принимают на работу и практику строго с 18 лет"}}
-        )
 
-    # Проверка контактов
-    if not any([f.phone, f.telegram, f.email, f.vk_user_id]):
-        return JSONResponse(
-            status_code=422,
-            content={"errors": {"phone": "Укажи хотя бы один способ связи (телефон, Telegram, email или VK)"}}
-        )
+def candidate_to_dict(c: Candidate) -> dict:
+    """Фронтовые поля + производные (как enrichCandidate) + поля контракта HR и ИИ-досье."""
+    ev = c.evaluation or {}
+    hr = ev.get("hr_deep_dossier", {})
+    mira = hr.get("mirapolis_pre_attestation", {})
+    return {
+        **enrich_candidate(front_candidate(c)),
+        "candidate_id": c.id, "is_demo": c.is_demo, "status": c.status, "status_label": STATUS_LABELS.get(c.status, c.status),
+        "consent": c.consent, "consent_at": iso(c.consent_at), "consent_version": c.consent_version,
+        "vk_profile_url": c.vk_profile_url, "full_name": c.full_name, "contact_info": c.contact_info,
+        "target_vacancy": c.target_vacancy, "readiness_date": c.readiness_date, "university_or_college": c.university,
+        "course_or_grad_year": c.course_or_grad_year, "city": c.city, "total_points": c.total_points,
+        "purchased_merch_tickets": c.purchased_merch_tickets or [], "promo_code": c.promo_code,
+        "contact_links": contact_links(c), "invited_at": iso(c.invited_at),
+        "mirapolis": {"pre_attestation": mira.get("status"), "pre_attestation_label": mira.get("label"),
+                      "assignment_status": c.mirapolis_status, "assigned_at": iso(c.mirapolis_assigned_at),
+                      "courses": mira.get("courses", [])},
+        "hr_deep_dossier": hr,
+        "student_recommendations": ev.get("student_recommendations", {}),
+    }
 
-    cand_id = f"cand_{int(datetime.now(timezone.utc).timestamp())}_{random.randint(100, 999)}"
-    
-    # Сливаем билеты мерча из сессии, если переданы
-    tickets = payload.tickets or {}
-    
-    cand_obj = Candidate(
-        id=cand_id,
-        session_id=payload.session_id,
-        fio=f.fio.strip(),
-        phone=f.phone.strip() if f.phone else "",
-        telegram=f.telegram.strip() if f.telegram else "",
-        email=f.email.strip() if f.email else "",
-        birth_date=f.birth_date,
-        vacancy=f.vacancy,
-        readiness=f.readiness,
-        university=f.university.strip(),
-        study_level=f.study_level or "",
-        specialty=f.specialty or "",
-        consent=f.consent,
-        vk_user_id=str(f.vk_user_id) if f.vk_user_id else None,
-        vk_source=f.vk_source,
-        points=payload.points or 0,
-        telemetry_json=json.dumps(payload.telemetry or {}, ensure_ascii=False),
-        tickets_json=json.dumps(tickets, ensure_ascii=False),
-        created_at=get_now_iso(),
-        is_live=True,
-        is_demo=False
+
+def verify_vk_launch_params(launch: str | None) -> dict | None:
+    """Подпись параметров запуска VK Mini App (эталон ВК). Возвращает параметры vk_* при валидной подписи."""
+    secret = os.getenv("VK_APP_SECRET", "").strip()
+    if not secret or not launch:
+        return None
+    params = dict(parse_qsl(launch.lstrip("?"), keep_blank_values=True))
+    vk = sorted((k, v) for k, v in params.items() if k.startswith("vk_"))
+    digest = hmac.new(secret.encode(), urlencode(vk, doseq=True).encode(), hashlib.sha256).digest()
+    expected = base64.urlsafe_b64encode(digest).decode().rstrip("=")
+    return dict(vk) if hmac.compare_digest(expected, params.get("sign", "")) else None
+
+
+def vk_user_from_request(request: Request) -> tuple[str | None, bool]:
+    """vk_user_id из X-VK-Launch-Params и признак проверенной подписи.
+
+    Без VK_APP_SECRET (локальная разработка) id берётся без проверки, с флагом verified=False.
+    """
+    launch = request.headers.get("X-VK-Launch-Params")
+    if not launch:
+        return None, False
+    if os.getenv("VK_APP_SECRET", "").strip():
+        params = verify_vk_launch_params(launch)
+        return (params.get("vk_user_id"), True) if params else (None, False)
+    return dict(parse_qsl(launch.lstrip("?"))).get("vk_user_id"), False
+
+
+def save_tickets(db: Session, session_id: str | None, candidate_id: str | None, items: list[str]) -> None:
+    """Билеты мерча из анкеты: докупает недостающие (уже купленные в игре не дублирует)."""
+    existing = Counter(t.item for t in db.query(RaffleTicket).filter(RaffleTicket.session_id == session_id).all()) \
+        if session_id else Counter()
+    for raw in items:
+        mid = merch_id(raw)
+        if existing[mid] > 0:
+            existing[mid] -= 1
+            continue
+        db.add(RaffleTicket(session_id=session_id, candidate_id=candidate_id, item=mid, cost=MERCH.get(mid, {}).get("price", 0),
+                            ticket_no=f"OCH-{random.randint(100000, 999999)}"))
+    if candidate_id and session_id:
+        db.query(RaffleTicket).filter(RaffleTicket.session_id == session_id, RaffleTicket.candidate_id.is_(None)) \
+            .update({RaffleTicket.candidate_id: candidate_id})
+
+
+async def save_candidate(db: Session, *, session_id: str | None, full_name: str, birth: date, contact_info: str,
+                         phone=None, telegram=None, email=None, vk_user_id=None, vk_source=None, vk_profile_url=None,
+                         target_vacancy=None, readiness=None, university=None, course=None, specialty=None,
+                         consent_version=None, points=0, merch=None, telemetry=None) -> Candidate:
+    """Создаёт кандидата или обновляет анкету той же игровой сессии (повторная отправка не плодит дубли)."""
+    session = get_or_create_session(db, session_id, last_event="candidate_submitted", last_stage="final")
+    tele = merged_telemetry(session, telemetry)
+    tele.setdefault("total_points", points)
+    evaluation = await ai_agents.evaluate_with_ai(tele, target_vacancy, readiness)
+    evaluation.pop("source", None)
+    now = utcnow()
+    cand = (db.query(Candidate).filter(Candidate.session_id == session.id, Candidate.is_demo.is_(False)).first()
+            if session_id else None)
+    if cand is None:
+        cand = Candidate(id=f"cand_{uuid.uuid4().hex[:10]}", session_id=session.id, created_at=now,
+                         promo_code=new_promo_code(db), is_demo=False)
+        db.add(cand)
+    vk_id = str(vk_user_id) if vk_user_id else None
+    fields = dict(
+        full_name=full_name.strip(), birth_date=birth, contact_info=contact_info, phone=phone, telegram=telegram, email=email,
+        vk_user_id=vk_id, vk_source=vk_source or ("vk" if vk_id else None),
+        vk_profile_url=vk_profile_url or (f"https://vk.com/id{vk_id}" if vk_id else None),
+        target_vacancy=target_vacancy, readiness_date=readiness, university=university, course_or_grad_year=course,
+        specialty=specialty, consent=True, consent_at=now, consent_version=consent_version or CONSENT_VERSION,
+        total_points=int(points or 0), purchased_merch_tickets=[merch_id(m) for m in (merch or [])], telemetry=tele,
+        evaluation=evaluation, block=evaluation["hr_deep_dossier"]["block"],
     )
-    db.add(cand_obj)
+    for k, v in fields.items():
+        setattr(cand, k, v)
+    session.telemetry, session.evaluation = tele, evaluation
+    if vk_id:
+        session.vk_user_id = vk_id
+    db.flush()
+    save_tickets(db, session.id, cand.id, list(merch or []))
+    log_event(db, session.id, "candidate_submitted", {"id": cand.id})
     db.commit()
-    db.refresh(cand_obj)
-    
-    return serialize_candidate(cand_obj)
+    return cand
 
-@app.get("/api/candidates")
-def list_candidates(
-    request: Request,
-    response: Response,
-    q: Optional[str] = None,
-    university: Optional[str] = None,
-    block: Optional[str] = None,
-    sort: Optional[str] = "created",
-    db: Session = Depends(get_db)
-):
-    auth = verify_hr_auth(request)
-    response.headers["X-HR-Auth-Mode"] = auth["auth_mode"]
 
-    query = db.query(Candidate)
-    candidates = query.all()
-    serialized = [serialize_candidate(c) for c in candidates]
+def _get_candidate(db: Session, candidate_id: str) -> Candidate:
+    c = db.get(Candidate, candidate_id)
+    if not c:
+        raise HTTPException(status_code=404, detail="Кандидат не найден")
+    return c
 
-    # Фильтры
+
+def contact_template(c: Candidate) -> str:
+    """Шаблон приглашения из ТЗ с подстановкой лучшей станции кандидата."""
+    words = c.full_name.split()
+    name = words[1] if len(words) > 1 else words[0]
+    comp = enrich_candidate(front_candidate(c))["competencies"]
+    best = best_station(comp)
+    station = f" на станции {STATION_LABELS[best[0]]} ({best[1]}%)" if best else ""
+    return (f"Привет, {name}! Ты круто прошёл(-ла) симулятор ОЧАКОВО и набрал(а) высокий балл{station}. "
+            f"Приглашаем тебя на оплачиваемую практику и экскурсию на ул. Рябиновая, 44!")
+
+
+async def send_to_candidate(db: Session, c: Candidate, text: str, keyboard: list | None, sent_by: str = "hr") -> dict:
+    """Сообщение кандидату от имени сообщества (или симуляция) + статус «Приглашён в ВК»."""
+    result = await vk_bot.send_message(db, vk_user_id=c.vk_user_id, text=text, keyboard=keyboard, kind="invite",
+                                       candidate_id=c.id, session_id=c.session_id, sent_by=sent_by,
+                                       force_demo=c.is_demo, is_demo=c.is_demo)
+    if result["delivered"] or result["simulated"]:
+        c.status, c.invited_at = "invited_vk", utcnow()
+    log_event(db, c.session_id or c.id, "hr_bot_invite", {"candidate_id": c.id, "channel": result["channel"],
+                                                          "delivered": result["delivered"]})
+    db.commit()
+    return result
+
+
+# ======================================================================================
+# Служебные
+# ======================================================================================
+@app.get("/", tags=["service"])
+def root():
+    return {"service": "ОЧАКОВО: СЕКРЕТНЫЙ КОД 1978", "version": VERSION, "docs": "/docs", "health": "/api/health"}
+
+
+@app.get("/api/health", tags=["service"])
+@app.get("/health", tags=["service"], include_in_schema=False)
+def health(db: Session = Depends(get_db)):
+    return {
+        "status": "ok", "service": "ochakovo-1978-backend", "version": VERSION, "time": iso(utcnow()),
+        "db": "sqlite", "candidates": db.query(Candidate).count(),
+        "llm": {"provider": ai_agents.llm.provider, "model": ai_agents.llm.model, "fallback": "rules"},
+        "vk_bot": vk_bot.status(),
+        "vk_sign_check": bool(os.getenv("VK_APP_SECRET", "").strip()),
+    }
+
+
+# ======================================================================================
+# ИИ-агент №1: маскот Крафти
+# ======================================================================================
+@app.post("/api/ai/mascot-chat", response_model=MascotChatResponse, tags=["ai"])
+@app.post("/api/mascot/chat", response_model=MascotChatResponse, tags=["ai"])
+async def mascot_chat(req: MascotChatRequest, db: Session = Depends(get_db)):
+    stage = req.current_stage or (req.model_extra or {}).get("stage")
+    stage = stage if stage in STAGES else None
+    session = get_or_create_session(db, req.session_id, last_stage=stage)
+    history = [h.model_dump() for h in req.history]
+    if not history:
+        rows = (db.query(ChatMessage).filter(ChatMessage.session_id == session.id)
+                .order_by(ChatMessage.id.desc()).limit(8).all())
+        history = [{"role": r.role, "text": r.text} for r in reversed(rows)]
+
+    result = await ai_agents.mascot_reply(req.message, stage, history, list(session.asked_topics or []))
+    topic = result["topic"]
+    session.add_topic(topic)
+    db.add(ChatMessage(session_id=session.id, role="user", text=req.message, topic=topic, stage=stage))
+    db.add(ChatMessage(session_id=session.id, role="assistant", text=result["reply"], topic=topic, stage=stage,
+                       source=result["source"]))
+    log_event(db, session.id, "asked_topics", {"topic": topic, "message": req.message[:200], "source": "mascot"})
+    db.commit()
+    label = topic_label(topic)
+    return MascotChatResponse(reply=result["reply"], suggested_questions=result["suggestions"], detected_topic=label.lower(),
+                              topic=topic, topic_label=label, suggestions=result["suggestions"], source=result["source"])
+
+
+# ======================================================================================
+# ИИ-агент №2: профайлинг по телеметрии
+# ======================================================================================
+@app.post("/api/game/evaluate-telemetry", response_model=EvaluateTelemetryResponse, tags=["ai"])
+async def evaluate_telemetry(req: EvaluateTelemetryRequest, db: Session = Depends(get_db)):
+    session = get_or_create_session(db, req.session_id, last_stage="final")
+    tele = merged_telemetry(session, req.model_dump())
+    result = await ai_agents.evaluate_with_ai(tele)
+    session.telemetry = tele
+    session.evaluation = {k: v for k, v in result.items() if k != "source"}
+    log_event(db, session.id, "evaluation", {"retention": result["hr_deep_dossier"]["probation_survival_probability"]})
+    db.commit()
+    return result
+
+
+@app.post("/api/recommendation", tags=["ai"])
+async def recommendation(req: RecommendationRequest, db: Session = Depends(get_db)):
+    """Формат фронта: archetype, competencies, matches, retention_score, strengths, growth, verdict (+ блоки контракта)."""
+    session = get_or_create_session(db, req.session_id)
+    tele = merged_telemetry(session, req.telemetry)
+    result = await ai_agents.evaluate_with_ai(tele)
+    session.telemetry = tele
+    session.evaluation = {k: v for k, v in result.items() if k != "source"}
+    db.commit()
+    return {**result["recommendation"], "archetype_title": result["student_recommendations"]["archetype_title"],
+            "hr_verdict": result["hr_deep_dossier"]["ai_executive_summary"],
+            "financial_summary": result["student_recommendations"]["financial_summary"],
+            "student_recommendations": result["student_recommendations"],
+            "hr_deep_dossier": result["hr_deep_dossier"], "source": result["source"]}
+
+
+# ======================================================================================
+# Кандидаты
+# ======================================================================================
+@app.post("/api/candidates/submit", response_model=CandidateSubmitResponse, tags=["candidates"])
+async def submit_candidate(req: CandidateSubmitRequest, db: Session = Depends(get_db)):
+    if calc_age(req.birth_date) < MIN_AGE:
+        return JSONResponse(status_code=400, content={"detail": AGE_ERROR, "errors": {"birth_date": AGE_ERROR}})
+    tele = {**req.telemetry_payload, "total_points": req.total_points or req.telemetry_payload.get("total_points", 0)}
+    contact = req.contact_info.strip()
+    phone = contact if re.fullmatch(r"[\d\s()+-]{10,}", contact) else None
+    telegram = contact if contact.startswith("@") else None
+    email = contact if "@" in contact and not contact.startswith("@") else None
+    cand = await save_candidate(
+        db, session_id=req.session_id, full_name=req.full_name, birth=req.birth_date, contact_info=contact,
+        phone=phone, telegram=telegram, email=email, vk_user_id=req.vk_user_id, vk_profile_url=req.vk_profile_url,
+        target_vacancy=req.target_vacancy, readiness=req.readiness_date, university=req.university_or_college,
+        course=req.course_or_grad_year, points=req.total_points, merch=req.purchased_merch_tickets, telemetry=tele,
+    )
+    return {
+        "candidate_id": cand.id, "promo_code": cand.promo_code, "vk_linked": bool(cand.vk_user_id),
+        "message": "Анкета принята! Покажи промокод на стойке ОЧАКОВО, чтобы получить мерч и записаться на экскурсию.",
+        "student_recommendations": cand.evaluation["student_recommendations"],
+        "hr_deep_dossier": cand.evaluation["hr_deep_dossier"],
+    }
+
+
+@app.post("/api/candidates", status_code=201, tags=["candidates"])
+async def create_candidate_front(req: FrontCandidateCreate, request: Request, db: Session = Depends(get_db)):
+    """Формат фронтенда: {form, telemetry, points, session_id} → 201 кандидат. Ошибки — 422 {"errors": {поле: текст}}."""
+    f = req.form
+    errors: dict[str, str] = {}
+    fio = str(f.get("fio") or f.get("full_name") or "").strip()
+    if len(fio.split()) < 2:
+        errors["fio"] = "Укажи фамилию и имя (можно с отчеством)"
+    birth = parse_birth_date(f.get("birth_date"))
+    if not birth:
+        errors["birth_date"] = "Укажи дату рождения"
+    elif calc_age(birth) < MIN_AGE:
+        errors["birth_date"] = AGE_ERROR
+    elif calc_age(birth) > 80:
+        errors["birth_date"] = "Проверь год рождения"
+
+    vk_user_id = f.get("vk_user_id")
+    if vk_user_id and os.getenv("VK_APP_SECRET", "").strip():
+        verified_id, verified = vk_user_from_request(request)
+        if not verified or str(verified_id) != str(vk_user_id):
+            vk_user_id = None   # без валидной подписи vk_user_id не доверяем
+    phone, telegram, email = (str(f.get(k) or "").strip() or None for k in ("phone", "telegram", "email"))
+    if not any([phone, telegram, email, vk_user_id]):
+        errors["contact"] = "Нужен хотя бы один контакт: телефон, Telegram, email или ВКонтакте"
+    if phone and len(re.sub(r"\D", "", phone)) < 10:
+        errors["phone"] = "Проверь номер телефона"
+    if email and not re.fullmatch(r"\S+@\S+\.\S+", email):
+        errors["email"] = "Проверь email"
+    for key, msg in (("vacancy", "Выбери вакансию"), ("readiness", "Когда готов(а) выйти?"),
+                     ("university", "Укажи вуз или колледж")):
+        if len(str(f.get(key) or "").strip()) < (2 if key == "university" else 1):
+            errors[key] = msg
+    if f.get("consent") is not True:
+        errors["consent"] = "Нужно согласие на обработку персональных данных"
+    if errors:
+        return JSONResponse(status_code=422, content={"errors": errors})
+
+    tele = dict(req.telemetry or {})
+    cand = await save_candidate(
+        db, session_id=req.session_id or tele.get("session_id"), full_name=fio, birth=birth,
+        contact_info=" · ".join(x for x in (phone, telegram, email, f"vk.com/id{vk_user_id}" if vk_user_id else None) if x),
+        phone=phone, telegram=telegram, email=email, vk_user_id=vk_user_id, vk_source=f.get("vk_source"),
+        vk_profile_url=f.get("vk_profile_url"), target_vacancy=str(f.get("vacancy")), readiness=str(f.get("readiness")),
+        university=str(f.get("university")).strip(), course=f.get("study_level"), specialty=f.get("specialty"),
+        consent_version=f.get("consent_version"), points=req.points or tele.get("total_points") or 0,
+        merch=tele.get("purchased_merch_tickets") or [], telemetry=tele,
+    )
+    return candidate_to_dict(cand)
+
+
+@app.get("/api/candidates", tags=["candidates"])
+def list_candidates(university: str | None = None, block: str | None = None, q: str | None = None,
+                    sort: str = "created", include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    items = [candidate_to_dict(c) for c in demo_filter(db.query(Candidate), Candidate, include_demo).all()]
     if university:
-        serialized = [c for c in serialized if c["university"] == university]
+        items = [c for c in items if c["university"] == university]
     if block:
-        serialized = [c for c in serialized if c["block"] == block]
+        items = [c for c in items if c["block"] == block]
     if q:
-        q_lower = q.lower()
-        serialized = [c for c in serialized if q_lower in f"{c['fio']} {c['vacancy']} {c['university']} {c['specialty']}".lower()]
+        needle = q.lower()
+        items = [c for c in items if needle in " ".join([c["fio"], c["vacancy"], c["university"]]).lower()]
+    keys = {"retention": lambda c: -c["retention_score"], "points": lambda c: -c["points"],
+            "match": lambda c: -c["top_match"]["match"]}
+    items.sort(key=keys.get(sort, lambda c: c["created_at"] or ""), reverse=sort not in keys)
+    return items
 
-    # Сортировка: новые живые заявки всегда в топе!
-    if sort == "points":
-        serialized.sort(key=lambda x: x["points"], reverse=True)
-    elif sort == "retention":
-        serialized.sort(key=lambda x: RecSysAgent.calculate_retention(RecSysAgent.compute_competencies(x["telemetry"]), x["telemetry"]), reverse=True)
-    else:
-        # По умолчанию: живые заявки первыми, затем по дате
-        serialized.sort(key=lambda x: (1 if x["is_live"] else 0, x["created_at"]), reverse=True)
 
-    return serialized
-
-@app.get("/api/candidates/{candidate_id}/dossier")
-def get_candidate_dossier(candidate_id: str, request: Request, response: Response, db: Session = Depends(get_db)):
-    auth = verify_hr_auth(request)
-    response.headers["X-HR-Auth-Mode"] = auth["auth_mode"]
-
-    cand = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-    if not cand:
-        raise HTTPException(status_code=404, detail="Кандидат не найден")
-    
-    cand_dict = serialize_candidate(cand)
-    t = cand_dict["telemetry"]
-    comp = RecSysAgent.compute_competencies(t)
-    archetype = RecSysAgent.determine_archetype(comp)
-    retention = RecSysAgent.calculate_retention(comp, t)
-    matches = RecSysAgent.match_vacancies(comp)
-    
-    mentor = MENTORS.get(cand_dict["block"], MENTORS["line"])
-    probation_risk = max(5, min(65, round((100 - retention) * 0.55)))
-    
-    asked_topics_raw = t.get("asked_topics", {})
-    topics_list = [
-        {"topic": k, "label": TOPIC_LABELS.get(k, k), "count": v, "tip": f"Кандидат интересовался темой «{TOPIC_LABELS.get(k, k)}»"}
-        for k, v in asked_topics_raw.items()
-    ]
-    
-    risks = []
-    if probation_risk > 25:
-        risks.append("Требуется дополнительное внимание наставника в первые 2 недели")
-    if "dorm" in asked_topics_raw:
-        risks.append("Иногородний студент: требуется своевременное заселение на Рябиновую 36к2")
-    if "session" in asked_topics_raw:
-        risks.append("Согласовать график со сдачей сессии на заводе")
-
-    return {
-        "candidate": cand_dict,
-        "auth_mode": auth["auth_mode"],
-        "competencies": [
-            {"key": "safety", "label": "Индекс ТБ и дисциплины (СИЗ)", "value": comp["safety"]},
-            {"key": "lab", "label": "Точность титрования и Brix (ATAGO)", "value": comp["lab"]},
-            {"key": "speed", "label": "Контроль линии (SMI SK 500 P) и ТТН", "value": comp["speed"]},
-            {"key": "systems", "label": "Мнемосхемы, МЭА и КИПиА", "value": comp["systems"]},
-            {"key": "lms", "label": "Инструменты менеджмента Mirapolis", "value": comp["lms"]},
-        ],
-        "retention_score": retention,
-        "probation_dropout_risk": probation_risk,
-        "shift_readiness": {"level": "full", "label": "Готов(а) к сменам 2/2 с наставником"},
-        "asked_topics": topics_list,
-        "mentor": {**mentor, "bridge": f"{cand_dict['age'] or '20+'} + {mentor['age']} лет"},
-        "matches": matches[:3],
-        "archetype": archetype,
-        "risks": risks,
-        "why_cards": t.get("why_ochakovo_cards_viewed", []),
-        "calculator": t.get("calculator", {}),
-        "mirapolis_courses": [
-            "Охрана труда и пожарная безопасность (вводный)",
-            "Стандарт качества ОЧАКОВО: натуральные напитки",
-            "Инструменты менеджмента: SMART, SWOT, Исикава, 5 Почему",
-            "Основы работы на автоматизированном оборудовании"
-        ],
-        "summary": (
-            f"{cand_dict['fio']}, {cand_dict['age'] or '—'} лет, {cand_dict['university']}. "
-            f"Архетип: {archetype['name']}. Лучший мэтч: «{matches[0]['title']}» {matches[0]['match']}%. "
-            f"Прогноз удержания {retention}/100, риск ухода на испытательном снижен до {probation_risk}%!"
-        )
-    }
-
-@app.post("/api/candidates/{candidate_id}/mirapolis")
-def assign_mirapolis_courses(candidate_id: str, db: Session = Depends(get_db)):
-    cand = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-    if not cand:
-        raise HTTPException(status_code=404, detail="Кандидат не найден")
-    return {
-        "status": "queued",
-        "candidate_id": candidate_id,
-        "courses": [
-            "Вводный курс Охраны Труда",
-            "Инструменты менеджмента (SMART, SWOT, Исикава)",
-            "Технологические регламенты ОЧАКОВО"
-        ],
-        "message": "Курсы успешно назначены в СДО Mirapolis"
-    }
-
-# ------------------------------------------------------------- 8. Аналитика (Dashboard)
-
-@app.get("/api/analytics/summary")
-@app.get("/api/hr/dashboard")
-def get_analytics_summary(request: Request, response: Response, db: Session = Depends(get_db)):
-    auth = verify_hr_auth(request)
-    response.headers["X-HR-Auth-Mode"] = auth["auth_mode"]
-
-    candidates = db.query(Candidate).all()
-    serialized = [serialize_candidate(c) for c in candidates]
-    
-    live_count = sum(1 for c in serialized if c["is_live"])
-    total_count = len(serialized)
-    
-    # Базовая сезонная воронка с динамическим обновлением
-    base_visitors = 1840 + live_count * 2
-    base_started = 1236 + live_count
-    base_ppe = 1012 + live_count
-    base_stations = 584 + live_count
-    base_capsule = 512 + live_count
-    base_forms = 118 + live_count
-
-    funnel = [
-        {"step": "Открыли игру (QR/ВК)", "value": base_visitors},
-        {"step": "Начали квест", "value": base_started},
-        {"step": "Прошли ТБ (СИЗ)", "value": base_ppe},
-        {"step": "Прошли 4 станции", "value": base_stations},
-        {"step": "Открыли капсулу 1978", "value": base_capsule},
-        {"step": "Отправили анкету (18+)", "value": base_forms},
-    ]
-
-    conv = round((base_forms / base_visitors) * 100, 1)
-
-    # Статистика по блокам
-    by_block = [
-        {"block": "engineering", "label": "Инженерия", "color": "#A2AAAD", "count": sum(1 for c in serialized if c["block"] == "engineering")},
-        {"block": "profile", "label": "Химики и технологи", "color": "#D50032", "count": sum(1 for c in serialized if c["block"] == "profile")},
-        {"block": "line", "label": "Линейный персонал", "color": "#F39200", "count": sum(1 for c in serialized if c["block"] == "line")},
-        {"block": "free", "label": "Бесплатная практика", "color": "#2D68C4", "count": sum(1 for c in serialized if c["block"] == "free")},
-    ]
-
-    # Топ вузов
-    uni_counts: Dict[str, int] = {}
-    for c in serialized:
-        uni = c["university"]
-        uni_counts[uni] = uni_counts.get(uni, 0) + 1
-    by_uni = [{"university": k, "count": v} for k, v in sorted(uni_counts.items(), key=lambda x: x[1], reverse=True)]
-
-    # Топ тем маскота
-    topic_counts: Dict[str, int] = {}
-    for c in serialized:
-        for t_key, t_cnt in c["telemetry"].get("asked_topics", {}).items():
-            topic_counts[t_key] = topic_counts.get(t_key, 0) + t_cnt
-    top_topics = [
-        {"topic": k, "label": TOPIC_LABELS.get(k, k), "count": v}
-        for k, v in sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:6]
-    ]
-
-    # Средний возраст
-    ages = [c["age"] for c in serialized if c["age"]]
-    avg_age = round(sum(ages) / len(ages), 1) if ages else 21.6
-
-    return {
-        "total_candidates": total_count,
-        "live_candidates": live_count,
-        "funnel": funnel,
-        "conversion_to_form": conv,
-        "baseline_conversion": 0.02, # 0.02% было до внедрения проекта
-        "probation_dropout": {
-            "current": 38, # 38% текущий отсев на испытательном
-            "forecast": 9  # 9% прогноз благодаря пребордингу и наставникам
-        },
-        "avg_retention": 86,
-        "avg_age": avg_age,
-        "company_avg_age": 52, # Средний возраст сотрудников ОЧАКОВО
-        "by_block": by_block,
-        "by_university": by_uni,
-        "top_topics": top_topics,
-        "auth_mode": auth["auth_mode"],
-        "source": "remote"
-    }
-
-# ------------------------------------------------------------- 9. ВК-бот и Приглашения
-
-@app.post("/api/bot/message")
-def bot_message(req: BotMessageRequest, db: Session = Depends(get_db)):
-    msgs = handle_bot_message(req.payload, req.text, req.ctx)
-    if req.session_id:
-        for m in msgs:
-            b_msg = BotMessage(
-                id=f"msg_{int(datetime.now(timezone.utc).timestamp())}_{random.randint(1000, 9999)}",
-                session_id=req.session_id,
-                sender=m.get("from", "bot"),
-                text=m.get("text", ""),
-                topic=m.get("topic", "other"),
-                payload=req.payload
-            )
-            db.add(b_msg)
-        db.commit()
-    return {"messages": msgs}
-
-@app.post("/api/bot/invite-draft")
-def invite_draft(req: InviteDraftRequest, request: Request, response: Response, db: Session = Depends(get_db)):
-    auth = verify_hr_auth(request)
-    response.headers["X-HR-Auth-Mode"] = auth["auth_mode"]
-
-    cand = db.query(Candidate).filter(Candidate.id == req.candidate_id).first()
-    if not cand:
-        raise HTTPException(status_code=404, detail="Кандидат не найден")
-    draft = RecSysAgent.generate_invite_draft(cand)
-    draft["auth_mode"] = auth["auth_mode"]
-    return draft
-
-@app.post("/api/bot/send")
-def bot_send(req: BotSendRequest, request: Request, response: Response, db: Session = Depends(get_db)):
-    auth = verify_hr_auth(request)
-    response.headers["X-HR-Auth-Mode"] = auth["auth_mode"]
-
-    cand = db.query(Candidate).filter(Candidate.id == req.candidate_id).first()
-    msg_id = f"msg_{int(datetime.now(timezone.utc).timestamp())}_{random.randint(1000, 9999)}"
-    
-    # Сохраняем отправленное сообщение в истории бота
-    b_msg = BotMessage(
-        id=msg_id,
-        session_id=cand.session_id if cand else "hr_outbox",
-        sender="bot",
-        text=req.text,
-        topic="hr_invite",
-        payload="invite"
-    )
-    db.add(b_msg)
+@app.delete("/api/candidates/me", tags=["candidates"])
+def delete_my_data(request: Request, db: Session = Depends(get_db)):
+    """Удаление данных пользователя по проверенному vk_user_id (правило ВК 1.1.10)."""
+    vk_id, verified = vk_user_from_request(request)
+    if not vk_id or (os.getenv("VK_APP_SECRET", "").strip() and not verified):
+        return JSONResponse(status_code=400, content={"errors": {"form": "Не удалось подтвердить профиль ВКонтакте"}})
+    sessions = {s.id for s in db.query(GameSession).filter(GameSession.vk_user_id == str(vk_id)).all()}
+    candidates = db.query(Candidate).filter(Candidate.vk_user_id == str(vk_id), Candidate.is_demo.is_(False)).all()
+    sessions |= {c.session_id for c in candidates if c.session_id}
+    cand_ids = [c.id for c in candidates]
+    for c in candidates:
+        db.delete(c)
+    db.query(RaffleTicket).filter(RaffleTicket.session_id.in_(sessions)).delete(synchronize_session=False)
+    for model in (TelemetryEvent, ChatMessage):
+        db.query(model).filter(model.session_id.in_(sessions)).delete(synchronize_session=False)
+    db.query(BotMessage).filter((BotMessage.vk_user_id == str(vk_id)) | BotMessage.candidate_id.in_(cand_ids)) \
+        .delete(synchronize_session=False)
+    db.query(GameSession).filter(GameSession.id.in_(sessions)).delete(synchronize_session=False)
     db.commit()
-    
+    return {"ok": True, "deleted_candidates": len(cand_ids), "deleted_sessions": len(sessions)}
+
+
+@app.get("/api/candidates/{candidate_id}", tags=["candidates"])
+def get_candidate(candidate_id: str, db: Session = Depends(get_db)):
+    return candidate_to_dict(_get_candidate(db, candidate_id))
+
+
+@app.get("/api/candidates/{candidate_id}/dossier", tags=["candidates"])
+def candidate_dossier(candidate_id: str, db: Session = Depends(get_db)):
+    """Формат buildDossier() фронта + ИИ-досье контракта, вопросы маскоту и история сообщений бота."""
+    c = _get_candidate(db, candidate_id)
+    dossier = build_dossier(front_candidate(c))
+    dossier["candidate"] = candidate_to_dict(c)
+    chat = (db.query(ChatMessage).filter(ChatMessage.session_id == c.session_id, ChatMessage.role == "user")
+            .order_by(ChatMessage.id).all()) if c.session_id else []
+    messages = db.query(BotMessage).filter(BotMessage.candidate_id == c.id).order_by(BotMessage.id).all()
+    ev = c.evaluation or {}
+    return {**dossier, "hr_deep_dossier": ev.get("hr_deep_dossier", {}),
+            "student_recommendations": ev.get("student_recommendations", {}),
+            "mascot_questions": [{"text": m.text, "topic": m.topic, "topic_label": topic_label(m.topic or "other"),
+                                  "at": iso(m.created_at)} for m in chat],
+            "bot_messages": [vk_bot.message_to_dict(m) for m in messages], "source": "remote"}
+
+
+@app.post("/api/candidates/{candidate_id}/mirapolis", tags=["candidates"])
+def assign_mirapolis(candidate_id: str, db: Session = Depends(get_db)):
+    c = _get_candidate(db, candidate_id)
+    dossier = build_dossier(front_candidate(c))
+    c.mirapolis_status, c.mirapolis_assigned_at = "queued", utcnow()
+    db.commit()
+    courses, mentor = dossier["mirapolis_courses"], dossier["mentor"]
+    return {"status": "queued", "candidate_id": c.id, "courses": courses, "assigned_at": iso(c.mirapolis_assigned_at),
+            "message": f"Профиль передан в СДО Mirapolis: назначено {len(courses)} курса, наставник {mentor['name']}."}
+
+
+@app.post("/api/candidates/{candidate_id}/status", tags=["candidates"])
+async def update_status(candidate_id: str, request: Request, db: Session = Depends(get_db)):
+    body = await request.json()
+    status = str(body.get("status", ""))
+    if status not in STATUS_LABELS:
+        return JSONResponse(status_code=422, content={"errors": {"status": " | ".join(STATUS_LABELS)}})
+    c = _get_candidate(db, candidate_id)
+    c.status = status
+    if status.startswith("invited") and not c.invited_at:
+        c.invited_at = utcnow()
+    db.commit()
+    return candidate_to_dict(c)
+
+
+# ======================================================================================
+# Аналитика и панель HR
+# ======================================================================================
+def build_analytics(db: Session, include_demo: bool) -> dict:
+    sessions = demo_filter(db.query(GameSession), GameSession, include_demo).all()
+    candidates = demo_filter(db.query(Candidate), Candidate, include_demo).all()
+    events = demo_filter(db.query(TelemetryEvent.session_id, TelemetryEvent.type, TelemetryEvent.payload),
+                         TelemetryEvent, include_demo).all()
+    enriched = [candidate_to_dict(c) for c in candidates]
+
+    by_session: dict[str, set[str]] = {}
+    stations: dict[str, set[str]] = {}
+    for sid, kind, payload in events:
+        by_session.setdefault(sid, set()).add(kind)
+        if kind == "station_done":
+            station = (payload or {}).get("id") or (payload or {}).get("station") or f"#{len(stations.get(sid, ()))}"
+            stations.setdefault(sid, set()).add(str(station))
+    cand_sessions = {c.session_id for c in candidates}
+    game_sids = {s.id for s in sessions if s.channel != "bot" or s.id in cand_sessions} | cand_sessions
+    game_sids |= {sid for sid in by_session if not sid.startswith(("vk-", "hr-"))}
+    depth = Counter(session_funnel_stage(by_session.get(sid, set()), len(stations.get(sid, ())), sid in cand_sessions)
+                    for sid in game_sids)
+    total = len(game_sids)
+    funnel = []
+    for i, (key, label) in enumerate(FUNNEL_STAGES):
+        count = sum(v for d, v in depth.items() if d >= i)
+        funnel.append({"id": key, "step": label, "value": count, "label": label, "count": count,
+                       "pct": round(100 * count / total, 1) if total else 0.0})
+
+    retention = [c["retention_score"] for c in enriched]
+    risks = [(c.evaluation or {}).get("hr_deep_dossier", {}).get("probation_dropout_risk") for c in candidates]
+    risks = [r for r in risks if r is not None]
+    forecast = round(mean(risks), 1) if risks else None
+    conversion = round(100 * len(candidates) / total, 2) if total else 0.0
+    ages = [c["age"] for c in enriched]
+    today = date.today()
+
+    block_counts = Counter(c["block"] for c in enriched)
+    by_block = [{"block": b, "id": b, "label": meta["label"], "full_label": meta["full_label"], "color": meta["color"],
+                 "count": block_counts.get(b, 0)} for b, meta in BLOCKS.items()]
+    unis = Counter((c["university"] or "—").strip() for c in enriched)
+    topics: Counter = Counter()
+    for s in sessions:
+        topics.update(topic_counts((s.telemetry or {}).get("asked_topics")))
+    tickets = demo_filter(db.query(RaffleTicket), RaffleTicket, include_demo).all()
+    merch_counter = Counter(t.item for t in tickets)
+    needs_dorm = [c for c in enriched if (c["telemetry"].get("calculator") or {}).get("last", {}).get("dorm")
+                  or (c["telemetry"].get("calculator_prefs") or {}).get("needs_dorm") or "dorm" in (c["telemetry"].get("asked_topics") or {})]
+    mira = Counter((c.evaluation or {}).get("hr_deep_dossier", {}).get("mirapolis_pre_attestation", {}).get("status")
+                   for c in candidates)
+    bot_rows = demo_filter(db.query(BotMessage), BotMessage, include_demo).all()
+    week_ago = utcnow() - timedelta(days=7)
+    top_topics = [{"topic": t, "id": t, "label": topic_label(t), "count": n} for t, n in topics.most_common()]
     return {
-        "ok": True,
-        "delivered": True,
-        "channel": "vk" if req.vk_user_id else "vk_demo",
-        "message_id": msg_id,
-        "auth_mode": auth["auth_mode"]
+        "generated_at": iso(utcnow()), "is_live": True, "include_demo": include_demo, "source": "remote",
+        # --- ключи фронтенда (API_CONTRACT.md → GET /api/analytics/summary)
+        "total_candidates": len(candidates),
+        "live_candidates": sum(1 for c in candidates if not c.is_demo),
+        "submitted_today": sum(1 for c in candidates if aware(c.created_at).date() == today),
+        "funnel": funnel,
+        "conversion_to_form": round(conversion, 1),
+        "baseline_conversion": BASELINE_CONVERSION_PCT,
+        "probation_dropout": {"current": BASELINE_PROBATION_DROPOUT, "forecast": forecast if forecast is not None else 9},
+        "avg_retention": round(mean(retention)) if retention else None,
+        "avg_age": round(mean(ages), 1) if ages else None,
+        "company_avg_age": COMPANY_AVG_AGE,
+        "by_block": by_block,
+        "by_university": [{"university": n, "count": k} for n, k in unis.most_common()],
+        "top_topics": top_topics[:6],
+        # --- расширенная аналитика панели HR
+        "total_players": total,
+        "submitted": len(candidates),
+        "kpis": {
+            "total_players": total, "candidates_total": len(candidates),
+            "new_candidates_7d": sum(1 for c in candidates if aware(c.created_at) >= week_ago),
+            "conversion_to_application": {"baseline_pct": BASELINE_CONVERSION_PCT, "current_pct": conversion,
+                                          "note": "было: конверсия в найм 0,02%; сейчас: игроки → анкета"},
+            "probation": {"baseline_dropout_pct": BASELINE_PROBATION_DROPOUT, "forecast_dropout_pct": forecast,
+                          "avg_survival_probability": round(mean(retention), 1) if retention else None,
+                          "note": "для студентов испытательного срока нет — прогноз риска ухода в период практики"},
+            "avg_points": round(mean(c.total_points for c in candidates)) if candidates else 0,
+            "dorm_demand_pct": round(100 * len(needs_dorm) / len(candidates), 1) if candidates else 0.0,
+            "merch_tickets_total": len(tickets),
+        },
+        "asked_topics": top_topics,
+        "dorm_demand": {"candidates_need_dorm": len(needs_dorm), "candidates_total": len(candidates),
+                        "pct": round(100 * len(needs_dorm) / len(candidates), 1) if candidates else 0.0,
+                        "dorm_questions": topics.get("dorm", 0), "dorm_price_rub": 3400, "address": "ул. Рябиновая, 36, к. 2"},
+        "merch": {"tickets_total": len(tickets), "points_spent": sum(t.cost for t in tickets),
+                  "by_item": [{"item_id": i, "title": merch_title(i), "count": k} for i, k in merch_counter.most_common()]},
+        "mirapolis": {"ready": mira.get("ready", 0), "intro": mira.get("intro", 0), "full_course": mira.get("full_course", 0),
+                      "queued": sum(1 for c in candidates if c.mirapolis_status == "queued")},
+        "statuses": [{"status": s, "label": STATUS_LABELS.get(s, s), "count": n}
+                     for s, n in Counter(c.status for c in candidates).most_common()],
+        "channels": [{"channel": ch, "count": k} for ch, k in Counter(s.channel or "direct" for s in sessions).most_common()],
+        "vk_bot": {**vk_bot.status(), "messages_total": len(bot_rows),
+                   "outgoing": sum(1 for m in bot_rows if m.direction == "out"),
+                   "incoming": sum(1 for m in bot_rows if m.direction == "in"),
+                   "delivered_vk": sum(1 for m in bot_rows if m.delivered), "simulated": sum(1 for m in bot_rows if m.simulated),
+                   "invites": sum(1 for m in bot_rows if m.kind == "invite")},
     }
 
-# ------------------------------------------------------------- 10. Экспорт в CSV
 
-@app.get("/api/hr/export-csv")
-def export_csv(request: Request, response: Response, db: Session = Depends(get_db)):
-    auth = verify_hr_auth(request)
-    
-    candidates = db.query(Candidate).all()
-    serialized = [serialize_candidate(c) for c in candidates]
-    
-    output = io.StringIO()
-    # Записываем BOM для идеального открытия в Excel
-    output.write("\ufeff")
-    writer = csv.writer(output, delimiter=";")
-    
-    writer.writerow([
-        "ID", "ФИО", "Возраст", "Дата рождения", "Телефон", "Telegram", "Email",
-        "Вакансия", "Блок", "Готовность", "Вуз / Колледж", "Курс", "Специальность",
-        "Крафт-баллы", "Архетип", "Прогноз удержания (%)", "Статус", "Дата создания"
-    ])
-    
-    for c in serialized:
-        comp = RecSysAgent.compute_competencies(c["telemetry"])
-        archetype = RecSysAgent.determine_archetype(comp)["name"]
-        retention = RecSysAgent.calculate_retention(comp, c["telemetry"])
+@app.get("/api/analytics/summary", tags=["hr"])
+def analytics_summary(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    return build_analytics(db, include_demo)
+
+
+@app.get("/api/hr/dashboard", tags=["hr"])
+def hr_dashboard(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    data = build_analytics(db, include_demo)
+    data["candidates"] = list_candidates(include_demo=include_demo, db=db)
+    rows = demo_filter(db.query(BotMessage), BotMessage, include_demo).order_by(BotMessage.id.desc()).limit(30).all()
+    data["bot_messages"] = [vk_bot.message_to_dict(m) for m in rows]
+    return data
+
+
+@app.get("/api/hr/bot-messages", tags=["hr"])
+def bot_messages(limit: int = Query(50, ge=1, le=500), candidate_id: str | None = None, direction: str | None = None,
+                 include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    """История сообщений ВК-бота (входящие, ответы, приглашения HR; реальные и симулированные)."""
+    q = demo_filter(db.query(BotMessage), BotMessage, include_demo)
+    if candidate_id:
+        q = q.filter(BotMessage.candidate_id == candidate_id)
+    if direction in ("in", "out"):
+        q = q.filter(BotMessage.direction == direction)
+    return {"mode": vk_bot.mode(), "items": [vk_bot.message_to_dict(m) for m in q.order_by(BotMessage.id.desc()).limit(limit)]}
+
+
+@app.post("/api/hr/contact-candidate", tags=["hr"])
+async def contact_candidate(req: ContactCandidateRequest, db: Session = Depends(get_db)):
+    """Связаться с кандидатом во ВКонтакте от имени сообщества (или симуляция) и отметить «Приглашён в ВК»."""
+    c = _get_candidate(db, req.candidate_id)
+    text = (req.message or "").strip() or contact_template(c)
+    result = await send_to_candidate(db, c, text, ai_agents.INVITE_KEYBOARD)
+    to = c.vk_profile_url or (f"https://vk.com/id{c.vk_user_id}" if c.vk_user_id else None)
+    return {
+        **result, "candidate_id": c.id, "status": c.status, "status_label": STATUS_LABELS.get(c.status, c.status),
+        "preview": {
+            "to": to or "кандидат пока не связан с ВК",
+            "candidate": c.full_name, "text": text, "keyboard": ai_agents.INVITE_KEYBOARD, "sent_at": iso(utcnow()),
+            "channel_label": ("Отправлено от имени сообщества ОЧАКОВО во ВКонтакте" if result["delivered"] else
+                              "Режим симуляции: сообщение сохранено в истории бота" if result["simulated"] else
+                              f"Не доставлено: {result['error']}"),
+        },
+    }
+
+
+CSV_COLUMNS = [
+    "ID", "Дата анкеты", "ФИО", "Возраст", "Дата рождения", "Телефон", "Telegram", "E-mail", "Профиль VK", "Вуз / колледж",
+    "Курс / год выпуска", "Специальность", "Желаемая вакансия", "Готовность выйти", "Баллы", "Блок", "Трек",
+    "Рекомендованная вакансия", "Мэтч, %", "Архетип", "ТБ и дисциплина", "Прогноз удержания, %", "Риск ухода, %",
+    "Риск оттока", "Внимательность", "Скорость", "Системное мышление", "Mirapolis", "Ценности", "Пред-аттестация Mirapolis",
+    "Наставник", "Вопросы маскоту", "Пункты для собеседования", "ИИ-резюме", "Мерч", "Промокод", "Статус", "Демо",
+]
+
+
+@app.get("/api/hr/export-csv", tags=["hr"])
+def export_csv(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter=";", quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
+    writer.writerow(CSV_COLUMNS)
+    q = demo_filter(db.query(Candidate), Candidate, include_demo).order_by(Candidate.created_at.desc())
+    for c in q.all():
+        ev = c.evaluation or {}
+        hr, st = ev.get("hr_deep_dossier", {}), ev.get("student_recommendations", {})
+        radar = hr.get("competency_radar", {})
         writer.writerow([
-            c["id"],
-            c["fio"],
-            c["age"] or "—",
-            c["birth_date"],
-            c["phone"],
-            c["telegram"],
-            c["email"],
-            c["vacancy"],
-            c["block"],
-            c["readiness"],
-            c["university"],
-            c["study_level"],
-            c["specialty"],
-            c["points"],
-            archetype,
-            retention,
-            "Новая заявка" if c["is_live"] else "База",
-            c["created_at"]
+            c.id, aware(c.created_at).strftime("%d.%m.%Y %H:%M"), c.full_name, calc_age(c.birth_date),
+            c.birth_date.strftime("%d.%m.%Y"), c.phone or "", c.telegram or "", c.email or "", contact_links(c).get("vk", ""),
+            c.university or "", c.course_or_grad_year or "", c.specialty or "", c.target_vacancy or "", c.readiness_date or "",
+            c.total_points, BLOCKS.get(c.block or "", {}).get("label", ""), hr.get("candidate_track_block", ""),
+            st.get("primary_vacancy", ""), st.get("match_percentage", ""), st.get("archetype_title", ""),
+            hr.get("safety_and_discipline_score", ""), hr.get("probation_survival_probability", ""),
+            hr.get("probation_dropout_risk", ""), hr.get("burnout_or_churn_risk", ""), radar.get("attention_to_detail", ""),
+            radar.get("stress_resistance_speed", ""), radar.get("technical_systems_thinking", ""),
+            radar.get("management_mirapolis_readiness", ""), radar.get("company_values_alignment", ""),
+            hr.get("mirapolis_pre_attestation", {}).get("label", ""), hr.get("recommended_mentor_type", ""),
+            ", ".join(hr.get("asked_topics_labels", [])), " | ".join(hr.get("interview_talking_points", [])),
+            hr.get("ai_executive_summary", ""), ", ".join(merch_title(m) for m in (c.purchased_merch_tickets or [])),
+            c.promo_code, STATUS_LABELS.get(c.status, c.status), "да" if c.is_demo else "нет",
         ])
-    
-    output.seek(0)
-    return Response(
-        content=output.getvalue().encode("utf-8-sig"),
-        media_type="text/csv; charset=utf-8",
-        headers={
-            "Content-Disposition": f"attachment; filename=ochakovo_candidates_{date.today().isoformat()}.csv",
-            "X-HR-Auth-Mode": auth["auth_mode"]
-        }
-    )
+    filename = f"ochakovo_candidates_{date.today():%Y%m%d}.csv"
+    return Response(content=("﻿" + buf.getvalue()).encode("utf-8"), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
-# ------------------------------------------------------------- 11. Раздача фронтенда (Single Container / Unified Serve)
 
-DIST_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
-if os.path.exists(DIST_DIR):
-    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="static")
+# ======================================================================================
+# Сессии и поток телеметрии (воронка)
+# ======================================================================================
+@app.post("/api/sessions", tags=["telemetry"])
+def create_session(req: SessionCreate, request: Request, db: Session = Depends(get_db)):
+    extra = req.model_extra or {}
+    vk_id, _ = vk_user_from_request(request)
+    s = get_or_create_session(db, req.session_id, channel=req.vk_ref or extra.get("channel"),
+                              platform=req.vk_platform or req.platform,
+                              vk_user_id=str(vk_id or req.vk_user_id) if (vk_id or req.vk_user_id) else None)
+    db.flush()
+    if not db.query(TelemetryEvent).filter(TelemetryEvent.session_id == s.id, TelemetryEvent.type == "session_open").first():
+        log_event(db, s.id, "session_open", {"vk_ref": req.vk_ref, "started_at": req.started_at})
+    db.commit()
+    return {"session_id": s.id, "created_at": iso(s.created_at)}
 
+
+def apply_event(db: Session, s: GameSession, kind: str, payload: dict) -> None:
+    """Обновляет сводную телеметрию сессии в формате фронта по одному событию."""
+    t = dict(s.telemetry or {})
+    if kind == "navigate":
+        s.last_stage = str(payload.get("to") or payload.get("stage") or payload.get("screen") or s.last_stage or "")[:32]
+    elif kind == "points":
+        value = payload.get("total", payload.get("value", payload.get("points")))
+        if isinstance(value, (int, float)):
+            t["total_points"] = int(value)
+    elif kind == "why_ochakovo_cards_viewed":
+        cards = list(t.get("why_ochakovo_cards_viewed") or [])
+        if payload.get("id") and payload["id"] not in cards:
+            cards.append(str(payload["id"]))
+        t["why_ochakovo_cards_viewed"] = cards
+    elif kind == "ppe_attempt":
+        t["ppe_attempts"] = int(t.get("ppe_attempts", 0)) + 1
+        t["ppe_wrong_picks"] = list(dict.fromkeys([*(t.get("ppe_wrong_picks") or []), *(payload.get("wrong") or [])]))
+    elif kind == "ppe_done" and isinstance(payload.get("attempts"), int):
+        t["ppe_attempts"] = payload["attempts"]
+    elif kind == "quiz_answer":
+        quiz = dict(t.get("quiz") or {"correct": 0, "total": 0})
+        quiz["total"] = int(quiz.get("total", 0)) + 1
+        quiz["correct"] = int(quiz.get("correct", 0)) + (1 if payload.get("correct") else 0)
+        t["quiz"] = quiz
+    elif kind == "station_done":
+        station = str(payload.get("id") or payload.get("station") or "unknown")
+        result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+        t["stations"] = {**(t.get("stations") or {}), station: result}
+        if payload.get("skipped"):
+            t["skipped"] = list(dict.fromkeys([*(t.get("skipped") or []), station]))
+    elif kind == "capsule_attempt":
+        t["capsule_attempts"] = int(t.get("capsule_attempts", 0)) + 1
+    elif kind == "capsule_open":
+        t["capsule_open"], t["unlocked_code"] = True, str(payload.get("code") or "1978")
+    elif kind == "calculator":
+        calc = dict(t.get("calculator") or {})
+        calc["interactions"] = int(calc.get("interactions", 0)) + 1
+        calc["night_ok"] = bool(calc.get("night_ok")) or bool(payload.get("nights"))
+        calc["last"] = payload
+        t["calculator"] = calc
+    s.telemetry = t
+    if kind == "asked_topics":
+        topic = normalize_topic(payload.get("topic"))
+        message = str(payload.get("message") or "")
+        # тот же вопрос уже засчитан эндпоинтом маскота — второй раз не считаем
+        duplicate = message and db.query(ChatMessage).filter(
+            ChatMessage.session_id == s.id, ChatMessage.role == "user", ChatMessage.text == message).first()
+        if not duplicate:
+            s.add_topic(topic)
+    s.last_event = kind
+
+
+@app.post("/api/telemetry", tags=["telemetry"])
+async def telemetry(request: Request, db: Session = Depends(get_db)):
+    """Одно событие {session_id, event, payload, ts} или пачка {events: [...]} / [...]."""
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Ожидается JSON")
+    if isinstance(body, dict) and isinstance(body.get("events"), list):
+        default_sid, items = body.get("session_id"), body["events"]
+    else:
+        default_sid = body.get("session_id") if isinstance(body, dict) else None
+        items = body if isinstance(body, list) else [body]
+    accepted = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("event") or item.get("type") or item.get("name") or "").strip()[:48]
+        sid = item.get("session_id") or default_sid
+        payload = item.get("payload") if isinstance(item.get("payload"), dict) else {
+            k: v for k, v in item.items() if k not in ("type", "event", "name", "session_id", "ts")}
+        if not kind:
+            continue
+        if not sid:   # события панели HR (hr_bot_invite) приходят без сессии
+            sid = f"hr-{payload.get('candidate_id')}" if payload.get("candidate_id") else None
+            if not sid:
+                continue
+            log_event(db, sid, kind, payload)
+            accepted += 1
+            continue
+        s = get_or_create_session(db, str(sid))
+        if kind == "session_open" and payload.get("vk_ref"):
+            s.channel = str(payload["vk_ref"])[:32]
+        apply_event(db, s, kind, payload)
+        log_event(db, s.id, kind, payload)
+        accepted += 1
+    db.commit()
+    return {"ok": True, "accepted": accepted}
+
+
+# ======================================================================================
+# ВК-бот, приглашения, розыгрыш
+# ======================================================================================
+@app.post("/api/bot/invite-draft", tags=["bot"])
+async def bot_invite_draft(req: InviteDraftRequest, db: Session = Depends(get_db)):
+    c = _get_candidate(db, req.candidate_id)
+    return await ai_agents.invite_draft(front_candidate(c))
+
+
+@app.post("/api/bot/message", tags=["bot"])
+async def bot_message(req: BotMessageRequest, db: Session = Depends(get_db)):
+    """Симулятор ВК-бота во фронте: тот же движок ответов, что у настоящего бота → {messages: [...]}."""
+    sid = req.session_id or (f"vk-{req.user_id}" if req.user_id else None)
+    session = get_or_create_session(db, sid) if sid else None
+    messages = await vk_bot.respond(req.payload, req.text, req.ctx, [], list(session.asked_topics or []) if session else [])
+    if session:
+        for m in messages:
+            if req.text and not vk_bot.parse_payload(req.payload):
+                session.add_topic(m["topic"])
+        log_event(db, session.id, "bot_message", {"text": (req.text or "")[:200], "payload": vk_bot.parse_payload(req.payload)})
+        db.commit()
+    return {"messages": messages}
+
+
+@app.post("/api/bot/send", tags=["bot"])
+async def bot_send(req: BotSendRequest, db: Session = Depends(get_db)):
+    """Отправка кандидату от имени сообщества: {ok, delivered, channel: vk | vk_demo, message_id}."""
+    c = db.get(Candidate, req.candidate_id) if req.candidate_id else None
+    keyboard = req.keyboard or ai_agents.INVITE_KEYBOARD
+    if c:
+        return await send_to_candidate(db, c, req.text or contact_template(c), keyboard)
+    result = await vk_bot.send_message(db, vk_user_id=req.vk_user_id, text=req.text, keyboard=keyboard, kind="invite",
+                                       sent_by="hr")
+    db.commit()
+    return result
+
+
+@app.post("/api/vk/callback", tags=["bot"], response_class=PlainTextResponse)
+async def vk_callback(request: Request):
+    """VK Callback API: подтверждение сервера и входящие сообщения (VK_BOT_MODE=callback)."""
+    body = await request.json()
+    secret = os.getenv("VK_SECRET", "")
+    if secret and body.get("secret") != secret:
+        raise HTTPException(status_code=403, detail="bad secret")
+    if body.get("type") == "confirmation":
+        return os.getenv("VK_CONFIRMATION_CODE", "")
+    if body.get("type") == "message_new":
+        msg = (body.get("object") or {}).get("message") or {}
+        if msg.get("from_id", 0) > 0 and not msg.get("out"):
+            asyncio.create_task(vk_bot.handle_incoming(msg["from_id"], msg.get("text"), msg.get("payload")))
+    return "ok"
+
+
+@app.post("/api/raffle/tickets", tags=["raffle"])
+def raffle_ticket(req: RaffleTicketRequest, db: Session = Depends(get_db)):
+    """{session_id, item_id} → {ok, tickets: {hoodie: 1}, ticket_no}."""
+    raw = req.item_id or req.item
+    if not raw:
+        return JSONResponse(status_code=422, content={"errors": {"item_id": "Укажи приз: hoodie, box, stickers или vip"}})
+    mid = merch_id(raw)
+    price = req.cost or MERCH.get(mid, {}).get("price", 0)
+    ticket_no = f"OCH-{random.randint(100000, 999999)}"
+    if req.session_id:
+        get_or_create_session(db, req.session_id)
+    db.add(RaffleTicket(session_id=req.session_id, candidate_id=req.candidate_id, item=mid, cost=price, ticket_no=ticket_no))
+    if req.session_id:
+        log_event(db, req.session_id, "raffle_ticket", {"item": mid, "price": price})
+    db.commit()
+    mine = Counter(t.item for t in db.query(RaffleTicket).filter(RaffleTicket.session_id == req.session_id).all()) \
+        if req.session_id else Counter({mid: 1})
+    return {"ok": True, "tickets": dict(mine), "ticket_no": ticket_no, "item_id": mid, "price": price}
+
+
+@app.get("/api/raffle/tickets", tags=["raffle"])
+def raffle_stats(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    tickets = demo_filter(db.query(RaffleTicket), RaffleTicket, include_demo).all()
+    return {"total": len(tickets),
+            "by_item": [{"item_id": i, "title": merch_title(i), "count": k} for i, k in Counter(t.item for t in tickets).most_common()],
+            "catalog": [{"item_id": i, **meta} for i, meta in MERCH.items()]}
