@@ -151,8 +151,8 @@ function Chat({ thread, onBack }) {
 }
 
 export default function BotScreen() {
-  const { state, actions } = useGame()
-  const { push } = useBot()
+  const { state, actions, apiStatus } = useGame()
+  const { push, syncInbox } = useBot()
   const { threads, order, active } = state.bot
   const [mobileChat, setMobileChat] = useState(false)
   const [q, setQ] = useState('')
@@ -163,6 +163,15 @@ export default function BotScreen() {
     actions.botActive(active)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Приглашения HR с сервера (GET /api/bot/inbox): сразу при открытии и каждые 6 с, пока вкладка открыта
+  useEffect(() => {
+    if (!apiStatus.online) return
+    syncInbox().catch(() => {})
+    const id = setInterval(() => syncInbox().catch(() => {}), 6000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiStatus.online])
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">

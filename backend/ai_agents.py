@@ -17,6 +17,8 @@ from datetime import datetime, timedelta
 
 import httpx
 
+import http_pool
+
 import database  # noqa: F401 — загружает .env до того, как LLMClient прочитает ключи
 from knowledge_base import (
     ALCOHOL_ANSWER, ALCOHOL_KEYWORDS, FALLBACK_ANSWER, FAQ, SMALL_TALK, STAGES, TOPICS, build_kb_text, normalize_topic,
@@ -56,28 +58,28 @@ class LLMClient:
         if not self.provider:
             return None
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                if self.provider == "openai":
-                    r = await client.post(
-                        f"{self.openai_base}/chat/completions",
-                        headers={"Authorization": f"Bearer {self.openai_key}"},
-                        json={"model": self.openai_model, "temperature": temperature, "max_tokens": max_tokens,
-                              "response_format": {"type": "json_object"},
-                              "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
-                    )
-                    r.raise_for_status()
-                    text = r.json()["choices"][0]["message"]["content"]
-                else:
-                    r = await client.post(
-                        f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent",
-                        headers={"x-goog-api-key": self.gemini_key},
-                        json={"systemInstruction": {"parts": [{"text": system}]},
-                              "contents": [{"role": "user", "parts": [{"text": user}]}],
-                              "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens,
-                                                   "responseMimeType": "application/json"}},
-                    )
-                    r.raise_for_status()
-                    text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            client = http_pool.client()  # общий пул соединений; свой таймаут на запрос — генерация LLM дольше 4 с
+            if self.provider == "openai":
+                r = await client.post(
+                    f"{self.openai_base}/chat/completions", timeout=self.timeout,
+                    headers={"Authorization": f"Bearer {self.openai_key}"},
+                    json={"model": self.openai_model, "temperature": temperature, "max_tokens": max_tokens,
+                          "response_format": {"type": "json_object"},
+                          "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
+                )
+                r.raise_for_status()
+                text = r.json()["choices"][0]["message"]["content"]
+            else:
+                r = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent", timeout=self.timeout,
+                    headers={"x-goog-api-key": self.gemini_key},
+                    json={"systemInstruction": {"parts": [{"text": system}]},
+                          "contents": [{"role": "user", "parts": [{"text": user}]}],
+                          "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens,
+                                               "responseMimeType": "application/json"}},
+                )
+                r.raise_for_status()
+                text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
             text = re.sub(r"^```(?:json)?|```$", "", text.strip()).strip()
             data = json.loads(text)
             return data if isinstance(data, dict) else None

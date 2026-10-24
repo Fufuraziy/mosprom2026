@@ -198,6 +198,7 @@ class BotMessageRequest(Flexible):
 
 class BotSendRequest(Flexible):
     candidate_id: Optional[str] = None
+    session_id: Optional[str] = None
     vk_user_id: Optional[str | int] = None
     text: str = Field(default="", max_length=4000)
     keyboard: Optional[list[list[dict[str, Any]]]] = None
@@ -216,3 +217,12 @@ class RaffleTicketRequest(Flexible):
     item: Optional[str] = None
     ticket: Optional[str] = None
     cost: int = 0
+
+
+# ---------------------------------------------------------------- Авторизация HR / Режим жюри
+class LoginRequest(Flexible):
+    """Корпоративный ключ HR (key). pin/code — старые имена поля, vk_user_id — вход администратора по VK_ADMIN_IDS."""
+    key: Optional[str] = Field(default=None, max_length=128)
+    pin: Optional[str] = Field(default=None, max_length=128)
+    code: Optional[str] = Field(default=None, max_length=128)
+    vk_user_id: Optional[str | int] = None
