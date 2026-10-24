@@ -136,11 +136,15 @@
   "conversion_to_form": 7.1, "baseline_conversion": 0.02,
   "probation_dropout": {"current": 38, "forecast": 9},
   "avg_retention": 86, "avg_age": 21.6, "company_avg_age": 52,
-  "by_block": [{"block": "engineering", "label": "Инженерия", "color": "#C9922E", "count": 3}],
+  "by_block": [{"block": "engineering", "label": "Инженерия", "color": "#A2AAAD", "count": 3}],
   "by_university": [{"university": "…", "count": 2}],
   "top_topics": [{"topic": "dorm", "label": "Общежитие и быт", "count": 8}]
 }
 ```
+
+Ответ проходит через `src/services/normalize.js → normalizeAnalytics`. Там же принимаются альтернативные имена ключей
+(см. раздел «Ответы на вопросы бэкенда» в конце). **Единственное обязательное поле — непустой `funnel`**:
+без него фронт считает ответ неправильной формы и берёт локальную аналитику (с демо-данными).
 
 CSV формируется на клиенте из загруженного списка (разделитель `;`, UTF-8 с BOM для Excel).
 
@@ -178,3 +182,111 @@ iv_yes, iv_question, iv_later, season_yes, excursion_yes`.
   (`vk` — реальные данные из `VKWebAppGetUserInfo`, `demo` — демо-профиль вне ВК). Контакт ВК засчитывается как контакт кандидата.
 - Подпись параметров запуска (`sign` в URL) бэкенд должен проверять секретным ключом приложения, прежде чем доверять `vk_user_id`.
 - Новые события телеметрии: `vk_init`, `vk_autofill {source}`, `vk_story_share {source}`, `bot_message`, `bot_push {scenario}`, `hr_bot_invite`.
+
+---
+
+## Ответы на вопросы бэкенда (24.10)
+
+### 1. `GET /api/analytics/summary` — какие ключи ждёт и проверяет фронт
+
+Проверка формы одна: **`funnel` — непустой массив**. Всё остальное фронт достраивает сам (`normalize.js`).
+Можно отдавать как в примере выше, так и в текущей форме бэкенда — соответствие ключей:
+
+| Что показывает панель HR | Фронтовый ключ | Принимается также (форма бэкенда) | Если нет |
+|---|---|---|---|
+| KPI «Кандидатов (анкеты)» | `total_candidates` | `submitted` | последний шаг `funnel` |
+| подпись «живых сессий сегодня» | `live_candidates` | `submitted_today` | 0 |
+| KPI «Конверсия в анкету», % | `conversion_to_form` (в процентах, 7.1) | `conversion` (доля 0.071 **или** проценты; значение ≤ 1 считается долей) | последний шаг / первый шаг `funnel` |
+| подпись «было 0,02% конверсии в найм» | `baseline_conversion` | — | 0.02 |
+| KPI «Отсев на испытательном» | `probation_dropout {current, forecast}` | то же | 38 / 9 |
+| KPI «Средний возраст» | `avg_age` | — | «—» |
+| подпись «в компании сейчас 52» | `company_avg_age` | — | 52 |
+| «Воронка сезона» | `funnel[] {step, value}` | `funnel[] {label, count}` (`id`, `pct` игнорируются — проценты фронт считает от первого шага) | **обязательно** |
+| «Кандидаты по 3 блокам» | `by_block[] {block, label, color, count}` | `blocks` — массив `{id, label?, count}` **или** объект `{engineering: 3, line: 5}` | пусто |
+| «Топ вузов» | `by_university[] {university, count}` | `top_universities` — массив `{name, count}` или объект `{"ИТМО": 2}` | пусто |
+| «Что волнует кандидатов» | `top_topics[] {topic, label, count}` | `asked_topics` — массив `{topic|id, count}` или объект `{dorm: 8}` | пусто |
+| — | — | `total_players`, `merch` — фронт сейчас не показывает, отдавать можно | — |
+
+Ключи блоков: `engineering` (Инженерия), `profile` (Химики и технологи), `line` (Линейный персонал), `free` (Бесплатная практика).
+Подписи и цвета блоков фронт берёт из `BLOCKS` в `src/data/content.js`, если не прислать `label`/`color`.
+Ключи тем — см. список в разделе «ИИ-агент №1»; подписи — `TOPIC_LABELS` в `content.js`.
+
+### 2. `telemetry.stations` — что лежит внутри каждой станции
+
+**Id станций на фронте: `lab`, `engineering`, `line`, `design`** (не `bottling` / `rnd`).
+Фронт на всякий случай понимает и `bottling → line`, `rnd → design`, `tech → engineering`, `laboratory → lab`,
+но шлёт всегда свои id. Станция появляется в `stations` только после прохождения.
+
+```jsonc
+{
+  "stations": {
+    "lab": {
+      "titration_accuracy": 82,          // 0–100, точность титрования (100 — остановился ровно в точке эквивалентности)
+      "drops": 21, "endpoint": 20,       // сколько капель добавил / где была точка эквивалентности
+      "brix_correct": 4, "brix_total": 4,// верные вердикты «норма/брак» по рефрактометру ATAGO
+      "tasting_done": true,
+      "tasting": {"5": 4, "6": 3, "7": 5, "8": 4},  // оценки органолептики 1–5 по образцам №5–8
+      "quiz_correct": 2, "quiz_total": 2,
+      "score": 226,                      // баллы за станцию, максимум 250
+      "breakdown": [{"label": "Титрование: точность 82%", "points": 66, "max": 80}],
+      "completed_at": "2026-10-24T10:12:00.000Z"
+    },
+    "engineering": {
+      "pressure_stability": 87,          // % времени, когда давление в абсорбере было в зелёной зоне 1,8–2,2 бар
+      "mea_reaction_ms": 1900,           // реакция на аварию МЭА в мс; null — не успел за 6 с
+      "inspections_correct": 3, "inspections_total": 3,  // обход: барботёр (верно «отклонение»), SCHENK и чан ЛЭП («норма»)
+      "quiz_correct": 2, "quiz_total": 2,
+      "score": 233, "breakdown": [], "completed_at": "…"
+    },
+    "line": {
+      "defects_caught": 8,               // снял мятых банок
+      "defects_missed": 1,               // мятые, доехавшие до термотуннеля
+      "false_rejects": 0,                // снял целую банку
+      "cans_passed": 15,                 // целых банок прошло в туннель
+      "estop_used": 0,                   // сколько раз жал аварийный стоп
+      "ttn_correct": 3,                  // верных полей ТТН из 3 (получатель + 2 количества)
+      "quiz_correct": 3, "quiz_total": 3,
+      "score": 236, "breakdown": [], "completed_at": "…"
+    },
+    "design": {
+      "pantone_match": 92,               // 0–100, совпадение палитры банки KERN с эталоном вкуса
+      "flavor": "pineapple",             // pineapple | raspberry
+      "colors": ["p109", "p7406", "p361"],  // id из PANTONE в content.js: фон, акцент, детали
+      "mirapolis_correct": 4, "mirapolis_total": 4,  // тест Mirapolis: SMART, SWOT, Исикава, 5 почему
+      "score": 242, "breakdown": [], "completed_at": "…"
+    }
+  },
+  "skipped": []                          // id станций, пропущенных кнопкой демо-ускорения (там подставлены средние значения)
+}
+```
+
+Остальные поля `telemetry` — в разделе «Объект telemetry» выше. Когда что отправляется:
+- `POST /api/telemetry` с `event: "station_done"` и `payload: {id, points, result, skipped}` — сразу после станции (`result` = объект станции выше);
+- полный снимок `telemetry` — в `POST /api/recommendation` (финал) и в `POST /api/candidates` (анкета).
+
+Как фронт считает компетенции из этих полей — `computeCompetencies()` в `src/services/localEngine.js`.
+
+### 3. Иконка и id архетипа
+
+**Не эмодзи.** Фронт ждёт имя иконки из набора `lucide-react`, как в `ARCHETYPES` (`src/data/content.js`):
+
+| `archetype.id` | `name` | `icon` | Станция-источник |
+|---|---|---|---|
+| `lab` | Хранитель Точности | `FlaskConical` | лаборатория |
+| `engineering` | Инженер Потока | `Gauge` | техцех |
+| `line` | Капитан Линии | `Factory` | розлив и склад |
+| `design` | Архитектор Бренда | `Palette` | дизайн и Mirapolis |
+
+Если придёт эмодзи или незнакомое имя, фронт сам подставит иконку по `id` (`normalizeArchetype`).
+`id` `bottling` и `rnd` тоже понимаются (→ `line`, `design`), но лучше отдавать фронтовые.
+
+Вакансии (`matches[].id`), веса компетенций и блоки — `VACANCIES` в `content.js`:
+`chem` (Химик-лаборант, profile), `technologist` (Технолог, profile), `machinist` (Машинист тех. установок, engineering),
+`automation` (Наладчик / автоматизация, engineering), `bottling` (Оператор линии розлива, line),
+`warehouse` (Оператор склада / кладовщик, line), `digital` (Практика: дизайн, IT, оцифровка, free).
+
+### 4. `GET /api/candidates` — массив или объект
+
+Подходит **и то, и другое**: просто массив `[...]` (как сейчас) или `{items: [...]}`. Любая другая форма → локальный список.
+Каждому кандидату нужна `telemetry` (из неё фронт пересчитывает компетенции, архетип, удержание и рисует столбец
+«Вопросы маскоту»); станции внутри неё можно называть и фронтовыми id, и `bottling`/`rnd`.

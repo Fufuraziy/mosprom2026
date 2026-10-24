@@ -9,6 +9,7 @@ import {
   FIRST_DAY,
 } from '../data/content.js'
 import { SEED_CANDIDATES } from '../data/seedCandidates.js'
+import { normalizeTelemetry } from './normalize.js'
 
 const LS_CANDIDATES = 'ochakovo1978_candidates_v1'
 const LS_EVENTS = 'ochakovo1978_events_v1'
@@ -47,7 +48,8 @@ export function ageFrom(birthDate, now = new Date()) {
 
 /* ---------------------------------------------------------------- компетенции */
 
-export function computeCompetencies(t = {}) {
+export function computeCompetencies(raw = {}) {
+  const t = normalizeTelemetry(raw) || {}
   const st = t.stations || {}
   const quiz = t.quiz || { correct: 0, total: 0 }
   const quizAcc = quiz.total ? quiz.correct / quiz.total : null

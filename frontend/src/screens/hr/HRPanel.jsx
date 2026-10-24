@@ -130,7 +130,7 @@ export default function HRPanel() {
             <Kpi icon={Users} label="Кандидатов (анкеты)" value={stats.total_candidates} sub={`из них живых сессий сегодня: ${stats.live_candidates}`} />
             <Kpi icon={Percent} label="Конверсия в анкету" value={`${stats.conversion_to_form}%`} sub={`было ${String(stats.baseline_conversion).replace('.', ',')}% конверсии в найм`} accent="text-brand" />
             <Kpi icon={TrendingDown} label="Отсев на испытательном" value={`${stats.probation_dropout.current}% → ${stats.probation_dropout.forecast}%`} sub="прогноз: честный предпросмотр + наставник + скоринг" accent="text-lime" />
-            <Kpi icon={Baby} label="Средний возраст" value={`${String(stats.avg_age).replace('.', ',')} лет`} sub={`в компании сейчас ${stats.company_avg_age}: омоложение`} />
+            <Kpi icon={Baby} label="Средний возраст" value={stats.avg_age ? `${String(stats.avg_age).replace('.', ',')} лет` : '—'} sub={`в компании сейчас ${stats.company_avg_age}: омоложение`} />
           </div>
 
           <div className="mt-5 grid gap-5 lg:grid-cols-3">
