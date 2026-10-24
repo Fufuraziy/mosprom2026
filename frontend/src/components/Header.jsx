@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, useSpring, useMotionValueEvent } from 'framer-motion'
-import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound } from 'lucide-react'
+import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound, Lock, Unlock } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
 import { LogoPlate, cx } from './ui.jsx'
 
@@ -80,7 +80,7 @@ const TABS = [
 ]
 
 export default function Header({ embedded = false }) {
-  const { state, balance, actions, apiStatus } = useGame()
+  const { state, balance, actions, apiStatus, isHrAuthenticated } = useGame()
   const isHR = state.mode !== 'student'
   const unread = Object.values(state.bot.threads).reduce((a, t) => a + (t.unread || 0), 0)
   return (
@@ -98,6 +98,19 @@ export default function Header({ embedded = false }) {
         <div className="ml-auto flex items-center gap-2 sm:gap-4">
           {!isHR && <CodeSlots digits={state.digits} />}
           {!isHR && <PointsPill points={balance} />}
+
+          {isHrAuthenticated && (
+            <button
+              type="button"
+              onClick={actions.logoutHr}
+              className="flex items-center gap-1.5 border border-brand bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand hover:bg-brand hover:text-white transition shadow-sm rounded-sm"
+              title="Завершить сессию HR Очаково и выйти в режим студента"
+            >
+              <Unlock className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden sm:inline">🔓 Сессия HR</span>
+              <span className="hidden lg:inline text-[10px] opacity-80">(Выйти в режим студента)</span>
+            </button>
+          )}
 
           {!embedded && (
             <div className="flex border border-line bg-paper p-0.5" role="tablist" aria-label="Режим">

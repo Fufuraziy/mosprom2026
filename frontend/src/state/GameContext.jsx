@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { api, onStatusChange } from '../services/api.js'
+import { api, onStatusChange, isHrAuthStored, setHrToken } from '../services/api.js'
+import HrAuthModal from '../components/HrAuthModal.jsx'
 import { uid } from '../services/localEngine.js'
 import { LEGACY_CODE, STATION_ORDER, newCapsuleCode } from '../data/content.js'
 import { initVK, haptic, launchParams, storageLoad, storageSave, vkStorageEnabled } from '../services/vk.js'
@@ -199,11 +200,46 @@ function reducer(state, a) {
 
 const GameCtx = createContext(null)
 
+function checkUrlJuryParam() {
+  if (typeof window === 'undefined') return false
+  try {
+    const url = new URL(window.location.href)
+    const jury = url.searchParams.get('jury')
+    const role = url.searchParams.get('role')
+    if (jury === '1978' || jury === '1' || role === 'hr' || role === 'jury') {
+      return true
+    }
+    const hash = window.location.hash || ''
+    if (hash.includes('jury=1978') || hash.includes('role=hr') || hash.includes('role=jury')) {
+      return true
+    }
+  } catch {
+    /* ignore */
+  }
+  return false
+}
+
 export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, undefined, load)
   const [toasts, setToasts] = useState([])
   const [apiStatus, setApiStatus] = useState({ online: null, mode: 'local' })
   const sessionStarted = useRef(false)
+  const [isHrAuthenticated, setIsHrAuthenticated] = useState(() => {
+    if (checkUrlJuryParam()) {
+      setHrToken('ochakovo-hr-secret-1978')
+      return true
+    }
+    return isHrAuthStored()
+  })
+  const [hrAuthModalOpen, setHrAuthModalOpen] = useState(false)
+  const [pendingHrTarget, setPendingHrTarget] = useState('hr')
+
+  useEffect(() => {
+    if (checkUrlJuryParam()) {
+      setHrToken('ochakovo-hr-secret-1978')
+      setIsHrAuthenticated(true)
+    }
+  }, [])
 
   // Сохранение: localStorage сразу, VK Storage (внутри ВК) — не чаще раза в 15 с и при сворачивании приложения.
   const vkDirty = useRef(false)
@@ -299,7 +335,48 @@ export function GameProvider({ children }) {
         dispatch({ type: 'AGE_OK' })
         track('age_gate_ok', {})
       },
+      openHrAuth: (target = 'hr') => {
+        if (isHrAuthenticated) {
+          if (target === 'jury') dispatch({ type: 'JURY', value: true })
+          else actions.setMode(target)
+          return
+        }
+        setPendingHrTarget(target)
+        setHrAuthModalOpen(true)
+      },
+      closeHrAuth: () => setHrAuthModalOpen(false),
+      loginHr: async (pin) => {
+        const res = await api.login(pin)
+        setIsHrAuthenticated(true)
+        setHrAuthModalOpen(false)
+        toast('Вход выполнен: Отдел подбора Очаково')
+        track('hr_auth_success', { role: res.role })
+        if (pendingHrTarget === 'jury') {
+          dispatch({ type: 'JURY', value: true })
+        } else if (pendingHrTarget === 'hr' || pendingHrTarget === 'bot') {
+          dispatch({ type: 'MODE', mode: pendingHrTarget })
+          if (navigation.go) navigation.go(pendingHrTarget === 'hr' ? 'jury_hr' : 'jury_bot')
+        }
+        return res
+      },
+      logoutHr: () => {
+        api.logout()
+        setIsHrAuthenticated(false)
+        if (state.mode === 'hr' || state.mode === 'bot') {
+          dispatch({ type: 'MODE', mode: 'student' })
+        }
+        if (state.juryMode) {
+          dispatch({ type: 'JURY', value: false })
+        }
+        toast('Сессия HR завершена. Режим студента')
+        track('hr_logout', {})
+      },
       setMode: (mode) => {
+        if ((mode === 'hr' || mode === 'bot') && !isHrAuthenticated) {
+          setPendingHrTarget(mode)
+          setHrAuthModalOpen(true)
+          return
+        }
         dispatch({ type: 'MODE', mode })
         // в мини-приложении HR и бот — экраны «Режима жюри»
         if (navigation.go) {
@@ -370,6 +447,11 @@ export function GameProvider({ children }) {
       },
       setDemo: (value) => dispatch({ type: 'DEMO', value }),
       setJury: (value) => {
+        if (value && !isHrAuthenticated) {
+          setPendingHrTarget('jury')
+          setHrAuthModalOpen(true)
+          return
+        }
         dispatch({ type: 'JURY', value })
         track('jury_mode', { value })
       },
@@ -389,12 +471,22 @@ export function GameProvider({ children }) {
         if (!navigation.go) window.scrollTo?.({ top: 0 })
       },
     }),
-    [toast, track, state.sessionId],
+    [toast, track, state.sessionId, isHrAuthenticated, pendingHrTarget],
   )
 
   const balance = state.points - state.spent
-  const value = { state, balance, actions, toasts, toast, apiStatus }
-  return <GameCtx.Provider value={value}>{children}</GameCtx.Provider>
+  const value = { state, balance, actions, toasts, toast, apiStatus, isHrAuthenticated, hrAuthModalOpen }
+  return (
+    <GameCtx.Provider value={value}>
+      {children}
+      <HrAuthModal
+        isOpen={hrAuthModalOpen}
+        onClose={() => setHrAuthModalOpen(false)}
+        onSuccess={actions.loginHr}
+        targetMode={pendingHrTarget}
+      />
+    </GameCtx.Provider>
+  )
 }
 
 export const useGame = () => useContext(GameCtx)

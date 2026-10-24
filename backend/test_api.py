@@ -189,3 +189,37 @@ def test_static_index():
     assert r.status_code == 200
     assert "html" in r.headers["content-type"]
     assert "ОЧАКОВО" in r.text or "Vite" in r.text or "root" in r.text
+
+def test_auth_login_success_pin():
+    # Проверка корректного PIN-кода (1978 - год основания Очаково)
+    r = client.post("/api/auth/login", json={"pin": "1978"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["authenticated"] is True
+    assert data["token"] == "ochakovo-hr-secret-1978"
+    assert data["role"] == "hr_admin"
+
+def test_auth_login_invalid_pin():
+    # Проверка некорректного PIN-кода
+    r = client.post("/api/auth/login", json={"pin": "0000"})
+    assert r.status_code == 401
+    data = r.json()
+    assert "Неверный код доступа" in data["detail"]
+
+def test_hr_auth_token_and_jury_fallback():
+    # 1. Запрос с корректным токеном X-HR-Token
+    r_auth = client.get("/api/hr/dashboard", headers={"X-HR-Token": "ochakovo-hr-secret-1978"})
+    assert r_auth.status_code == 200
+    assert r_auth.headers.get("X-HR-Auth-Mode") == "hr_admin"
+    assert r_auth.json().get("auth_mode") == "hr_admin"
+
+    # 2. Запрос с Bearer токеном
+    r_bearer = client.get("/api/candidates", headers={"Authorization": "Bearer ochakovo-hr-secret-1978"})
+    assert r_bearer.status_code == 200
+    assert r_bearer.headers.get("X-HR-Auth-Mode") == "hr_admin"
+
+    # 3. Страховка для жюри: запрос БЕЗ токена возвращает 200 OK в fallback-режиме
+    r_fallback = client.get("/api/hr/dashboard")
+    assert r_fallback.status_code == 200
+    assert r_fallback.headers.get("X-HR-Auth-Mode") == "jury_open_fallback"
+    assert r_fallback.json().get("auth_mode") == "jury_open_fallback"
