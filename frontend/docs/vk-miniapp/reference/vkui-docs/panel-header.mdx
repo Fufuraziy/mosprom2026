@@ -1,0 +1,150 @@
+---
+description: Компонент, предназначенный для создания заголовочной секции (шапки) внутри компонента Panel.
+---
+
+<Overview group="navigation">
+
+# PanelHeader [tag:component]
+
+Компонент, предназначенный для создания заголовочной секции (шапки) внутри компонента [`Panel`](/components/panel).
+
+Связанные компоненты:
+
+- [`Panel`](/components/panel)
+- [`PanelHeaderContext`](/components/panel-header-context)
+
+</Overview>
+
+import { FixedLayoutWrapper } from '@/components/wrappers';
+
+{/* @example-description: Базовая шапка `PanelHeader` с контентом в `before/after` и заголовком. */}
+<Playground Wrapper={FixedLayoutWrapper}>
+  ```jsx
+  <PanelHeader before={<PanelHeaderClose />} after={<Avatar size={36} />} delimiter="none">
+    Стартовый экран
+  </PanelHeader>
+  ```
+</Playground>
+
+## Заголовок
+
+Основной текст передаётся в `children`. В зависимости от платформы заголовок располагается слева либо выравнивается по центру (iOS).
+
+Дополнительно в `typographyProps` можно передать параметры для типографического элемента заголовка, например `Component` (тег рендеринга, по умолчанию `span`) или `data`-атрибуты.
+
+> Если в заголовке нужен не только текст, но и подзаголовок и/или иконки и аватары, используйте подкомпонент [`PanelHeaderContent`](#panel-header-content) — он также передаётся в `children`.
+
+## Контент в начале
+
+Используйте свойства `before` для добавления дополнительного контента слева от заголовка.
+Наиболее частый вариант использования свойства `before` - иконки (например "Назад", "Закрыть") или текстовые кнопки (на платформе iOS).
+Также допускается использовать компонент `Avatar` (размером `28px` или `36px`).
+
+## Контент в конце
+
+Используйте свойства `after` для добавления дополнительного контента справа от заголовка.
+Наиболее частый вариант использования свойства `after` - иконки и компонент `Avatar` (размером `28px` или `36px`).
+Допускается использование нескольких иконок одновременно (компонент автоматически расставит между ними отступы).
+
+## Внешний вид
+
+### Прозрачный фон
+
+Булево свойство `transparent` позволяет задать компоненту прозрачный фон.
+
+{/* @example-description: `PanelHeader` с прозрачным фоном через свойство `transparent`. */}
+<Playground Wrapper={FixedLayoutWrapper}>
+  ```jsx
+  <PanelHeader
+    before={<PanelHeaderClose />}
+    after={<Avatar size={36} />}
+    transparent
+    delimiter="none"
+  >
+    Стартовый экран
+  </PanelHeader>
+  ```
+</Playground>
+
+## Позиционирование
+
+### Плавающая шапка
+
+Свойство `float`
+
+Свойство `fixed` позволяет шапке выбиваться из потока и фиксироваться сверху при прокрутке основного контента.
+
+- `true` - шапка фиксируется сверху;
+- `false` - шапка остаётся в потоке и прокручивается вместе с контентом.
+
+По умолчанию значение `true` на всех платформах, кроме `vkcom`.
+
+## Разделитель
+
+Используйте свойство `delimiter`, оно позволяет управлять типом разделителя (разделительная линия или отступ).
+Доступны следующие значения:
+
+- `"none"` - разделитель отсутствует;
+- `"separator"` - добавляется разделительная линия при условии, что это либо платформа `vkcom`,
+  либо платформа android/iOS на мобильных устройствах;
+- `"spacing"` - добавляется отступ, если это платформа android/iOS на планшетах и десктопах;
+- `"auto"` - автоматически подбирает разделительную линию или отступ в зависимости от
+  удовлетворяющих условий `"separator"` или `"spacing"`.
+
+Исключения, в которых разделительная линия после шапки не нужна (включая мобильные устройства android/iOS):
+
+- если в `PanelHeader` рисуется [`Search`](/components/search);
+- если после `PanelHeader` рисуется `Search`;
+- если после `PanelHeader` рисуется [`Banner`](/components/banner);
+- если в `PanelHeader` рисуются [`Tabs`](/components/tabs);
+- любой другой элемент, визуально разделяющий шапку и основной контент.
+
+В таких случаях передавайте в `PanelHeader` свойство `delimiter="spacing"`, это позволит сохранить отступ
+на планшетах и десктопах, но обеспечит отсутствие разделительной линии для мобильных устройствах.
+
+{/* @example-description: Пример использования `delimiter="spacing"` для корректного разделения шапки и контента. */}
+<Playground Wrapper={FixedLayoutWrapper}>
+  ```jsx
+  <Panel>
+    <PanelHeader delimiter="spacing" before={<PanelHeaderClose />} after={<Avatar size={36} />}>
+      Стартовый экран
+    </PanelHeader>
+    <Group layoutMode="plain" separator="hide">
+      <Box padding="system">
+        <Text>Контент</Text>
+      </Box>
+    </Group>
+  </Panel>
+  ```
+</Playground>
+
+## PanelHeaderButton [#panel-header-button] [tag:component]
+
+import PanelHeaderButtonContent from './_partials/panel-header-button-content.mdx';
+
+<PanelHeaderButtonContent />
+
+## PanelHeaderContent [#panel-header-content] [tag:component]
+
+import PanelHeaderContentContent from './_partials/panel-header-content-content.mdx';
+
+<PanelHeaderContentContent />
+
+## Свойства и методы [#api]
+
+<PropsTable name={["PanelHeader", "PanelHeaderButton", "PanelHeaderBack", "PanelHeaderClose", "PanelHeaderEdit", "PanelHeaderSubmit", "PanelHeaderContent"]}>
+### PanelHeader [#panel-header-api]
+
+### PanelHeaderButton [#panel-header-button-api]
+
+### PanelHeaderBack [#panel-header-back-api]
+
+### PanelHeaderClose [#panel-header-close-api]
+
+### PanelHeaderEdit [#panel-header-edit-api]
+
+### PanelHeaderSubmit [#panel-header-submit-api]
+
+### PanelHeaderContent [#panel-header-content-api]
+
+</PropsTable>
