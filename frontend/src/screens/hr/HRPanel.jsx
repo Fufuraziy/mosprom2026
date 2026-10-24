@@ -179,15 +179,15 @@ export default function HRPanel() {
         <div className="flex flex-wrap items-center gap-2 border-b-2 border-brand bg-kraft-light p-3">
           <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-mute" />
-            <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Поиск: ФИО, вакансия, специальность" className="w-full rounded-sm border-2 border-ink/20 bg-white py-2 pl-9 pr-3 text-sm font-semibold outline-none focus:border-brand" />
+            <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Поиск: ФИО, вакансия, специальность" className="w-full rounded-sm border-2 border-ink/20 bg-paper py-2 pl-9 pr-3 text-sm font-semibold outline-none focus:border-brand" />
           </div>
-          <select value={filters.university} onChange={(e) => setFilters({ ...filters, university: e.target.value })} className="max-w-[240px] rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.university} onChange={(e) => setFilters({ ...filters, university: e.target.value })} className="max-w-[240px] rounded-sm border-2 border-ink/20 bg-paper px-3 py-2 text-sm font-semibold">
             <option value="">Все вузы и колледжи</option>
             {unis.map((u) => (
               <option key={u}>{u}</option>
             ))}
           </select>
-          <select value={filters.block} onChange={(e) => setFilters({ ...filters, block: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.block} onChange={(e) => setFilters({ ...filters, block: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-paper px-3 py-2 text-sm font-semibold">
             <option value="">Все направления</option>
             {Object.entries(BLOCKS).map(([k, b]) => (
               <option key={k} value={k}>
@@ -195,7 +195,7 @@ export default function HRPanel() {
               </option>
             ))}
           </select>
-          <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-paper px-3 py-2 text-sm font-semibold">
             <option value="created">Сначала новые</option>
             <option value="retention">По прогнозу удержания</option>
             <option value="match">По мэтчу вакансии</option>
@@ -235,7 +235,7 @@ export default function HRPanel() {
                     <div className="text-ink-mute">мэтч {c.top_match?.match}%</div>
                   </td>
                   <td className="px-3 py-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 bg-white px-2 py-0.5 text-[11px] font-bold">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 bg-paper px-2 py-0.5 text-[11px] font-bold">
                       <span className="h-2 w-2 rounded-full" style={{ background: BLOCKS[c.block]?.color }} />
                       {c.block_label}
                     </span>

@@ -27,7 +27,7 @@ function Field({ label, error, required, children, hint }) {
 }
 
 const inputCls = (err) =>
-  cx('w-full rounded-sm border-2 bg-white px-3 py-2.5 text-[15px] font-semibold outline-none transition focus:border-brand focus:shadow-glow', err ? 'border-brand' : 'border-ink/25')
+  cx('w-full rounded-sm border-2 bg-paper px-3 py-2.5 text-[15px] font-semibold outline-none transition focus:border-brand focus:shadow-glow', err ? 'border-brand' : 'border-ink/25')
 
 export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
   const { state, balance, actions } = useGame()
@@ -108,7 +108,7 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
         <div className="sm:col-span-2">
           {!vk || vk.source === 'error' ? (
             <button type="button" onClick={fillFromVK} disabled={vkLoading} className="flex w-full items-center justify-center gap-3 rounded-lg bg-vk px-4 py-3.5 text-[15px] font-semibold text-white transition hover:bg-vk-dark disabled:opacity-60">
-              {vkLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="grid h-6 w-6 place-items-center rounded-md bg-white text-[11px] font-extrabold text-vk">VK</span>}
+              {vkLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <span className="grid h-6 w-6 place-items-center rounded-md bg-paper text-[11px] font-extrabold text-vk">VK</span>}
               Заполнить анкету через ВКонтакте в 1 клик
             </button>
           ) : (

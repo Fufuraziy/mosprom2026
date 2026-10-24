@@ -10,11 +10,8 @@ export function StationShell({ id, steps, step, onSkip, children, tip }) {
   const { state, actions } = useGame()
   const s = STATIONS.find((x) => x.id === id)
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-      <button onClick={() => actions.go('hub')} className="mb-4 inline-flex items-center gap-1.5 text-sm font-bold text-ink-soft hover:text-brand">
-        <ArrowLeft className="h-4 w-4" /> Карта станций
-      </button>
-      <div className="mb-6 grid items-end gap-5 md:grid-cols-[1fr_auto]">
+    <div className="mx-auto w-full min-w-0 max-w-7xl overflow-x-clip px-4 py-5 sm:px-6 sm:py-8">
+      <div className="mb-6 grid grid-cols-[minmax(0,1fr)] items-end gap-5 md:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <span className="bg-graphite px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">Станция {s.n}/4</span>
@@ -23,7 +20,7 @@ export function StationShell({ id, steps, step, onSkip, children, tip }) {
             </span>
             <RecBadge label={`REC · ${s.role.toUpperCase()}`} className="max-w-full truncate" />
           </div>
-          <h1 className="flex items-center gap-4 font-display text-3xl font-light uppercase leading-none tracking-tight text-brand sm:text-5xl">
+          <h1 className="flex min-w-0 items-center gap-3 break-words font-display text-[26px] font-light uppercase leading-none tracking-tight text-brand [hyphens:auto] sm:gap-4 sm:text-5xl">
             <span className="grid h-14 w-14 shrink-0 place-items-center text-white sm:h-16 sm:w-16" style={{ background: s.color }}>
               <Picto name={s.picto} className="h-9 w-9 sm:h-10 sm:w-10" />
             </span>
@@ -42,7 +39,7 @@ export function StationShell({ id, steps, step, onSkip, children, tip }) {
         )}
       </div>
       {tip && (
-        <div className="mb-5 flex items-start gap-3 rounded-sm border border-line bg-white p-3 shadow-pop-sm">
+        <div className="mb-5 flex items-start gap-3 rounded-sm border border-line bg-paper p-3 shadow-pop-sm">
           <Krafty size={44} mood="think" className="shrink-0" />
           <p className="pt-1 text-sm font-semibold leading-snug">{tip}</p>
         </div>
@@ -99,10 +96,10 @@ export function Quiz({ station, questions, onDone, pointsPer = 35 }) {
                     disabled={answered}
                     className={cx(
                       'flex items-center gap-3 rounded-sm border-2 px-4 py-3 text-left text-sm font-bold transition',
-                      !answered && 'border-ink/25 bg-white hover:border-brand hover:shadow-pop-sm',
+                      !answered && 'border-ink/25 bg-paper hover:border-brand hover:shadow-pop-sm',
                       isRight && 'border-brand bg-lime text-white shadow-pop-sm',
                       isWrong && 'border-brand bg-brand text-white',
-                      answered && !isRight && !isWrong && 'border-ink/10 bg-white opacity-60',
+                      answered && !isRight && !isWrong && 'border-ink/10 bg-paper opacity-60',
                     )}
                   >
                     <span className={cx('grid h-7 w-7 shrink-0 place-items-center rounded-sm border-2 font-mono text-xs', isRight || isWrong ? 'border-white' : 'border-ink/30')}>

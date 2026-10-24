@@ -6,6 +6,13 @@ import { initVK } from '../services/vk.js'
 
 const LS_KEY = 'ochakovo1978_game_v1'
 
+/**
+ * Навигация мини-приложения. MiniApp подставляет сюда переход через vk-mini-apps-router,
+ * чтобы старый вызов actions.go(screen, stationId) из экранов игры менял адрес (#/hub, #/station/lab…)
+ * и попадал в историю «Назад». На странице HR (hr.html) остаётся null — там экраны переключает state.mode.
+ */
+export const navigation = { go: null }
+
 const emptyTelemetry = () => ({
   why_ochakovo_cards_viewed: [],
   ppe_attempts: 0,
@@ -36,6 +43,7 @@ const initialState = () => ({
   chatHistory: [],
   storyShared: false,
   vkProfile: null,
+  ageOk: false, // показано и подтверждено предупреждение 18+ (правило ВК 2.1.5)
   bot: emptyBot(),
 })
 
@@ -167,8 +175,10 @@ function reducer(state, a) {
       return { ...state, candidate: a.candidate }
     case 'DEMO':
       return { ...state, demoFast: a.value }
+    case 'AGE_OK':
+      return { ...state, ageOk: true }
     case 'RESET':
-      return { ...initialState(), mode: state.mode }
+      return { ...initialState(), mode: state.mode, ageOk: state.ageOk }
     default:
       return state
   }
@@ -231,8 +241,13 @@ export function GameProvider({ children }) {
     () => ({
       go: (screen, stationId) => {
         dispatch({ type: 'GO', screen, stationId })
-        window.scrollTo?.({ top: 0, behavior: 'smooth' })
+        if (navigation.go) navigation.go(screen, stationId)
+        else window.scrollTo?.({ top: 0, behavior: 'smooth' })
         track('navigate', { screen, stationId })
+      },
+      ageOk: () => {
+        dispatch({ type: 'AGE_OK' })
+        track('age_gate_ok', {})
       },
       setMode: (mode) => {
         dispatch({ type: 'MODE', mode })
@@ -308,7 +323,7 @@ export function GameProvider({ children }) {
       },
       reset: () => {
         dispatch({ type: 'RESET' })
-        window.scrollTo?.({ top: 0 })
+        if (!navigation.go) window.scrollTo?.({ top: 0 })
       },
     }),
     [toast, track, state.sessionId],

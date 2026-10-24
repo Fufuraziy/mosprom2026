@@ -34,7 +34,7 @@ export default function Capsule({ onContinue }) {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-64px)] overflow-hidden bg-graphite text-white">
+    <div className="relative min-h-[calc(100dvh-110px)] overflow-hidden bg-graphite text-white">
       <div className="halftone-red absolute inset-0 opacity-25" />
       <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 lg:grid-cols-2 lg:py-16">
         <div>
@@ -85,7 +85,7 @@ export default function Capsule({ onContinue }) {
                 </div>
                 <motion.div key={error} animate={error ? { x: [0, -12, 12, -8, 8, 0] } : {}} className="mt-6 flex justify-center gap-3">
                   {[0, 1, 2, 3].map((i) => (
-                    <span key={i} className={cx('grid h-16 w-12 place-items-center rounded-sm border-2 font-mono text-3xl font-extrabold', input[i] ? 'border-white bg-white text-ink' : 'border-white/30 text-white/30', error && input.length === 4 && 'border-brand bg-brand text-white')}>
+                    <span key={i} className={cx('grid h-16 w-12 place-items-center rounded-sm border-2 font-mono text-3xl font-extrabold', input[i] ? 'border-white bg-paper text-ink' : 'border-white/30 text-white/30', error && input.length === 4 && 'border-brand bg-brand text-white')}>
                       {input[i] || '•'}
                     </span>
                   ))}

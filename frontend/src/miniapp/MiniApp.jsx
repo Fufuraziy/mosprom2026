@@ -1,0 +1,170 @@
+// Оболочка VK Mini App: разделы на нижней панели (Epic + Tabbar), в каждом — стек экранов (View),
+// модальные окна, попауты (Alert), уведомления (Snackbar). Навигация — vk-mini-apps-router (hash).
+import { useEffect, useRef } from 'react'
+import {
+  Badge,
+  Button,
+  Epic,
+  ModalCard,
+  ModalRoot,
+  PanelHeader,
+  SplitCol,
+  SplitLayout,
+  Tabbar,
+  TabbarItem,
+  usePlatform,
+  useSnackbarManager,
+  View,
+} from '@vkontakte/vkui'
+import { useActiveVkuiLocation, useFirstPageCheck, usePopout, useRouteNavigator } from '@vkontakte/vk-mini-apps-router'
+import { Icon28GameOutline, Icon28GiftOutline, Icon28MessageOutline, Icon28UserCircleOutline, Icon24CoinsOutline, Icon24TicketOutline, Icon24InfoCircleOutline, Icon56UserCircleOutline } from '@vkontakte/icons'
+import bridge from '@vkontakte/vk-bridge'
+import { navigation, useGame } from '../state/GameContext.jsx'
+import { isInsideVK } from '../services/vk.js'
+import { MODAL, NO_TABBAR, PANEL, PATH, pathForScreen, router, VIEW, VIEW_PANELS } from './routes.js'
+import { PANELS } from './panels.jsx'
+
+const TABS = [
+  { view: VIEW.QUEST, label: 'Квест', Icon: Icon28GameOutline, root: PATH[PANEL.HOME] },
+  { view: VIEW.REWARDS, label: 'Награды', Icon: Icon28GiftOutline, root: PATH[PANEL.VERDICT] },
+  { view: VIEW.MASCOT, label: 'Крафти', Icon: Icon28MessageOutline, root: PATH[PANEL.CHAT] },
+  { view: VIEW.PROFILE, label: 'Профиль', Icon: Icon28UserCircleOutline, root: PATH[PANEL.ME] },
+]
+
+const ROOT_PANEL = { [VIEW.QUEST]: PANEL.HOME, [VIEW.REWARDS]: PANEL.VERDICT, [VIEW.MASCOT]: PANEL.CHAT, [VIEW.PROFILE]: PANEL.ME }
+
+export default function MiniApp() {
+  const { state, actions, toasts } = useGame()
+  const navigator = useRouteNavigator()
+  const popout = usePopout()
+  const platform = usePlatform()
+  const isFirst = useFirstPageCheck()
+  const { view = VIEW.QUEST, panel = PANEL.HOME, modal, panelsHistory } = useActiveVkuiLocation()
+  const [snackbar, snackbarHolder] = useSnackbarManager()
+
+  // Последний открытый экран каждого раздела: тап по вкладке возвращает туда, где человек был.
+  const lastPanel = useRef({ ...ROOT_PANEL })
+  const lastPath = useRef(Object.fromEntries(TABS.map((t) => [t.view, t.root])))
+  if (VIEW_PANELS[view]?.includes(panel)) {
+    lastPanel.current[view] = panel
+    lastPath.current[view] = router.state.location.pathname || '/'
+  }
+
+  // actions.go(screen, id) из экранов игры → переход роутера.
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const here = useRef({ panel, panelsHistory })
+  here.current = { panel, panelsHistory }
+  useEffect(() => {
+    navigation.go = (screen, stationId) => {
+      const to = pathForScreen(screen, stationId, stateRef.current)
+      const { panel: cur, panelsHistory: hist } = here.current
+      const target = Object.keys(PATH).find((p) => PATH[p] === to) || (to.startsWith('/station/') ? PANEL.STATION : null)
+      if (cur === PANEL.STATION && target === PANEL.STATION) return navigator.replace(to) // следующая станция
+      if (hist.length > 1 && hist[hist.length - 2] === target && target !== PANEL.STATION) return navigator.back() // туда, откуда пришли
+      if (cur === PANEL.LOCKER && target === PANEL.HUB) return navigator.replace(to) // допуск получен — раздевалка больше не нужна в истории
+      return navigator.push(to)
+    }
+    return () => {
+      navigation.go = null
+    }
+  }, [navigator])
+
+  // Свайп «закрыть мини-приложение» — только на первом экране истории (iOS; на остальных платформах метод игнорируется).
+  useEffect(() => {
+    if (!isInsideVK) return
+    bridge.send('VKWebAppSetSwipeSettings', { history: isFirst }).catch(() => {})
+  }, [isFirst])
+
+  // Предупреждение 18+ при первом запуске (правило ВК 2.1.5).
+  useEffect(() => {
+    if (!state.ageOk) {
+      const t = setTimeout(() => navigator.showModal(MODAL.AGE), 300)
+      return () => clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Тосты игры («+100 Крафт-баллов…») → нативный Snackbar.
+  const shown = useRef(new Set())
+  useEffect(() => {
+    for (const t of toasts) {
+      if (shown.current.has(t.id)) continue
+      shown.current.add(t.id)
+      const Icon = t.kind === 'ticket' ? Icon24TicketOutline : t.kind === 'points' ? Icon24CoinsOutline : Icon24InfoCircleOutline
+      snackbar.open({ children: t.msg, before: <Icon fill="var(--vkui--color_icon_accent)" />, duration: 2600, placement: 'top' })
+    }
+  }, [toasts, snackbar])
+
+  const showTabbar = !NO_TABBAR.has(panel)
+  const history = modal || popout ? [] : panelsHistory
+  const rewardsNew = state.capsuleOpened && !state.candidate
+
+  const closeAge = () => {
+    if (!state.ageOk) actions.ageOk()
+    navigator.hideModal()
+  }
+
+  const modals = (
+    <ModalRoot activeModal={modal} onClose={() => (modal === MODAL.AGE ? closeAge() : navigator.hideModal())}>
+      <ModalCard
+        id={MODAL.AGE}
+        icon={<Icon56UserCircleOutline />}
+        title="Игра для тех, кому есть 18"
+        description="Практика, стажировки и работа на заводе ОЧАКОВО — только с 18 лет. Результаты игры увидит HR, только если ты сам(а) отправишь анкету."
+        actions={
+          <Button size="l" mode="primary" stretched onClick={closeAge}>
+            Мне есть 18, начинаем
+          </Button>
+        }
+        onClose={closeAge}
+      />
+    </ModalRoot>
+  )
+
+  const tabbar = showTabbar && (
+    <Tabbar>
+      {TABS.map(({ view: v, label, Icon, root }) => (
+        <TabbarItem
+          key={v}
+          label={label}
+          selected={view === v}
+          indicator={v === VIEW.REWARDS && rewardsNew && view !== v ? <Badge mode="prominent">Новое</Badge> : null}
+          onClick={() => {
+            if (view === v) {
+              if (panel !== ROOT_PANEL[v]) navigator.push(root)
+              return
+            }
+            navigator.push(lastPath.current[v] || root)
+          }}
+        >
+          <Icon />
+        </TabbarItem>
+      ))}
+    </Tabbar>
+  )
+
+  return (
+    <SplitLayout header={platform !== 'vkcom' && <PanelHeader delimiter="none" />} center modal={modals} popout={popout}>
+      <SplitCol stretchedOnMobile autoSpaced maxWidth={720}>
+        <Epic activeStory={view} tabbar={tabbar}>
+          {Object.entries(VIEW_PANELS).map(([v, panels]) => (
+            <View
+              key={v}
+              nav={v}
+              activePanel={view === v ? panel : lastPanel.current[v]}
+              history={view === v ? history : [lastPanel.current[v]]}
+              onSwipeBack={() => navigator.back()}
+            >
+              {panels.map((p) => {
+                const P = PANELS[p]
+                return <P key={p} nav={p} />
+              })}
+            </View>
+          ))}
+        </Epic>
+      </SplitCol>
+      {snackbarHolder}
+    </SplitLayout>
+  )
+}

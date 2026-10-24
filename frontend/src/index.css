@@ -6,7 +6,7 @@
    Фирменные токены «Очаково» (дублируют tailwind.config.js для CSS/SVG)
 ------------------------------------------------------------------- */
 :root {
-  /* брендбук, стр. 58: основные и дополнительные цвета */
+  /* брендбук, стр. 58: основные и дополнительные цвета (не зависят от темы) */
   --och-red: #d50032;        /* Pantone 199 */
   --och-red-dark: #ab2328;   /* Pantone 7621 */
   --och-graphite: #626262;   /* Pantone Cool Gray 10 */
@@ -14,17 +14,66 @@
   --och-white: #ffffff;
   --och-green: #84bd00;      /* Retail: Pantone 376 C */
   --och-blue: #0086d6;       /* Retail: Pantone 2194 */
-  --och-ink: #1f1f1f;
-  --och-line: #dde0e2;
-  --och-bg-soft: #f5f6f7;
+
+  /* Поверхности и текст (RGB-тройки для Tailwind: rgb(var(--och-x) / alpha)). Светлая тема. */
+  --och-paper: 255 255 255;      /* карточки, панели */
+  --och-cream: 245 246 247;      /* фон секций */
+  --och-ink: 31 31 31;           /* основной текст */
+  --och-ink-2: 74 74 74;
+  --och-ink-soft: 98 98 98;      /* Cool Gray 10 — текстовые блоки */
+  --och-ink-mute: 131 137 140;
+  --och-line: 221 224 226;
+  --och-kraft: 232 235 236;
+  --och-kraft-light: 244 245 246;
+  --och-kraft-dark: 201 206 208;
+  --och-malt-light: 232 235 236;
+  --och-malt-dark: 98 98 98;
+  --och-steel-light: 212 216 218;
   color-scheme: light;
 }
 
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+/* Тёмная тема: включается атрибутом data-scheme="dark" на <html> (ставит MiniApp по теме ВКонтакте). */
+:root[data-scheme='dark'] {
+  --och-paper: 25 25 26;      /* = vkui color_background_content (dark) */
+  --och-cream: 10 10 10;      /* = vkui color_background (dark) */
+  --och-ink: 225 227 230;
+  --och-ink-2: 207 209 212;
+  --och-ink-soft: 172 176 181;
+  --och-ink-mute: 135 140 146;
+  --och-line: 54 55 56;
+  --och-kraft: 44 44 47;
+  --och-kraft-light: 36 36 39;
+  --och-kraft-dark: 70 70 75;
+  --och-malt-light: 48 48 52;
+  --och-malt-dark: 190 194 198;
+  --och-steel-light: 64 66 70;
+  color-scheme: dark;
+}
+
+/* Иллюстрации-«приборы» (конвейер, рефрактометр) нарисованы в светлых тонах — внутри них всегда светлая палитра. */
+.och-light {
+  --och-paper: 255 255 255;
+  --och-cream: 245 246 247;
+  --och-ink: 31 31 31;
+  --och-ink-2: 74 74 74;
+  --och-ink-soft: 98 98 98;
+  --och-ink-mute: 131 137 140;
+  --och-line: 221 224 226;
+  --och-kraft: 232 235 236;
+  --och-kraft-light: 244 245 246;
+  --och-kraft-dark: 201 206 208;
+  --och-malt-light: 232 235 236;
+  --och-malt-dark: 98 98 98;
+  --och-steel-light: 212 216 218;
+  color-scheme: light;
+  color: rgb(var(--och-ink));
+}
+
+html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  background: var(--och-white);
-  color: var(--och-ink);
+  background: rgb(var(--och-cream));
+  color: rgb(var(--och-ink));
   /* Фирменная гарнитура — Proxima Nova (стр. 59). Если лицензия есть — положите файлы в public/fonts
      и подключите @font-face; иначе используется открытая замена Montserrat. */
   font-family: 'Proxima Nova', Montserrat, Tahoma, system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
@@ -78,7 +127,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .no-scrollbar { scrollbar-width: none; }
 
 /* --- range-слайдер в фирменных цветах ----------------------------------------- */
-input[type='range'].och-range { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 0; background: var(--och-line); outline: none; }
+input[type='range'].och-range { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 0; background: rgb(var(--och-line)); outline: none; }
 input[type='range'].och-range::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 999px; background: var(--och-red); border: 4px solid #fff; box-shadow: 0 1px 4px rgba(98,98,98,.5); cursor: grab; }
 input[type='range'].och-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 999px; background: var(--och-red); border: 4px solid #fff; box-shadow: 0 1px 4px rgba(98,98,98,.5); cursor: grab; }
 

@@ -125,7 +125,7 @@ export default function StoryShare({ className = '' }) {
       {open &&
         createPortal(
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" onClick={() => setOpen(false)}>
-            <motion.div initial={{ y: 20 }} animate={{ y: 0 }} onClick={(e) => e.stopPropagation()} className="relative flex max-h-full w-full max-w-[420px] flex-col overflow-hidden rounded-2xl bg-white">
+            <motion.div initial={{ y: 20 }} animate={{ y: 0 }} onClick={(e) => e.stopPropagation()} className="relative flex max-h-full w-full max-w-[420px] flex-col overflow-hidden rounded-2xl bg-paper">
               <div className="flex items-center justify-between border-b border-[#E7E8EC] px-4 py-3">
                 <span className="text-[15px] font-semibold text-[#2C2D2E]">История ВКонтакте</span>
                 <button onClick={() => setOpen(false)} className="text-vk-gray" aria-label="Закрыть">

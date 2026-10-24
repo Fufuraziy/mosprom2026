@@ -33,15 +33,21 @@ async function send(method, payload) {
   return withTimeout(bridge.send(method, payload))
 }
 
-/** Вызывается один раз при старте приложения. */
-export async function initVK() {
-  if (!isInsideVK) return { ok: false, mode: 'browser' }
-  try {
-    await send('VKWebAppInit')
-    return { ok: true, mode: 'vk' }
-  } catch (e) {
-    return { ok: false, mode: 'vk', error: String(e?.message || e) }
-  }
+let initPromise = null
+
+/** VKWebAppInit — один раз при старте (main.jsx вызывает до рендера, повторные вызовы получают тот же результат). */
+export function initVK() {
+  if (initPromise) return initPromise
+  initPromise = (async () => {
+    if (!isInsideVK) return { ok: false, mode: 'browser' }
+    try {
+      await send('VKWebAppInit')
+      return { ok: true, mode: 'vk' }
+    } catch (e) {
+      return { ok: false, mode: 'vk', error: String(e?.message || e) }
+    }
+  })()
+  return initPromise
 }
 
 /** «D.M.YYYY» → «YYYY-MM-DD»; «D.M» (год скрыт) → null. */

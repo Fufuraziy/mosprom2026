@@ -1,0 +1,58 @@
+/*
+ * Фирменный акцент ОЧАКОВО поверх тем VKUI (подключается ПОСЛЕ @vkontakte/vkui/dist/vkui.css).
+ * Кнопки, вкладки Tabbar, ссылки, переключатели и счётчики VKUI берут цвет из «акцентных» токенов —
+ * подменяем их на красный Pantone 199. Фоны, тексты и разделители остаются нативными токенами ВК.
+ * Подробности: frontend/docs/vk-miniapp/02-vkui-router-cheatsheet.md, раздел 9.
+ */
+.vkui--vkBase--light,
+.vkui--vkIOS--light,
+.vkui--vkCom--light {
+  --vkui--color_background_accent: #d50032;
+  --vkui--color_background_accent--hover: #c8002f;
+  --vkui--color_background_accent--active: #ab2328;
+  --vkui--color_background_accent_themed: #d50032;
+  --vkui--color_background_accent_themed--hover: #c8002f;
+  --vkui--color_background_accent_themed--active: #ab2328;
+  --vkui--color_background_accent_alternative: #d50032;
+  --vkui--color_background_accent_tint: #e33a63;
+  --vkui--color_text_accent: #d50032;
+  --vkui--color_text_accent--hover: #c8002f;
+  --vkui--color_text_accent--active: #ab2328;
+  --vkui--color_text_accent_themed: #d50032;
+  --vkui--color_text_accent_themed--hover: #c8002f;
+  --vkui--color_text_accent_themed--active: #ab2328;
+  --vkui--color_text_link: #d50032;
+  --vkui--color_text_link_themed: #d50032;
+  --vkui--color_icon_accent: #d50032;
+  --vkui--color_icon_accent_themed: #d50032;
+  --vkui--color_stroke_accent: #d50032;
+  --vkui--color_stroke_accent_themed: #d50032;
+  --vkui--color_text_contrast_themed: #ffffff;
+}
+
+/* Тёмная тема: красный чуть светлее, чтобы читался на #19191a; текст на кнопке — белый (у ВК по умолчанию белая кнопка с чёрным текстом). */
+.vkui--vkBase--dark,
+.vkui--vkIOS--dark,
+.vkui--vkCom--dark {
+  --vkui--color_background_accent: #e3164a;
+  --vkui--color_background_accent--hover: #ec2a5a;
+  --vkui--color_background_accent--active: #c8002f;
+  --vkui--color_background_accent_themed: #e3164a;
+  --vkui--color_background_accent_themed--hover: #ec2a5a;
+  --vkui--color_background_accent_themed--active: #c8002f;
+  --vkui--color_background_accent_alternative: #e3164a;
+  --vkui--color_background_accent_tint: #ec4a6f;
+  --vkui--color_text_accent: #ff4d73;
+  --vkui--color_text_accent--hover: #ff6688;
+  --vkui--color_text_accent--active: #e3164a;
+  --vkui--color_text_accent_themed: #ff4d73;
+  --vkui--color_text_accent_themed--hover: #ff6688;
+  --vkui--color_text_accent_themed--active: #e3164a;
+  --vkui--color_text_link: #ff4d73;
+  --vkui--color_text_link_themed: #ff4d73;
+  --vkui--color_icon_accent: #ff4d73;
+  --vkui--color_icon_accent_themed: #ff4d73;
+  --vkui--color_stroke_accent: #e3164a;
+  --vkui--color_stroke_accent_themed: #e3164a;
+  --vkui--color_text_contrast_themed: #ffffff;
+}

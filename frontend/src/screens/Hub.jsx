@@ -50,7 +50,7 @@ export default function Hub() {
               >
                 <div className="relative h-40 overflow-hidden border-b-2 border-brand">
                   <img src={PHOTO(s.photo)} alt="" className={cx('h-full w-full object-cover transition duration-500 group-hover:scale-105', ok && 'grayscale-[40%]')} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-ink/70 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                   <RecBadge label={`СТАНЦИЯ ${s.n}`} className="absolute left-3 top-3" />
                   <div className="absolute bottom-3 left-3 flex items-center gap-2 text-white">
                     <span className="grid h-9 w-9 place-items-center rounded-sm border-2 border-white" style={{ background: s.color }}>
@@ -61,7 +61,7 @@ export default function Hub() {
                   <span
                     className={cx(
                       'absolute right-3 top-3 grid h-12 w-10 place-items-center rounded-sm border-2 font-mono text-2xl font-extrabold',
-                      ok ? 'border-white bg-brand text-white' : 'border-dashed border-white/70 bg-ink/40 text-white/70',
+                      ok ? 'border-white bg-brand text-white' : 'border-dashed border-white/70 bg-black/40 text-white/70',
                     )}
                   >
                     {ok ? s.digit : '?'}
@@ -118,7 +118,7 @@ export default function Hub() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-ink-mute">
-        <label className="flex cursor-pointer items-center gap-2 rounded-sm border border-ink/15 bg-white px-3 py-2 font-semibold">
+        <label className="flex cursor-pointer items-center gap-2 rounded-sm border border-ink/15 bg-paper px-3 py-2 font-semibold">
           <input type="checkbox" checked={state.demoFast} onChange={(e) => actions.setDemo(e.target.checked)} className="accent-brand" />
           Демо-ускорение для жюри (кнопка «Пропустить мини-игру»)
         </label>

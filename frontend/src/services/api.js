@@ -214,6 +214,13 @@ export const api = {
       message_id: local.uid('msg'),
     })),
 
+  /** Удалить мои данные (правило ВК 1.1.10). На бэкенде пользователь определяется по подписи строки запуска ВК. */
+  deleteMe: (session_id, candidate_id) =>
+    call('DELETE', '/api/candidates/me', { session_id, candidate_id }, () => local.deleteMine({ session_id, candidate_id })).then((r) => {
+      local.deleteMine({ session_id, candidate_id }) // и локальную копию тоже
+      return r
+    }),
+
   /** CSV формируем на клиенте из уже загруженного списка — так работает и офлайн. */
   csv: (list) => local.toCSV(list),
 }

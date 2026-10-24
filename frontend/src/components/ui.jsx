@@ -86,7 +86,7 @@ export function Module({ tone = 'red', className = '', children }) {
     dark: 'bg-brand-700 text-white',
     gray: 'bg-steel text-white',
     light: 'bg-kraft-light text-brand',
-    white: 'bg-white text-brand',
+    white: 'bg-paper text-brand',
     graphite: 'bg-graphite text-white',
   }
   return <div className={cx('relative grid aspect-square place-items-center overflow-hidden', tones[tone], className)}>{children}</div>
@@ -153,13 +153,13 @@ export function RecBadge({ label = 'REC', className = '', dark = true }) {
   return (
     <span
       className={cx(
-        'inline-flex items-center gap-1.5 rounded px-2 py-0.5 font-mono text-[11px] font-bold tracking-widest',
-        dark ? 'bg-ink/80 text-white' : 'bg-white text-ink',
+        'inline-flex min-w-0 max-w-full items-center gap-1.5 rounded px-2 py-0.5 font-mono text-[11px] font-bold tracking-widest',
+        dark ? 'bg-[#1f1f1f]/80 text-white' : 'bg-paper text-ink',
         className,
       )}
     >
-      <span className="h-2 w-2 rounded-full bg-brand animate-blink" />
-      {label}
+      <span className="h-2 w-2 shrink-0 rounded-full bg-brand animate-blink" />
+      <span className="truncate">{label}</span>
     </span>
   )
 }
@@ -177,7 +177,7 @@ export function Burst({ children, color = '#D50032', text = '#fff', size = 96, c
   )
 }
 
-export function Sticker({ children, className = '', color = 'bg-white text-brand' }) {
+export function Sticker({ children, className = '', color = 'bg-paper text-brand' }) {
   return (
     <span className={cx('inline-block border border-current px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider', color, className)}>{children}</span>
   )
@@ -195,7 +195,7 @@ export function Button({ as: Tag = 'button', variant = 'primary', size = 'md', c
   const sizes = { sm: 'px-3.5 py-2 text-xs', md: 'px-5 py-3 text-[13px]', lg: 'px-7 py-4 text-sm sm:text-[15px]' }
   const variants = {
     primary: 'bg-brand text-white hover:bg-brand-600',
-    dark: 'bg-white text-brand hover:bg-brand-50',
+    dark: 'bg-paper text-brand hover:bg-brand-50',
     light: 'border border-brand bg-transparent text-brand hover:bg-brand hover:text-white',
     malt: 'bg-kraft text-ink hover:bg-kraft-dark',
     ghost: 'bg-transparent px-2 text-ink-soft normal-case tracking-normal hover:text-brand',

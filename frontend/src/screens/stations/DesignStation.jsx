@@ -95,7 +95,7 @@ function PantoneGame({ onDone }) {
                 setColors([])
                 setResult(null)
               }}
-              className={cx('rounded-sm border border-line px-3 py-2 text-sm font-extrabold', flavor === k ? 'bg-graphite text-white shadow-pop' : 'bg-white')}
+              className={cx('rounded-sm border border-line px-3 py-2 text-sm font-extrabold', flavor === k ? 'bg-graphite text-white shadow-pop' : 'bg-paper')}
             >
               {v.label.replace('KERN Malt Drink No Alco · ', '')}
             </button>
@@ -113,13 +113,13 @@ function PantoneGame({ onDone }) {
                 key={p.id}
                 onClick={() => pick(p.id)}
                 whileHover={{ y: -14 }}
-                className={cx('absolute bottom-0 left-1/2 h-[200px] w-[58px] -ml-[29px] hover:z-20 overflow-hidden rounded-sm border border-line bg-white text-left shadow-pop-sm', used >= 0 && 'ring-4 ring-brand')}
+                className={cx('absolute bottom-0 left-1/2 h-[200px] w-[58px] -ml-[29px] hover:z-20 overflow-hidden rounded-sm border border-line bg-paper text-left shadow-pop-sm', used >= 0 && 'ring-4 ring-brand')}
                 style={{ transformOrigin: '50% 95%', rotate: ang }}
                 aria-label={p.code}
               >
                 <div className="h-[150px]" style={{ background: p.hex }} />
                 <div className="px-1 pt-1 font-mono text-[8px] font-bold leading-tight">{p.code}</div>
-                {used >= 0 && <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-white font-mono text-[10px] font-extrabold">{used + 1}</span>}
+                {used >= 0 && <span className="absolute left-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-paper font-mono text-[10px] font-extrabold">{used + 1}</span>}
               </motion.button>
             )
           })}
@@ -132,7 +132,7 @@ function PantoneGame({ onDone }) {
               key={p.id}
               onClick={() => pick(p.id)}
               disabled={!!result || colors.includes(p.id) || colors.length >= 3}
-              className="flex items-center gap-1.5 border border-line bg-white py-1 pl-1 pr-2 text-[11px] font-semibold disabled:opacity-40"
+              className="flex items-center gap-1.5 border border-line bg-paper py-1 pl-1 pr-2 text-[11px] font-semibold disabled:opacity-40"
               aria-label={`Выбрать ${p.code}`}
               title={p.name}
             >
@@ -207,7 +207,7 @@ function Mirapolis({ onDone }) {
     <div className="grid items-start gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
       {/* телефон */}
       <div className="mx-auto w-[320px] rounded-[42px] border border-line bg-graphite p-3 shadow-pop">
-        <div className="overflow-hidden rounded-[32px] bg-white">
+        <div className="overflow-hidden rounded-[32px] bg-paper">
           <div className="flex items-center justify-between bg-[#1D3B6E] px-5 pb-2 pt-3 text-[11px] font-bold text-white">
             <span>12:27</span>
             <span className="flex items-center gap-1">
@@ -219,7 +219,7 @@ function Mirapolis({ onDone }) {
             <div className="font-extrabold">Финальное тестирование</div>
             <div className="mt-3 flex gap-1.5">
               {MIRAPOLIS_STEPS.map((_, k) => (
-                <span key={k} className={cx('h-1.5 flex-1 rounded-full', k < i || (k === i && chosen) ? 'bg-white' : k === i ? 'bg-white/60' : 'bg-white/25')} />
+                <span key={k} className={cx('h-1.5 flex-1 rounded-full', k < i || (k === i && chosen) ? 'bg-paper' : k === i ? 'bg-white/60' : 'bg-white/25')} />
               ))}
             </div>
           </div>
