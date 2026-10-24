@@ -88,7 +88,13 @@ export default function CandidateForm({ suggestedVacancy, onSubmitted }) {
     if (Object.keys(errs).length) return
     setSending(true)
     try {
-      const c = await api.submitCandidate({ form, telemetry: state.telemetry, points: state.points, session_id: state.sessionId })
+      const c = await api.submitCandidate({
+        form,
+        telemetry: { ...state.telemetry, tickets: state.tickets },
+        tickets: state.tickets,
+        points: state.points,
+        session_id: state.sessionId,
+      })
       actions.setCandidate(c)
       onSubmitted?.(c)
     } catch (err) {
