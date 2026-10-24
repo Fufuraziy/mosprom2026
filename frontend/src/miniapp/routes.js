@@ -36,6 +36,7 @@ export const PANEL = {
   JURY_HOME: 'jury_home',
   JURY_HR: 'jury_hr',
   JURY_BOT: 'jury_bot',
+  JURY_BRANDKIT: 'jury_brandkit',
 }
 
 /** Модальные окна (без собственного адреса: navigator.showModal(id), «назад» закрывает). */
@@ -65,6 +66,7 @@ export const PATH = {
   [PANEL.JURY_HOME]: '/jury',
   [PANEL.JURY_HR]: '/jury/hr',
   [PANEL.JURY_BOT]: '/jury/bot',
+  [PANEL.JURY_BRANDKIT]: '/jury/brandkit',
 }
 
 export const stationPath = (id) => `/station/${id}`
@@ -87,7 +89,7 @@ export const routes = RoutesConfig.create([
     createView(VIEW.REWARDS, [panel(PANEL.VERDICT), panel(PANEL.SALARY), panel(PANEL.MERCH), panel(PANEL.APPLY), panel(PANEL.APPLIED)]),
     createView(VIEW.MASCOT, [panel(PANEL.CHAT)]),
     createView(VIEW.PROFILE, [panel(PANEL.ME), panel(PANEL.ABOUT)]),
-    createView(VIEW.JURY, [panel(PANEL.JURY_HOME), panel(PANEL.JURY_HR), panel(PANEL.JURY_BOT)]),
+    createView(VIEW.JURY, [panel(PANEL.JURY_HOME), panel(PANEL.JURY_HR), panel(PANEL.JURY_BOT), panel(PANEL.JURY_BRANDKIT)]),
   ]),
 ])
 
@@ -100,7 +102,7 @@ export const VIEW_PANELS = {
   [VIEW.REWARDS]: [PANEL.VERDICT, PANEL.SALARY, PANEL.MERCH, PANEL.APPLY, PANEL.APPLIED],
   [VIEW.MASCOT]: [PANEL.CHAT],
   [VIEW.PROFILE]: [PANEL.ME, PANEL.ABOUT],
-  [VIEW.JURY]: [PANEL.JURY_HOME, PANEL.JURY_HR, PANEL.JURY_BOT],
+  [VIEW.JURY]: [PANEL.JURY_HOME, PANEL.JURY_HR, PANEL.JURY_BOT, PANEL.JURY_BRANDKIT],
 }
 
 /** На этих экранах нижняя панель скрыта: игра, ввод кода, анкета — ничего не должно отвлекать. */

@@ -134,6 +134,30 @@ input[type='range'].och-range::-moz-range-thumb { width: 20px; height: 20px; bor
 /* --- бегущая строка -------------------------------------------------------------- */
 .marquee-track { display: flex; width: max-content; }
 
+/* --- Крафти: речь, покачивание, конфетти, лампочка идеи --------------------------- */
+.och-talk { transform-box: fill-box; transform-origin: center; animation: och-talk .26s ease-in-out infinite alternate; }
+@keyframes och-talk { from { transform: scaleY(.35); } to { transform: scaleY(1.15); } }
+.och-bob { animation: och-bob 3.4s ease-in-out infinite; }
+@keyframes och-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
+.och-confetti { animation: och-confetti 2.2s ease-in-out infinite; }
+@keyframes och-confetti { 0%, 100% { translate: 0 0; opacity: 1; } 50% { translate: 0 6px; opacity: .55; } }
+.och-bulb { animation: och-bulb 1.8s ease-in-out infinite; }
+@keyframes och-bulb { 0%, 100% { opacity: 1; } 50% { opacity: .72; } }
+
+/* --- Бренд-Кит: печать макетов (листовки А4 — по листу на макет) ------------------- */
+@media print {
+  @page { size: A4; margin: 0; }
+  html, body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bk-noprint { display: none !important; }
+  .bk-root { max-width: none !important; padding: 0 !important; }
+  .bk-root > .space-y-12 > * + * { margin-top: 0 !important; }
+  .bk-leaflets { display: block !important; }
+  .bk-leaflets > figure { margin: 0; }
+  .bk-sheet-wrap { width: 210mm; height: 297mm; border: 0 !important; box-shadow: none !important; overflow: hidden; break-after: page; page-break-after: always; }
+  .bk-page { padding: 12mm; break-before: page; page-break-before: always; }
+  .bk-section { border-top-width: 0.3mm; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, useSpring, useMotionValueEvent } from 'framer-motion'
-import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound, Lock, Unlock, MapPin } from 'lucide-react'
+import { Smartphone, MessageCircle, BarChart3, Coins, KeyRound, Lock, Unlock, MapPin, Palette } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
 import { LogoPlate, cx } from './ui.jsx'
 
@@ -113,6 +113,19 @@ export default function Header({ embedded = false }) {
             </button>
           )}
 
+          {!embedded && (
+            <a
+              href="./brandkit.html"
+              target="_blank"
+              rel="noopener"
+              className="flex shrink-0 items-center gap-1.5 border border-line bg-paper px-2 py-1.5 text-xs font-bold uppercase tracking-wide text-ink hover:border-brand hover:text-brand sm:px-3"
+              title="Бренд-Кит и листовки: макеты А4 с QR, маскот, мерч, раскадровка (пункты 02–07)"
+            >
+              <Palette className="h-4 w-4" />
+              <span className="hidden xl:inline">🎨 Бренд-Кит и листовки</span>
+              <span className="hidden lg:inline xl:hidden">Бренд-Кит</span>
+            </a>
+          )}
           {!embedded && (
             <div className="flex border border-line bg-paper p-0.5" role="tablist" aria-label="Режим">
               {TABS.map(({ id, Icon: I, full, short, active }) => {

@@ -9,6 +9,14 @@ import { Button, Progress, cx } from '../../components/ui.jsx'
 import { downloadText } from './HRPanel.jsx'
 import Krafty from '../../components/Krafty.jsx'
 import InviteModal from './InviteModal.jsx'
+import { MerchTicketsBadge } from '../../components/MerchCard.jsx'
+
+/** Билеты мерча кандидата: {id: n} из телеметрии или списка purchased_merch_tickets (бэкенд). */
+function candidateTickets(c) {
+  if (c.telemetry?.tickets && Object.keys(c.telemetry.tickets).length) return c.telemetry.tickets
+  const list = c.purchased_merch_tickets || c.telemetry?.purchased_merch_tickets || c.merch || []
+  return (Array.isArray(list) ? list : []).reduce((a, id) => ({ ...a, [id]: (a[id] || 0) + 1 }), {})
+}
 
 function Ring({ value, label, color }) {
   const r = 34
@@ -200,6 +208,12 @@ export default function Dossier({ candidate, onClose }) {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+              {Object.keys(candidateTickets(c)).length > 0 && (
+                <div className="mt-3 border border-line bg-paper p-3">
+                  <div className="mb-2 font-display text-sm font-extrabold">Билеты мерча (мотивация бренда)</div>
+                  <MerchTicketsBadge tickets={candidateTickets(c)} colors={c.telemetry?.merch_colors || {}} />
                 </div>
               )}
             </div>

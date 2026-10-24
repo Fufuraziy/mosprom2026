@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Pause, ArrowRight, FileText, OctagonX } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
+import { nudgeMascot } from '../../state/mascotBus.js'
 import { QUIZZES } from '../../data/content.js'
 import { StationShell, Quiz, StationReward } from '../../components/StationKit.jsx'
 import { Button, Card, VerbTag, cx } from '../../components/ui.jsx'
@@ -126,6 +127,7 @@ function LineGame({ onFinish }) {
       return n
     })
     if (arrived.some((a) => a.dented)) {
+      nudgeMascot('Мятая банка ушла в термотуннель: снимай её с ленты, пока она не доехала до конца. Лучше снять лишнюю, чем пропустить.', 'ppe_guard')
       setWarn(true)
       setTimeout(() => setWarn(false), 700)
     }
@@ -138,6 +140,7 @@ function LineGame({ onFinish }) {
   const reject = (can) => {
     if (status !== 'run' || can.state !== 'belt') return
     setCans((cs) => cs.map((c) => (c.id === can.id ? { ...c, state: 'removed' } : c)))
+    if (!can.dented) nudgeMascot('Эта банка целая — ложное снятие тоже считается. Ищи вмятину на корпусе.', 'ppe_guard')
     setStats((st) => (can.dented ? { ...st, caught: st.caught + 1 } : { ...st, falseRejects: st.falseRejects + 1 }))
   }
 

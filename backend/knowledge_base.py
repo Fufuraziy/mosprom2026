@@ -594,7 +594,13 @@ TOPIC_TALKING_POINTS = {
 
 # Мерч за игровые баллы (MERCH во фронте). Названия из контракта /api/candidates/submit тоже принимаются.
 MERCH = {
-    "hoodie": {"title": "Худи и футболка с манифестом", "price": 300},
+    # капсульная коллекция PURE CRAFT 1978 (фронт: data/content.js → MERCH)
+    "hoodie": {"title": "Оверсайз-худи «МАНИФЕСТ 1978»", "price": 300},
+    "bomber": {"title": "Ворквеар-бомбер «ЛЭП × ОЧАКОВО»", "price": 400},
+    "tumbler": {"title": "Термобанка «3D KERN WIREFRAME»", "price": 250},
+    "holder": {"title": "Картхолдер-ретрактор «АНТИ-500 ₽»", "price": 150},
+    "dormkit": {"title": "Welcome-набор «Рябиновая, 36к2»", "price": 200},
+    # призы прошлой версии игры — для старых билетов и демо-кандидатов
     "box": {"title": "Крафт-бокс новинок", "price": 250},
     "stickers": {"title": "Стикеры и значки «Медведь ЛЭП»", "price": 200},
     "vip": {"title": "VIP-билет: музей и производство", "price": 400},
@@ -603,6 +609,8 @@ MERCH_ALIASES = {
     "худи я делаю натуральные напитки": "hoodie", "худи": "hoodie", "футболка": "hoodie",
     "vip-экскурсия в лэп": "vip", "vip": "vip", "экскурсия": "vip",
     "крафт-бокс": "box", "бокс": "box", "стикерпак крафти": "stickers", "стикер": "stickers",
+    "бомбер": "bomber", "термобанка": "tumbler", "тамблер": "tumbler", "ретрактор": "holder", "картхолдер": "holder",
+    "фен": "dormkit", "welcome": "dormkit", "шоппер": "dormkit",
 }
 
 

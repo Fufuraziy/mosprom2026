@@ -6,6 +6,9 @@ import { PPE_ITEMS, VALUES, PHOTO } from '../data/content.js'
 import { Button, Card, RecBadge, SectionTitle, TornPhoto, VerbTag, cx } from '../components/ui.jsx'
 import PpeArt, { Mannequin } from '../components/PpeArt.jsx'
 import Krafty from '../components/Krafty.jsx'
+import MascotStoryteller, { MascotNudge } from '../components/MascotStoryteller.jsx'
+import { MerchThumb } from '../components/MerchCard.jsx'
+import { MASCOT_STORIES } from '../data/mascot.js'
 
 function shuffleArray(arr) {
   const a = [...arr]
@@ -60,8 +63,18 @@ export default function Locker() {
                 Раздевалка и техника безопасности
               </>
             }
-            sub="Перед входом в цех выбери ровно то, что разрешено правилами охраны труда. Безопасность — приоритет ОЧАКОВО: в цехе шумно, вокруг движущиеся механизмы и химия."
+            sub="Перед входом в цех выбери ровно то, что разрешено правилами охраны труда."
           />
+          {!done && (
+            <MascotStoryteller
+              className="mb-5"
+              variant={MASCOT_STORIES.locker.variant}
+              kicker={MASCOT_STORIES.locker.kicker}
+              title={MASCOT_STORIES.locker.title}
+              text={MASCOT_STORIES.locker.text}
+              chips={MASCOT_STORIES.locker.chips}
+            />
+          )}
 
           <motion.div key={shake} animate={shake ? { x: [0, -10, 10, -6, 6, 0] } : {}} transition={{ duration: 0.4 }} className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {items.map((it) => {
@@ -143,6 +156,12 @@ export default function Locker() {
                           </motion.span>
                         ))}
                       </div>
+                      <div className="mt-4 flex items-center gap-3 border-t border-white/30 pt-3">
+                        <MerchThumb id="hoodie" size={52} className="border-white/40" />
+                        <p className="text-xs font-semibold leading-snug text-white/90">
+                          Манифест со спецовки есть и на худи «МАНИФЕСТ 1978» — разыграем его среди тех, кто пройдёт квест.
+                        </p>
+                      </div>
                     </div>
                     <Button variant="dark" size="lg" onClick={() => actions.go('hub')}>
                       К станциям <ArrowRight className="h-5 w-5" />
@@ -154,6 +173,7 @@ export default function Locker() {
           </AnimatePresence>
         </div>
 
+        <MascotNudge active={!done} tip="Выбери всё, что защищает: закрытую обувь, перчатки, очки и жёлтые беруши." resetKey="locker" />
         <aside className="space-y-4">
           <Card className="relative overflow-hidden bg-kraft-light p-4">
             <div className="halftone absolute inset-0 opacity-50" />

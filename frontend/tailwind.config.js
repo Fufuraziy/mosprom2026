@@ -13,7 +13,7 @@ const v = (name) => `rgb(var(--och-${name}) / <alpha-value>)`
 
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './hr.html', './src/**/*.{js,jsx}'],
+  content: ['./index.html', './hr.html', './brandkit.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {

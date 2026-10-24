@@ -22,6 +22,7 @@ import {
 import { useFirstPageCheck, useParams, useRouteNavigator } from '@vkontakte/vk-mini-apps-router'
 import {
   Icon28ArticleOutline,
+  Icon28PaletteOutline,
   Icon28ChatsOutline,
   Icon28StatisticsOutline,
   Icon28ViewOutline,
@@ -59,10 +60,14 @@ import CandidateForm, { Submitted } from '../screens/finale/CandidateForm.jsx'
 import FirstDayGuide from '../screens/finale/FirstDayGuide.jsx'
 import { StoryShareButton } from '../components/StoryShare.jsx'
 import MascotChatPanel from '../screens/mascot/MascotChatPanel.jsx'
+import MascotStoryteller from '../components/MascotStoryteller.jsx'
+import { MerchTeaser, MerchTicketsBadge } from '../components/MerchCard.jsx'
+import { MASCOT_STORIES } from '../data/mascot.js'
 
 const MapView = lazy(() => import('../screens/map/MapView.jsx'))
 const HRPanel = lazy(() => import('../screens/hr/HRPanel.jsx'))
 const BotScreen = lazy(() => import('../screens/bot/BotScreen.jsx'))
+const BrandKit = lazy(() => import('../brandkit/BrandKit.jsx'))
 import { MODAL, PANEL, PATH, stationPath } from './routes.js'
 
 const STATION_SCREENS = { lab: LabStation, engineering: EngineeringStation, line: LineStation, design: DesignStation }
@@ -138,6 +143,9 @@ export function JuryHomePanel({ nav }) {
         <Cell before={<Icon28ChatsOutline />} subtitle="Сообщения сообщества и сценарии пушей" chevron="always" onClick={() => navigator.push(PATH[PANEL.JURY_BOT])}>
           ВК-бот ОЧАКОВО
         </Cell>
+        <Cell before={<Icon28PaletteOutline />} subtitle="Листовки А4 с QR, маскот, лукбук мерча, раскадровка ролика" chevron="always" onClick={() => navigator.push(PATH[PANEL.JURY_BRANDKIT])}>
+          🎨 Бренд-Кит и листовки (п. 02–07)
+        </Cell>
         <Cell
           before={<Icon28LockOutline />}
           subtitle="Завершить сессию HR и вернуться в режим студента"
@@ -172,6 +180,16 @@ export function JuryHRPanel({ nav }) {
   )
 }
 
+export function JuryBrandKitPanel({ nav }) {
+  return (
+    <Screen nav={nav} title="Бренд-Кит" subtitle="Материалы кейса · п. 02–07" parent={PATH[PANEL.JURY_HOME]}>
+      <Suspense fallback={<Div className="p-8 text-center text-xs font-bold text-ink-mute">Загрузка макетов…</Div>}>
+        <BrandKit />
+      </Suspense>
+    </Screen>
+  )
+}
+
 export function JuryBotPanel({ nav }) {
   return (
     <Screen nav={nav} title="ВК-бот ОЧАКОВО" subtitle="Режим жюри" parent={PATH[PANEL.JURY_HOME]}>
@@ -192,6 +210,19 @@ export function HomePanel({ nav }) {
   return (
     <Screen nav={nav} title="Секретный код 1978" subtitle={started ? status : 'ОЧАКОВО · практика и стажировки 18+'} before={<JuryButton />}>
       <HomeHero onWhy={() => navigator.push(PATH[PANEL.WHY])} />
+      {!started && (
+        <Div>
+          <MascotStoryteller
+            variant={MASCOT_STORIES.home.variant}
+            kicker={MASCOT_STORIES.home.kicker}
+            title={MASCOT_STORIES.home.title}
+            text={MASCOT_STORIES.home.text}
+            chips={MASCOT_STORIES.home.chips}
+            action={{ label: 'Начать расследование', onClick: () => actions.go('locker') }}
+          />
+        </Div>
+      )}
+      <MerchTeaser onOpen={() => navigator.push(PATH[PANEL.MERCH])} />
       <Group header={<Header>Материалы дела</Header>}>
         <Cell before={<Icon28HistoryBackwardOutline />} subtitle="1978–2000+ и призвание бренда" chevron="always" onClick={() => navigator.push(PATH[PANEL.STORY])}>
           История первых
@@ -360,10 +391,25 @@ function NextButton({ children, onClick }) {
 }
 
 export function VerdictPanel({ nav }) {
+  const { state } = useGame()
   const navigator = useRouteNavigator()
   return (
     <Screen nav={nav} title="ИИ-вердикт">
       <RewardsGate>
+        <div className="px-4 pt-5">
+          <MascotStoryteller
+            variant="celebrate"
+            kicker="Капсула Мастерства 1978 открыта"
+            title="Ты прошёл весь путь — от поля до банки!"
+            text={
+              state.candidate
+                ? 'Анкета уже у HR, а твои билеты участвуют в розыгрыше мерча. Загляни в справочник первого дня: маршрут, чек-лист и наставник.'
+                : 'Все четыре цифры собраны, Крафт-баллы начислены. Открываю тебе розыгрыш мерча и анкету стажёра — ниже твой ИИ-вердикт и подходящие вакансии.'
+            }
+            action={{ label: 'Розыгрыш мерча', onClick: () => navigator.push(PATH[PANEL.MERCH]) }}
+            secondary={{ label: state.candidate ? 'Первый день' : 'Анкета стажёра', onClick: () => navigator.push(state.candidate ? PATH[PANEL.APPLIED] : PATH[PANEL.APPLY]) }}
+          />
+        </div>
         <div className="px-4 py-5">
           <AIVerdict />
         </div>
@@ -528,6 +574,12 @@ export function MePanel({ nav }) {
         </SimpleCell>
       </Group>
 
+      <Group header={<Header>Мои билеты мерча</Header>}>
+        <Div>
+          <MerchTicketsBadge tickets={state.tickets} colors={state.merchColors || {}} />
+        </Div>
+      </Group>
+
       {state.capsuleOpened && (
         <Group header={<Header>Поделиться</Header>}>
           <Div>
@@ -645,6 +697,7 @@ export const PANELS = {
   [PANEL.JURY_HOME]: JuryHomePanel,
   [PANEL.JURY_HR]: JuryHRPanel,
   [PANEL.JURY_BOT]: JuryBotPanel,
+  [PANEL.JURY_BRANDKIT]: JuryBrandKitPanel,
 }
 
 export { stationPath }

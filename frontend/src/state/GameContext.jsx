@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { api, onStatusChange, isHrAuthStored, setHrToken } from '../services/api.js'
 import HrAuthModal from '../components/HrAuthModal.jsx'
 import { uid } from '../services/localEngine.js'
-import { LEGACY_CODE, STATION_ORDER, newCapsuleCode } from '../data/content.js'
+import { LEGACY_CODE, PPE_ITEMS, STATION_ORDER, newCapsuleCode } from '../data/content.js'
+import { nudgeMascot } from './mascotBus.js'
 import { initVK, haptic, launchParams, storageLoad, storageSave, vkStorageEnabled } from '../services/vk.js'
 
 const LS_KEY = 'ochakovo1978_game_v1'
@@ -43,6 +44,7 @@ const initialState = () => ({
   ppeDone: false,
   capsuleOpened: false,
   tickets: {},
+  merchColors: {}, // выбранный цвет мерча: { hoodie: 'graphite' }
   candidate: null,
   telemetry: emptyTelemetry(),
   demoFast: false,
@@ -177,6 +179,8 @@ function reducer(state, a) {
       return { ...state, telemetry: { ...t, capsule_attempts: t.capsule_attempts + 1 } }
     case 'CAPSULE_OPEN':
       return state.capsuleOpened ? state : { ...state, capsuleOpened: true, points: state.points + 150 }
+    case 'MERCH_COLOR':
+      return { ...state, merchColors: { ...(state.merchColors || {}), [a.id]: a.color } }
     case 'BUY': {
       if (state.points - state.spent < a.price) return state
       return { ...state, spent: state.spent + a.price, tickets: { ...state.tickets, [a.id]: (state.tickets[a.id] || 0) + 1 } }
@@ -438,7 +442,16 @@ export function GameProvider({ children }) {
         }
       },
       ppeAttempt: (wrong, missing) => {
-        if (wrong.length || missing.length) haptic('error')
+        if (wrong.length || missing.length) {
+          haptic('error')
+          const bad = PPE_ITEMS.find((i) => i.id === wrong[0])
+          nudgeMascot(
+            bad
+              ? `${bad.label}: ${bad.note.replace(/^Нарушение:\s*/, '').replace(/^./, (c) => c.toLowerCase())}. Сними это и проверь ещё раз.`
+              : `Не хватает ещё ${missing.length} обязательн${missing.length === 1 ? 'ой вещи' : 'ых вещей'}: вспомни про закрытую обувь, перчатки и жёлтые беруши.`,
+            'ppe_guard',
+          )
+        }
         dispatch({ type: 'PPE_ATTEMPT', wrong })
         track('ppe_attempt', { wrong, missing })
       },
@@ -450,6 +463,7 @@ export function GameProvider({ children }) {
       },
       quiz: (station, idx, correct) => {
         haptic(correct ? 'success' : 'error')
+        if (!correct) nudgeMascot('Не страшно! Прочитай справку под вопросом — следующий ответ точно будет твоим. Наставники всегда помогут!')
         dispatch({ type: 'QUIZ', correct })
         track('quiz_answer', { station, idx, correct })
       },
@@ -469,6 +483,7 @@ export function GameProvider({ children }) {
         toast('+150 Крафт-баллов · Капсула 1978 открыта!')
         track('capsule_open', {})
       },
+      setMerchColor: (id, color) => dispatch({ type: 'MERCH_COLOR', id, color }),
       buy: (item) => {
         haptic('medium')
         dispatch({ type: 'BUY', id: item.id, price: item.price })

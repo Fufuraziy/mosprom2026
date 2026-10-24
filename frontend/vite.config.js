@@ -19,8 +19,9 @@ export default defineConfig({
   plugins: [react(), stripUseClient()],
   base: './',
   build: {
-    // index.html — VK Mini App, hr.html — страница сотрудников (Панель HR, симулятор бота)
-    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), hr: resolve(__dirname, 'hr.html') } },
+    // index.html — VK Mini App, hr.html — страница сотрудников (Панель HR, симулятор бота),
+    // brandkit.html — Бренд-Кит: листовки А4, паспорт маскота, лукбук, раскадровка (печать в PDF)
+    rollupOptions: { input: { main: resolve(__dirname, 'index.html'), hr: resolve(__dirname, 'hr.html'), brandkit: resolve(__dirname, 'brandkit.html') } },
     chunkSizeWarningLimit: 1200,
   },
   server: {

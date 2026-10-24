@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play, Minus, Plus, ArrowRight, AlertTriangle, Search, CheckCircle2, TriangleAlert } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
+import { nudgeMascot } from '../../state/mascotBus.js'
 import { QUIZZES } from '../../data/content.js'
 import { StationShell, Quiz, StationReward } from '../../components/StationKit.jsx'
 import { Button, Card, VerbTag, cx } from '../../components/ui.jsx'
@@ -168,6 +169,7 @@ function Panel({ onDone, onPhase }) {
         if (Date.now() - s.alarmStart > 6000) {
           s.handled = true
           s.reaction = null
+          nudgeMascot('Сигнал МЭА горел 6 секунд: вентиль нужно повернуть сразу, как только загорится тревога. Наставники тоже начинали с этого!', 'ppe_guard')
           setMeaAlarm(false)
           setValveOpen(true)
         }

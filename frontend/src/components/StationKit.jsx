@@ -1,14 +1,18 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ArrowRight, BookOpen, Check, X, FastForward, Map } from 'lucide-react'
 import { useGame } from '../state/GameContext.jsx'
 import { STATIONS, PHOTO, STATION_HISTORY_FACTS } from '../data/content.js'
 import { Button, Card, Picto, RecBadge, Steps, TornPhoto, VerbTag, cx } from './ui.jsx'
-import Krafty from './Krafty.jsx'
+import MascotStoryteller, { MascotNudge, MascotTip } from './MascotStoryteller.jsx'
+import { MASCOT_STORIES } from '../data/mascot.js'
 
 export function StationShell({ id, steps, step, onSkip, children, tip }) {
   const { state, actions } = useGame()
   const s = STATIONS.find((x) => x.id === id)
+  const story = MASCOT_STORIES[id]
+  const playing = step < steps.length - 1 // последний шаг — награда
+  const gameRef = useRef(null)
   return (
     <div className="mx-auto w-full min-w-0 max-w-7xl overflow-x-clip px-4 py-5 sm:px-6 sm:py-8">
       <div className="mb-6 grid grid-cols-[minmax(0,1fr)] items-end gap-5 md:grid-cols-[minmax(0,1fr)_auto]">
@@ -38,21 +42,34 @@ export function StationShell({ id, steps, step, onSkip, children, tip }) {
           </Button>
         )}
       </div>
-      {STATION_HISTORY_FACTS?.[id] && (
-        <div className="mb-4 flex items-center gap-3 rounded-sm border border-brand/30 bg-paper p-3 text-xs font-semibold shadow-sm">
+      {story && step === 0 && (
+        <MascotStoryteller
+          className="mb-5"
+          variant={story.variant}
+          kicker={story.kicker}
+          title={story.title}
+          text={story.text}
+          chips={story.chips}
+          action={{ label: 'К заданию', onClick: () => gameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+        />
+      )}
+      {STATION_HISTORY_FACTS?.[id] && step > 0 && playing && (
+        <div className="mb-4 flex items-center gap-3 border border-line bg-paper p-3 text-xs font-semibold">
           <span className="rounded bg-brand/10 px-2 py-1 font-mono text-[11px] font-bold uppercase text-brand">
             {STATION_HISTORY_FACTS[id].year}
           </span>
           <span className="flex-1 italic text-ink">{STATION_HISTORY_FACTS[id].quote}</span>
         </div>
       )}
-      {tip && (
-        <div className="mb-5 flex items-start gap-3 rounded-sm border border-line bg-paper p-3 shadow-pop-sm">
-          <Krafty size={44} mood="think" className="shrink-0" />
-          <p className="pt-1 text-sm font-semibold leading-snug">{tip}</p>
-        </div>
+      {tip && playing && (
+        <MascotTip className="mb-5" variant={story?.variant === 'lab_mentor' ? 'lab_mentor' : 'hint'}>
+          {tip}
+        </MascotTip>
       )}
-      {children}
+      <div ref={gameRef} className="scroll-mt-16">
+        {children}
+      </div>
+      <MascotNudge active={playing} tip={tip} resetKey={`${id}-${step}`} />
     </div>
   )
 }
@@ -157,7 +174,21 @@ export function StationReward({ id, breakdown, total }) {
   const s = STATIONS.find((x) => x.id === id)
   const doneCount = Object.keys(state.telemetry.stations).length
   const next = STATIONS.find((x) => !state.telemetry.stations[x.id])
+  const digit = state.digits[s.n - 1] ?? '?'
+  const left = 4 - doneCount
   return (
+    <div className="space-y-6">
+    <MascotStoryteller
+      variant="celebrate"
+      kicker={`Станция ${s.n} пройдена · +${total} Крафт-баллов`}
+      title={`Цифра ${digit} — твоя!`}
+      text={
+        left > 0
+          ? `Отличная работа! ${STATION_HISTORY_FACTS?.[id]?.title || s.title} — теперь и твоя история. Держи ${s.n}-ю цифру кода капсулы: до замка осталось ${left} ${left === 1 ? 'станция' : 'станции'}.`
+          : `Все 4 цифры у тебя! Капсула Мастерства 1978 ждёт: открой её, и я открою доступ к розыгрышу мерча и анкете стажёра.`
+      }
+      chips={[`Код: ${state.digits.map((d) => d ?? '•').join(' ')}`, `${doneCount}/4 станций`]}
+    />
     <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
       <motion.div
         initial={{ rotateY: 180, scale: 0.6 }}
@@ -175,7 +206,7 @@ export function StationReward({ id, breakdown, total }) {
       </motion.div>
       <Card className="p-5 sm:p-6">
         <VerbTag>Твоя точность — наш успех</VerbTag>
-        <h2 className="mt-3 font-display text-2xl font-extrabold sm:text-3xl">Станция «{s.title}» пройдена!</h2>
+        <h2 className="mt-3 font-display text-2xl font-extrabold sm:text-3xl">Разбор баллов: «{s.title}»</h2>
         <p className="mt-1 text-sm text-ink-soft">Результаты мини-игры ушли в твой профиль компетенций. HR увидит их только если ты сам(а) отправишь анкету.</p>
         {STATION_HISTORY_FACTS?.[id] && (
           <div className="mt-4 rounded-sm border-2 border-brand/30 bg-kraft-light p-4 text-ink shadow-pop-sm">
@@ -228,6 +259,7 @@ export function StationReward({ id, breakdown, total }) {
           </Button>
         </div>
       </Card>
+    </div>
     </div>
   )
 }
