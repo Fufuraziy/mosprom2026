@@ -323,6 +323,15 @@ export function GameProvider({ children }) {
   const [toasts, setToasts] = useState([])
   const [apiStatus, setApiStatus] = useState({ online: null, mode: 'local' })
   const sessionStarted = useRef(false)
+
+  const toast = useCallback((msg, kind = 'points') => {
+    const id = Math.random().toString(36).slice(2)
+    setToasts((x) => [...x, { id, msg, kind }])
+    setTimeout(() => setToasts((x) => x.filter((y) => y.id !== id)), 2600)
+  }, [])
+
+  const track = useCallback((event, payload) => api.track(state.sessionId, event, payload), [state.sessionId])
+
   const [isHrAuthenticated, setIsHrAuthenticated] = useState(() => {
     if (checkUrlJuryParam()) {
       setHrToken('ochakovo-hr-secret-1978')
@@ -439,14 +448,6 @@ export function GameProvider({ children }) {
       .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.sessionRegistered, state.sessionId])
-
-  const toast = useCallback((msg, kind = 'points') => {
-    const id = Math.random().toString(36).slice(2)
-    setToasts((x) => [...x, { id, msg, kind }])
-    setTimeout(() => setToasts((x) => x.filter((y) => y.id !== id)), 2600)
-  }, [])
-
-  const track = useCallback((event, payload) => api.track(state.sessionId, event, payload), [state.sessionId])
 
   const actions = useMemo(
     () => ({
