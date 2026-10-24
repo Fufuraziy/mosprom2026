@@ -9,7 +9,7 @@ if (!fs.existsSync(targetFile)) {
 
 let code = fs.readFileSync(targetFile, 'utf8');
 
-// 1. Add fetch timeout so LongPoll doesn't hang forever
+// 1. Add fetch timeout (30s) so individual requests never hang on dropped sockets
 if (!code.includes('timeout: 30000')) {
   code = code.replace(
     'const fetchOptions = { ...options, agent: getProxyAgent() || options?.agent };',
@@ -38,6 +38,7 @@ const newTaskCreation = `    const uploadResponse = await upload(uploadURL, bund
           upload_response: Buffer.from(JSON.stringify(uploadResponse)).toString('base64'),
         });
         if (taskData && taskData.version) {
+          console.log('[deploy] apps.createGoHostingTask response:', JSON.stringify(taskData));
           break;
         }
       } catch (err) {
@@ -51,25 +52,40 @@ const newTaskCreation = `    const uploadResponse = await upload(uploadURL, bund
 if (code.includes(oldTaskCreation)) {
   code = code.replace(oldTaskCreation, newTaskCreation);
   console.log('[patch-deploy] Applied delay & retry patch to apps.createGoHostingTask.');
-} else {
-  console.log('[patch-deploy] Pattern for apps.createGoHostingTask not matched, skipping patch.');
 }
 
-// 3. Add safety timeout for handleQueue (max 2 minutes)
-if (!code.includes('queueStart = Date.now()')) {
-  code = code.replace(
-    'async function handleQueue(user_id, base_url, key, ts, version, handled, cfg) {',
-    `async function handleQueue(user_id, base_url, key, ts, version, handled, cfg, queueStart = Date.now()) {
-  if (Date.now() - queueStart > 120000) {
-    console.warn(chalk.yellow('[deploy] LongPoll queue wait exceeded 2 minutes. Assuming hosting task is processing in background.'));
-    return true;
-  }`
-  );
+// 3. Add verbose logging and 4-minute timeout to handleQueue
+if (!code.includes('queuePollCount')) {
+  const oldQueueHeader = 'async function handleQueue(user_id, base_url, key, ts, version, handled, cfg) {';
+  const newQueueHeader = `async function handleQueue(user_id, base_url, key, ts, version, handled, cfg, queueStart = Date.now(), queuePollCount = 0) {
+  queuePollCount++;
+  if (Date.now() - queueStart > 240000) {
+    throw new Error('[deploy] Queue wait timed out after 4 minutes without completion events.');
+  }`;
+  
+  if (code.includes(oldQueueHeader)) {
+    code = code.replace(oldQueueHeader, newQueueHeader);
+  }
+
+  // Log every poll result
+  const oldResQuery = `  const query = await fetch(url);
+  const res = await query.json();`;
+  const newResQuery = `  console.log(\`[queue poll #\${queuePollCount}] URL: \${url}\`);
+  const query = await fetch(url);
+  const res = await query.json();
+  console.log(\`[queue poll #\${queuePollCount} response]\`, JSON.stringify(res));`;
+
+  if (code.includes(oldResQuery)) {
+    code = code.replace(oldResQuery, newResQuery);
+  }
+
+  // Forward recursion args
   code = code.replace(
     'return handleQueue(user_id, base_url, key, res.ts, version, handled, cfg);',
-    'return handleQueue(user_id, base_url, key, res.ts, version, handled, cfg, queueStart);'
+    'return handleQueue(user_id, base_url, key, res.ts || ts, version, handled, cfg, queueStart, queuePollCount);'
   );
-  console.log('[patch-deploy] Applied safety timeout to handleQueue.');
+
+  console.log('[patch-deploy] Applied verbose logging & timeout to handleQueue.');
 }
 
 fs.writeFileSync(targetFile, code, 'utf8');
