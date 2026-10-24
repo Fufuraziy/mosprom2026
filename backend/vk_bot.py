@@ -23,6 +23,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 import ai_agents
+import http_pool
 from database import SessionLocal
 from knowledge_base import topic_label
 from models import BotMessage, GameSession, TelemetryEvent
@@ -227,11 +228,7 @@ def to_vk_keyboard(rows: list[list[dict]], inline: bool = True) -> dict:
 # --------------------------------------------------------------------------------------
 async def vk_call(method: str, params: dict, client: httpx.AsyncClient | None = None) -> dict | list | int:
     data = {**params, "access_token": token(), "v": VK_API_VERSION}
-    if client is None:
-        async with httpx.AsyncClient(timeout=10) as own:
-            r = await own.post(VK_API + method, data=data)
-    else:
-        r = await client.post(VK_API + method, data=data)
+    r = await (client or http_pool.client()).post(VK_API + method, data=data)  # общий пул, таймаут 4 с
     body = r.json()
     if "error" in body:
         raise VKError(body["error"].get("error_code", 0), body["error"].get("error_msg", ""))

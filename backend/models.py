@@ -85,7 +85,7 @@ class Candidate(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     session_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
     full_name: Mapped[str] = mapped_column(String(160))
     birth_date: Mapped[date] = mapped_column(Date)
@@ -97,7 +97,7 @@ class Candidate(Base):
     vk_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
     vk_profile_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    target_vacancy: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    target_vacancy: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
     readiness_date: Mapped[str | None] = mapped_column(String(64), nullable=True)
     university: Mapped[str | None] = mapped_column(String(200), nullable=True)
     course_or_grad_year: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -149,7 +149,7 @@ class BotMessage(Base):
     channel: Mapped[str] = mapped_column(String(16), default="vk_demo")
     vk_user_id: Mapped[str | None] = mapped_column(String(32), index=True, nullable=True)
     candidate_id: Mapped[str | None] = mapped_column(String(32), index=True, nullable=True)
-    session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     text: Mapped[str] = mapped_column(Text)
     payload: Mapped[str | None] = mapped_column(String(64), nullable=True)
     keyboard: Mapped[list | None] = mapped_column(JSON, nullable=True)
@@ -159,5 +159,5 @@ class BotMessage(Base):
     vk_message_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     error: Mapped[str | None] = mapped_column(String(255), nullable=True)
     sent_by: Mapped[str | None] = mapped_column(String(32), nullable=True)   # bot | hr
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False)

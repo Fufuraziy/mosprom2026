@@ -81,11 +81,31 @@ cloudflared tunnel --url http://localhost:8000     # или: ngrok http 8000
 | POST | `/api/sessions`, `/api/telemetry` | игровая сессия и события `{session_id, event, payload, ts}` |
 | POST | `/api/bot/message` | симулятор ВК-бота во фронте → `{messages: [...]}` (тот же движок, что у настоящего бота) |
 | POST | `/api/bot/invite-draft` | персональное ИИ-приглашение (500–700 символов) |
-| POST | `/api/bot/send` | отправка кандидату → `{ok, delivered, channel: vk | vk_demo, message_id}` |
+| POST | `/api/bot/send` | отправка кандидату → `{ok, delivered, channel: vk | vk_demo, message_id, bot_message_id, is_from_hr}` |
+| GET | `/api/bot/inbox` | сообщения бота для вкладки «ВК-бот»: `session_id`, `candidate_id`, `since` (ISO), `limit`; id вида `bm_<n>` |
+| POST | `/api/auth/login` | вход HR / Режима жюри: `{key: "Ochakovo#HR525!"}` → `{authenticated, token, role}`, иначе 401 |
+| GET | `/api/auth/check` | проверка токена из заголовка `X-HR-Token` |
 | POST | `/api/vk/callback` | VK Callback API |
 | POST/GET | `/api/raffle/tickets` | билеты мерча `{session_id, item_id}` → `{ok, tickets, ticket_no}` |
 
 Списки и аналитика принимают `?include_demo=false`, чтобы скрыть демо-данные.
+
+## Вход HR
+
+Корпоративный ключ: **`Ochakovo#HR525!`** (`HR_ACCESS_KEY` в `.env`). Ключ сравнивается за постоянное время,
+в ответ выдаётся токен HMAC-SHA256 на 12 часов (`HR_TOKEN_SECRET`, `HR_TOKEN_TTL`). Запасные входы: старый PIN `1978`
+(пока `HR_ALLOW_LEGACY_PIN=1`) и VK ID из `VK_ADMIN_IDS`.
+
+## Производительность
+
+- GZip для ответов больше 500 байт.
+- SQLite: `journal_mode=WAL`, `synchronous=NORMAL`, `cache_size=-20000`, `temp_store=MEMORY`; индексы из
+  `database.INDEXES` досоздаются при старте.
+- TTL-кэш 15 с (`DASHBOARD_CACHE_TTL`) для `/api/hr/dashboard` и `/api/analytics/summary`, заголовок `X-Cache`.
+  Сброс — при анкете, сообщении HR, смене статуса, удалении данных.
+- `http_pool.py`: общий `httpx.AsyncClient` для VK API и LLM, таймаут VK API 4 с (`HTTP_TIMEOUT`), LLM — `LLM_TIMEOUT`.
+
+Тесты: `python -m pytest test_perf_auth_inbox.py -q` (из папки `backend`, своя временная база).
 
 ## Структура
 
@@ -97,7 +117,8 @@ telemetry_engine.py  телеметрия → компетенции, удерж
 knowledge_base.py    факты кейса, FAQ маскота, справочники фронта (вакансии, архетипы, наставники, мерч)
 models.py            таблицы: game_sessions, telemetry_events, chat_messages, candidates, raffle_tickets, bot_messages
 schemas.py           Pydantic-схемы
-database.py          подключение SQLite и автодобавление новых колонок
+database.py          подключение SQLite (WAL), автодобавление новых колонок и индексов
+http_pool.py         общий httpx.AsyncClient для VK API и LLM
 seed_data.py         демо-кандидаты и анонимные сессии
 ```
 

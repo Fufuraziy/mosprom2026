@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Lock, Unlock, Zap, ShieldCheck, X, AlertCircle } from 'lucide-react'
 import { LogoPlate } from './ui.jsx'
 
+/** Корпоративный ключ доступа HR (backend: HR_ACCESS_KEY). Для жюри хакатона он публичный — указан в README. */
+export const HR_ACCESS_KEY = 'Ochakovo#HR525!'
+
 export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = 'hr' }) {
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
@@ -23,7 +26,7 @@ export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = '
   const handleLogin = async (pinToTry) => {
     const code = (pinToTry ?? pin).trim()
     if (!code) {
-      setError('Введите 4-значный код доступа')
+      setError('Введите ключ доступа')
       return
     }
     setLoading(true)
@@ -37,8 +40,8 @@ export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = '
   }
 
   const handleQuickJuryLogin = () => {
-    setPin('1978')
-    handleLogin('1978')
+    setPin(HR_ACCESS_KEY)
+    handleLogin(HR_ACCESS_KEY)
   }
 
   return (
@@ -59,7 +62,7 @@ export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = '
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 16 }}
           transition={{ type: 'spring', damping: 24, stiffness: 320 }}
-          className="relative z-10 w-full max-w-lg overflow-hidden border-2 border-brand bg-white p-6 shadow-2xl sm:p-8"
+          className="relative z-10 w-full max-w-lg overflow-hidden border-2 border-brand bg-paper p-6 shadow-2xl sm:p-8"
           role="dialog"
           aria-modal="true"
         >
@@ -97,10 +100,10 @@ export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = '
           <div className="mt-5 rounded-lg border border-brand/20 bg-malt-light/20 p-3.5 text-xs sm:text-sm">
             <div className="flex items-center gap-2 font-bold text-graphite">
               <ShieldCheck className="h-4 w-4 text-brand shrink-0" />
-              <span>🔑 Пин-код для экспертов и жюри «Открой#Моспром»: <strong className="font-mono text-base text-brand">1978</strong></span>
+              <span>🔑 Корпоративный ключ для экспертов и жюри «Открой#Моспром»: <strong className="select-all font-mono text-base text-brand">{HR_ACCESS_KEY}</strong></span>
             </div>
             <p className="mt-1 text-[11px] text-ink-soft">
-              (1978 — год основания комбината «Очаково» к Олимпиаде-80)
+              Ключ проверяется на сервере, в ответ выдаётся подписанный токен сессии HR на 12 часов.
             </p>
           </div>
 
@@ -119,8 +122,8 @@ export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = '
 
           <div className="relative my-4 flex items-center justify-center">
             <div className="w-full border-t border-line" />
-            <span className="absolute bg-white px-3 text-[11px] font-bold uppercase tracking-wider text-ink-mute">
-              или ручной ввод PIN
+            <span className="absolute bg-paper px-3 text-[11px] font-bold uppercase tracking-wider text-ink-mute">
+              или ручной ввод ключа
             </span>
           </div>
 
@@ -134,23 +137,22 @@ export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = '
           >
             <div>
               <label htmlFor="hr-pin" className="block text-xs font-bold uppercase tracking-wider text-ink">
-                4-значный PIN сотрудника
+                Ключ доступа сотрудника HR
               </label>
               <div className="mt-1.5 flex gap-2">
                 <input
                   id="hr-pin"
                   ref={inputRef}
                   type="password"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
+                  autoComplete="current-password"
+                  maxLength={64}
                   value={pin}
                   onChange={(e) => {
                     setPin(e.target.value)
                     setError('')
                   }}
-                  placeholder="••••"
-                  className="w-full border-2 border-line bg-paper px-4 py-2.5 font-mono text-center text-xl font-bold tracking-[0.4em] text-ink focus:border-brand focus:bg-white focus:outline-none"
+                  placeholder="Ochakovo#…"
+                  className="w-full border-2 border-line bg-paper px-4 py-2.5 font-mono text-center text-base font-bold tracking-wider text-ink focus:border-brand focus:bg-paper focus:outline-none"
                 />
                 <button
                   type="submit"

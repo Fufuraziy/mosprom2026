@@ -12,6 +12,7 @@ import csv
 import hashlib
 import hmac
 import io
+import json
 import logging
 import os
 import random
@@ -19,6 +20,8 @@ import re
 import secrets
 import string
 import sys
+import threading
+import time
 import uuid
 from collections import Counter
 from contextlib import asynccontextmanager
@@ -29,19 +32,21 @@ from urllib.parse import parse_qsl, urlencode
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from sqlalchemy.orm import Session
 
 import ai_agents
+import http_pool
 import vk_bot
-from database import Base, SessionLocal, engine, get_db, migrate_columns
+from database import Base, SessionLocal, engine, ensure_indexes, get_db, migrate_columns
 from knowledge_base import (
     AGE_ERROR, BLOCKS, COMPANY_AVG_AGE, MERCH, MIN_AGE, STAGES, merch_id, merch_title, normalize_topic, topic_label,
 )
 from models import STATUS_LABELS, BotMessage, Candidate, ChatMessage, GameSession, RaffleTicket, TelemetryEvent, utcnow
 from schemas import (
     BotMessageRequest, BotSendRequest, CandidateSubmitRequest, CandidateSubmitResponse, ContactCandidateRequest,
-    EvaluateTelemetryRequest, EvaluateTelemetryResponse, FrontCandidateCreate, InviteDraftRequest, MascotChatRequest,
+    EvaluateTelemetryRequest, EvaluateTelemetryResponse, FrontCandidateCreate, InviteDraftRequest, LoginRequest, MascotChatRequest,
     MascotChatResponse, RaffleTicketRequest, RecommendationRequest, SessionCreate,
 )
 from seed_data import seed_database
@@ -63,6 +68,82 @@ CONSENT_VERSION = os.getenv("CONSENT_VERSION", "2026-10")
 BASELINE_CONVERSION_PCT = 0.02     # конверсия в найм до проекта (данные кейса)
 BASELINE_PROBATION_DROPOUT = 38    # отсев на испытательном сроке до проекта (данные кейса)
 
+# --- Авторизация HR / Режима жюри -----------------------------------------------------------------
+# Корпоративный ключ доступа HR (вместо PIN 1978). Задаётся в .env: HR_ACCESS_KEY=Ochakovo#HR525!
+HR_ACCESS_KEY = os.getenv("HR_ACCESS_KEY", "Ochakovo#HR525!")
+# Обратная совместимость: старый PIN принимается, пока HR_ALLOW_LEGACY_PIN не равен 0/false
+HR_ACCESS_PIN = os.getenv("HR_ACCESS_PIN", "1978")
+HR_ALLOW_LEGACY_PIN = os.getenv("HR_ALLOW_LEGACY_PIN", "1").lower() not in ("0", "false", "no")
+# Секрет подписи токенов. Если не задан — выводится из HR_ACCESS_KEY (токены переживают перезапуск)
+HR_TOKEN_SECRET = (os.getenv("HR_TOKEN_SECRET") or hashlib.sha256(("ochakovo-hr|" + HR_ACCESS_KEY).encode()).hexdigest()).encode()
+HR_TOKEN_TTL = int(os.getenv("HR_TOKEN_TTL", str(12 * 3600)))
+VK_ADMIN_IDS = {x.strip() for x in os.getenv("VK_ADMIN_IDS", "").split(",") if x.strip()}
+
+
+def _b64(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def secure_equals(a: str | None, b: str | None) -> bool:
+    """Сравнение секретов за постоянное время (защита от timing-атак)."""
+    if not a or not b:
+        return False
+    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+
+def issue_hr_token(role: str = "hr_admin") -> str:
+    """Подписанный токен сессии HR: base64url(payload).base64url(HMAC-SHA256(payload))."""
+    now = int(time.time())
+    payload = _b64(json.dumps({"role": role, "iat": now, "exp": now + HR_TOKEN_TTL, "jti": secrets.token_hex(6)},
+                              separators=(",", ":")).encode())
+    return f"{payload}.{_b64(hmac.new(HR_TOKEN_SECRET, payload.encode(), hashlib.sha256).digest())}"
+
+
+def verify_hr_token(token: str | None) -> dict | None:
+    """payload токена, если подпись верна и срок не истёк; иначе None."""
+    if not token or "." not in token:
+        return None
+    payload, sig = token.rsplit(".", 1)
+    if not secure_equals(sig, _b64(hmac.new(HR_TOKEN_SECRET, payload.encode(), hashlib.sha256).digest())):
+        return None
+    try:
+        data = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+    except ValueError:
+        return None
+    return data if int(data.get("exp", 0)) >= int(time.time()) else None
+
+
+# --- Лёгкий TTL-кэш в памяти для тяжёлой аналитики (один процесс uvicorn) ----------------------
+class TTLCache:
+    def __init__(self, ttl: float):
+        self.ttl = ttl
+        self._data: dict[str, tuple[Any, float]] = {}
+        self._lock = threading.Lock()
+
+    def get(self, key: str):
+        with self._lock:
+            item = self._data.get(key)
+            if item and item[1] >= time.monotonic():
+                return item[0]
+            self._data.pop(key, None)
+            return None
+
+    def set(self, key: str, value: Any) -> None:
+        with self._lock:
+            self._data[key] = (value, time.monotonic() + self.ttl)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._data.clear()
+
+
+DASHBOARD_CACHE = TTLCache(ttl=float(os.getenv("DASHBOARD_CACHE_TTL", "15")))
+
+
+def invalidate_dashboard_cache() -> None:
+    """Сброс кэша при записи: новая анкета, сообщение HR, смена статуса, удаление данных."""
+    DASHBOARD_CACHE.clear()
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -70,6 +151,7 @@ async def lifespan(_: FastAPI):
     added = migrate_columns()
     if added:
         log.info("БД: добавлены колонки %s", ", ".join(added))
+    ensure_indexes()
     if os.getenv("SEED_DEMO_DATA", "true").lower() != "false":
         with SessionLocal() as db:
             created = seed_database(db)
@@ -82,6 +164,7 @@ async def lifespan(_: FastAPI):
     vk_bot.runner.start()
     yield
     await vk_bot.runner.stop()
+    await http_pool.close()
 
 
 app = FastAPI(
@@ -96,8 +179,10 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],   # в т.ч. X-VK-Launch-Params
+    allow_headers=["*"],   # в т.ч. X-VK-Launch-Params и X-HR-Token
 )
+# Сжатие JSON-ответов (дашборд HR, досье) — экономит трафик на мобильном интернете и слабом сервере
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 # ======================================================================================
@@ -296,6 +381,7 @@ async def save_candidate(db: Session, *, session_id: str | None, full_name: str,
     save_tickets(db, session.id, cand.id, list(merch or []))
     log_event(db, session.id, "candidate_submitted", {"id": cand.id})
     db.commit()
+    invalidate_dashboard_cache()
     return cand
 
 
@@ -327,7 +413,8 @@ async def send_to_candidate(db: Session, c: Candidate, text: str, keyboard: list
     log_event(db, c.session_id or c.id, "hr_bot_invite", {"candidate_id": c.id, "channel": result["channel"],
                                                           "delivered": result["delivered"]})
     db.commit()
-    return result
+    invalidate_dashboard_cache()
+    return {**result, "is_from_hr": sent_by == "hr"}
 
 
 # ======================================================================================
@@ -348,6 +435,33 @@ def health(db: Session = Depends(get_db)):
         "vk_bot": vk_bot.status(),
         "vk_sign_check": bool(os.getenv("VK_APP_SECRET", "").strip()),
     }
+
+
+
+# ======================================================================================
+# Авторизация HR и Режима жюри
+# ======================================================================================
+@app.post("/api/auth/login", tags=["service"])
+def auth_login(req: LoginRequest):
+    """Корпоративный ключ HR (HR_ACCESS_KEY) → подписанный токен на 12 ч. Fallback: старый PIN, VK_ADMIN_IDS."""
+    key = (req.key or req.pin or req.code or "").strip()
+    ok = secure_equals(key, HR_ACCESS_KEY) \
+        or (HR_ALLOW_LEGACY_PIN and secure_equals(key, HR_ACCESS_PIN)) \
+        or (req.vk_user_id is not None and str(req.vk_user_id).strip() in VK_ADMIN_IDS)
+    if not ok:
+        return JSONResponse(status_code=401, content={
+            "detail": "Неверный код доступа сотрудника HR Очаково: нужен корпоративный ключ",
+            "errors": {"pin": "Неверный код доступа"}})
+    return {"authenticated": True, "token": issue_hr_token("hr_admin"), "role": "hr_admin", "expires_in": HR_TOKEN_TTL}
+
+
+@app.get("/api/auth/check", tags=["service"])
+def auth_check(request: Request):
+    """Проверка токена из X-HR-Token (для панели HR после перезагрузки страницы)."""
+    data = verify_hr_token(request.headers.get("X-HR-Token"))
+    if not data:
+        return JSONResponse(status_code=401, content={"authenticated": False})
+    return {"authenticated": True, "role": data.get("role"), "exp": data.get("exp")}
 
 
 # ======================================================================================
@@ -521,6 +635,7 @@ def delete_my_data(request: Request, db: Session = Depends(get_db)):
         .delete(synchronize_session=False)
     db.query(GameSession).filter(GameSession.id.in_(sessions)).delete(synchronize_session=False)
     db.commit()
+    invalidate_dashboard_cache()
     return {"ok": True, "deleted_candidates": len(cand_ids), "deleted_sessions": len(sessions)}
 
 
@@ -568,6 +683,7 @@ async def update_status(candidate_id: str, request: Request, db: Session = Depen
     if status.startswith("invited") and not c.invited_at:
         c.invited_at = utcnow()
     db.commit()
+    invalidate_dashboard_cache()
     return candidate_to_dict(c)
 
 
@@ -674,18 +790,30 @@ def build_analytics(db: Session, include_demo: bool) -> dict:
     }
 
 
+def _cached(key: str, response: Response, build):
+    """TTL-кэш 15 с: повторные запросы панели HR не пересчитывают аналитику. Заголовок X-Cache: HIT | MISS."""
+    data = DASHBOARD_CACHE.get(key)
+    response.headers["X-Cache"] = "HIT" if data is not None else "MISS"
+    if data is None:
+        data = build()
+        DASHBOARD_CACHE.set(key, data)
+    return data
+
+
 @app.get("/api/analytics/summary", tags=["hr"])
-def analytics_summary(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
-    return build_analytics(db, include_demo)
+def analytics_summary(response: Response, include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    return _cached(f"summary:{include_demo}", response, lambda: build_analytics(db, include_demo))
 
 
 @app.get("/api/hr/dashboard", tags=["hr"])
-def hr_dashboard(include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
-    data = build_analytics(db, include_demo)
-    data["candidates"] = list_candidates(include_demo=include_demo, db=db)
-    rows = demo_filter(db.query(BotMessage), BotMessage, include_demo).order_by(BotMessage.id.desc()).limit(30).all()
-    data["bot_messages"] = [vk_bot.message_to_dict(m) for m in rows]
-    return data
+def hr_dashboard(response: Response, include_demo: bool = Query(SHOW_DEMO_DEFAULT), db: Session = Depends(get_db)):
+    def build():
+        data = dict(build_analytics(db, include_demo))
+        data["candidates"] = list_candidates(include_demo=include_demo, db=db)
+        rows = demo_filter(db.query(BotMessage), BotMessage, include_demo).order_by(BotMessage.id.desc()).limit(30).all()
+        data["bot_messages"] = [vk_bot.message_to_dict(m) for m in rows]
+        return data
+    return _cached(f"dashboard:{include_demo}", response, build)
 
 
 @app.get("/api/hr/bot-messages", tags=["hr"])
@@ -898,9 +1026,59 @@ async def bot_send(req: BotSendRequest, db: Session = Depends(get_db)):
     if c:
         return await send_to_candidate(db, c, req.text or contact_template(c), keyboard)
     result = await vk_bot.send_message(db, vk_user_id=req.vk_user_id, text=req.text, keyboard=keyboard, kind="invite",
-                                       sent_by="hr")
+                                       session_id=req.session_id, sent_by="hr")
     db.commit()
-    return result
+    invalidate_dashboard_cache()
+    return {**result, "is_from_hr": True}
+
+
+def _parse_since(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt.astimezone(timezone.utc) if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+@app.get("/api/bot/inbox", tags=["bot"])
+def bot_inbox(session_id: str | None = None, candidate_id: str | None = None, since: str | None = None,
+              limit: int = Query(50, ge=1, le=200), db: Session = Depends(get_db)):
+    """Сообщения бота для вкладки «ВК-бот» (опрос раз в несколько секунд).
+
+    session_id / candidate_id — переписка конкретного игрока; без них — последние приглашения HR.
+    since — ISO-время последнего полученного сообщения (отдаются только более новые). Порядок — от старых к новым.
+    """
+    q = db.query(BotMessage)
+    if session_id or candidate_id:
+        cond = None
+        if session_id:
+            cand_ids = [c for (c,) in db.query(Candidate.id).filter(Candidate.session_id == session_id).all()]
+            cond = BotMessage.session_id == session_id
+            if cand_ids:
+                cond = cond | BotMessage.candidate_id.in_(cand_ids)
+        if candidate_id:
+            cond = (BotMessage.candidate_id == candidate_id) if cond is None else (cond | (BotMessage.candidate_id == candidate_id))
+        q = q.filter(cond)
+    else:
+        q = q.filter((BotMessage.sent_by == "hr") | (BotMessage.kind == "invite"))
+    after = _parse_since(since)
+    if after is not None:
+        q = q.filter(BotMessage.created_at > after)
+    rows = q.order_by(BotMessage.id.desc()).limit(limit).all()[::-1]
+    names = dict(db.query(Candidate.id, Candidate.full_name)
+                 .filter(Candidate.id.in_({r.candidate_id for r in rows if r.candidate_id})).all()) if rows else {}
+    items = []
+    for m in rows:
+        from_hr = m.sent_by == "hr" or m.kind == "invite"
+        items.append({
+            "id": f"bm_{m.id}", "session_id": m.session_id, "candidate_id": m.candidate_id,
+            "candidate_name": names.get(m.candidate_id), "from": "hr" if from_hr else ("user" if m.direction == "in" else "bot"),
+            "is_from_hr": from_hr, "kind": m.kind, "text": m.text, "channel": m.channel, "delivered": m.delivered,
+            "keyboard": m.keyboard, "created_at": iso(m.created_at),
+        })
+    return {"items": items, "server_time": iso(utcnow()), "source": "remote"}
 
 
 @app.post("/api/vk/callback", tags=["bot"], response_class=PlainTextResponse)
