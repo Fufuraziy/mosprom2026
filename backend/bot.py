@@ -39,14 +39,14 @@ def handle_bot_message(payload: Optional[str] = None, text: Optional[str] = None
             "from": "bot",
             "text": (
                 "Привет! Это карьерный бот АО МПБК «ОЧАКОВО» 🏭\n\n"
-                "Мы запустили детективную игру «Крафт-код 1978»: пройди 4 станции от идеи до полки, "
+                "Мы запустили детективную игру «Секретный код 1978»: пройди 4 станции от идеи до полки, "
                 "собери секретный код капсулы мастерства, получи персональный карьерный вердикт "
                 "и выиграй лимитированный мерч «Я делаю натуральные напитки»!"
             ),
             "keyboard": MAIN_KEYBOARD,
             "attachment": {
                 "type": "miniapp",
-                "title": "Крафт-код 1978",
+                "title": "Секретный код 1978",
                 "sub": "VK Mini App · Квест по заводу ОЧАКОВО"
             }
         }
@@ -60,7 +60,7 @@ def handle_bot_message(payload: Optional[str] = None, text: Optional[str] = None
             "keyboard": MAIN_KEYBOARD,
             "attachment": {
                 "type": "miniapp",
-                "title": "Крафт-код 1978",
+                "title": "Секретный код 1978",
                 "sub": "Продолжить квест в ЛЭП и цехах"
             }
         }]

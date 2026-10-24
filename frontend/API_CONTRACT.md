@@ -1,11 +1,11 @@
 # API-контракт фронтенда «Секретный код 1978»
 
 Фронтенд обращается к FastAPI по адресу `VITE_API_URL` (по умолчанию `http://localhost:8000`).
-Если бэкенд не отвечает, **каждый** метод автоматически выполняется во встроенном движке
+Если бэкенд не отвечает, каждый метод автоматически выполняется во встроенном движке
 `src/services/localEngine.js` с теми же структурами данных. Поэтому бэкенд можно
 реализовывать постепенно: эндпоинт, отвечающий `404/405/501`, тихо подменяется локальной логикой.
 
-Все тела запросов и ответов — JSON, поля в `snake_case`. Таймауты фронта: 3,5 с на обычные запросы, 15 с на ИИ-эндпоинты (`/api/mascot/chat`, `/api/recommendation`, `/api/bot/message`, `/api/bot/invite-draft`). Передача бэкенду с приоритетами и подводными камнями — [`../BACKEND_HANDOFF.md`](../BACKEND_HANDOFF.md). Нужен CORS для `http://localhost:5173`.
+Все тела запросов и ответов: JSON, поля в `snake_case`. Таймауты фронта: 3,5 с на обычные запросы, 15 с на ИИ-эндпоинты (`/api/mascot/chat`, `/api/recommendation`, `/api/bot/message`, `/api/bot/invite-draft`). Приоритеты и подводные камни для бэкенда описаны в [`../BACKEND_HANDOFF.md`](../BACKEND_HANDOFF.md). Нужен CORS для `http://localhost:5173`.
 
 ## Проверка доступности
 
@@ -15,7 +15,7 @@
 
 ## Аутентификация HR и Режим Жюри
 
-Для защиты персональных данных кандидатов и панели HR головного офиса «Очаково»:
+Панель HR головного офиса «Очаково» и персональные данные кандидатов закрыты входом.
 
 ### `POST /api/auth/login`
 - Тело запроса:
@@ -33,10 +33,10 @@
 
 ### Защита HR-эндпоинтов и демо-страховка
 - Заголовки: `X-HR-Token` или `Authorization: Bearer ...`.
-- Если токен валиден: бэкенд возвращает заголовок `X-HR-Auth-Mode: hr_admin` и поле `"auth_mode": "hr_admin"`.
-- **Страховка для демо:** если токен не передан, бэкенд НЕ блокирует эксперта ошибкой 401, а отдаёт `200 OK` с `auth_mode: "jury_open_fallback"`.
-- **Бесшовный вход:** переход по ссылке с параметром `?jury=1978` или `?role=hr` автоматически авторизует эксперта без показа модалки.
-- **Вход в 1 клик:** в модальном окне предусмотрена подсказка `🔑 Пин-код для экспертов и жюри «Открой#Моспром»: 1978` и кнопка `«⚡ Быстрый вход для Эксперта Жюри (1 клик)»`.
+- Если токен валиден, бэкенд возвращает заголовок `X-HR-Auth-Mode: hr_admin` и поле `"auth_mode": "hr_admin"`.
+- Страховка для демо: если токен не передан, бэкенд не блокирует эксперта ошибкой 401, а отдаёт `200 OK` с `auth_mode: "jury_open_fallback"`.
+- Бесшовный вход: переход по ссылке с параметром `?jury=1978` или `?role=hr` автоматически авторизует эксперта без показа модалки.
+- Вход в 1 клик: в модальном окне есть подсказка `🔑 Пин-код для экспертов и жюри «Открой#Моспром»: 1978` и кнопка `«⚡ Быстрый вход для Эксперта Жюри (1 клик)»`.
 
 ## Игровая сессия и телеметрия
 
@@ -75,7 +75,7 @@
 }
 ```
 
-## ИИ-агент №1 — маскот «Крафти»
+## ИИ-агент №1: маскот «Крафти»
 
 `POST /api/mascot/chat`
 ```json
@@ -88,7 +88,7 @@
 `topic` ∈ `dorm, salary, session, military, schedule, contract, food, transport, uniform, mentor, health, pass, practice_docs, brands, history, vacancies, other`.
 Если бэкенд вернёт только `reply`, тему определит локальный классификатор.
 
-## ИИ-агент №2 — рекомендация
+## ИИ-агент №2: рекомендация
 
 `POST /api/recommendation` `{session_id, telemetry}` →
 ```json
@@ -123,7 +123,7 @@
 ```
 → `201` объект кандидата (см. ниже). Ошибки валидации: `422 {"errors": {"birth_date": "…"}}`
 или стандартный FastAPI `{"detail": [{"loc": ["body", "birth_date"], "msg": "…"}]}`.
-**Возраст строго ≥ 18** — проверяется и на клиенте, и должен проверяться на сервере.
+Возраст должен быть не меньше 18: его проверяют и клиент, и сервер.
 
 `GET /api/candidates?university=&block=&q=&sort=created|retention|points` → `[candidate]` или `{items: [candidate]}`
 
@@ -170,7 +170,7 @@
 ```
 
 Ответ проходит через `src/services/normalize.js → normalizeAnalytics`. Там же принимаются альтернативные имена ключей
-(см. раздел «Ответы на вопросы бэкенда» в конце). **Единственное обязательное поле — непустой `funnel`**:
+(см. раздел «Ответы на вопросы бэкенда» в конце). Единственное обязательное поле: непустой `funnel`:
 без него фронт считает ответ неправильной формы и берёт локальную аналитику (с демо-данными).
 
 CSV формируется на клиенте из загруженного списка (разделитель `;`, UTF-8 с BOM для Excel).
@@ -178,9 +178,9 @@ CSV формируется на клиенте из загруженного с�
 ## ВК-бот сообщества (симулятор во вкладке «ВК-бот»)
 
 На проде бот работает на бэкенде через VK Callback API / Long Poll и использует те же ответы.
-Фронт-симулятор вызывает эти эндпоинты, а без бэкенда — встроенный `src/services/botEngine.js`.
+Фронт-симулятор вызывает эти эндпоинты, а без бэкенда использует встроенный `src/services/botEngine.js`.
 
-`POST /api/bot/message` — сообщение пользователя боту
+`POST /api/bot/message` передаёт боту сообщение пользователя:
 ```json
 {"session_id": "sess_…", "payload": "dorm", "text": null,
  "ctx": {"stationsDone": 2, "points": 540, "capsuleOpened": false, "hasCandidate": false, "tickets": 0}}
@@ -189,7 +189,7 @@ CSV формируется на клиенте из загруженного с�
      "keyboard": [[{"label": "Общежитие за 3 400 ₽", "payload": "dorm", "color": "secondary"}]],
      "attachment": {"type": "miniapp", "title": "Секретный код 1978", "sub": "…"}}]}`
 
-`color` кнопок — как в клавиатурах ВК-ботов: `primary | secondary | positive | negative`.
+`color` кнопок такой же, как в клавиатурах ВК-ботов: `primary | secondary | positive | negative`.
 Payload кнопок: `start, open_app, continue, dorm, session, salary, vacancies, subscribe, stop,
 iv_yes, iv_question, iv_later, season_yes, excursion_yes`.
 
@@ -200,55 +200,53 @@ iv_yes, iv_question, iv_later, season_yes, excursion_yes`.
 ```
 
 `POST /api/bot/send` `{candidate_id, vk_user_id, text}` → `{ok, delivered, channel: "vk" | "vk_demo", message_id}`
-(сообщение от имени сообщества: `messages.send` с ключом сообщества; кандидат должен был разрешить сообщения —
+(сообщение уходит от имени сообщества через `messages.send` с ключом сообщества; кандидат должен был разрешить сообщения,
 в мини-приложении для этого есть `VKWebAppAllowMessagesFromGroup`).
 
 ## VK Mini App
 
 - Анкета, заполненная через VK ID, приходит в `POST /api/candidates` с полями `form.vk_user_id` и `form.vk_source`
-  (`vk` — реальные данные из `VKWebAppGetUserInfo`, `demo` — демо-профиль вне ВК). Контакт ВК засчитывается как контакт кандидата.
+  (`vk` значит реальные данные из `VKWebAppGetUserInfo`, `demo` значит демо-профиль вне ВК). Контакт ВК засчитывается как контакт кандидата.
 - Подпись параметров запуска (`sign` в URL) бэкенд должен проверять секретным ключом приложения, прежде чем доверять `vk_user_id`.
 - Новые события телеметрии: `vk_init`, `vk_autofill {source}`, `vk_story_share {source}`, `bot_message`, `bot_push {scenario}`, `hr_bot_invite`.
 
----
-
 ## Ответы на вопросы бэкенда (24.10)
 
-### 1. `GET /api/analytics/summary` — какие ключи ждёт и проверяет фронт
+### 1. `GET /api/analytics/summary`: какие ключи ждёт и проверяет фронт
 
-Проверка формы одна: **`funnel` — непустой массив**. Всё остальное фронт достраивает сам (`normalize.js`).
-Можно отдавать как в примере выше, так и в текущей форме бэкенда — соответствие ключей:
+Форма проверяется одним условием: `funnel` должен быть непустым массивом. Всё остальное фронт достраивает сам (`normalize.js`).
+Отдавать можно как в примере выше, так и в текущей форме бэкенда; соответствие ключей такое:
 
 | Что показывает панель HR | Фронтовый ключ | Принимается также (форма бэкенда) | Если нет |
 |---|---|---|---|
 | KPI «Кандидатов (анкеты)» | `total_candidates` | `submitted` | последний шаг `funnel` |
 | подпись «живых сессий сегодня» | `live_candidates` | `submitted_today` | 0 |
-| KPI «Конверсия в анкету», % | `conversion_to_form` (в процентах, 7.1) | `conversion` (доля 0.071 **или** проценты; значение ≤ 1 считается долей) | последний шаг / первый шаг `funnel` |
-| подпись «было 0,02% конверсии в найм» | `baseline_conversion` | — | 0.02 |
+| KPI «Конверсия в анкету», % | `conversion_to_form` (в процентах, 7.1) | `conversion` (доля 0.071 или проценты; значение ≤ 1 считается долей) | последний шаг / первый шаг `funnel` |
+| подпись «было 0,02% конверсии в найм» | `baseline_conversion` | нет | 0.02 |
 | KPI «Отсев на испытательном» | `probation_dropout {current, forecast}` | то же | 38 / 9 |
-| KPI «Средний возраст» | `avg_age` | — | «—» |
-| подпись «в компании сейчас 52» | `company_avg_age` | — | 52 |
-| «Воронка сезона» | `funnel[] {step, value}` | `funnel[] {label, count}` (`id`, `pct` игнорируются — проценты фронт считает от первого шага) | **обязательно** |
-| «Кандидаты по 3 блокам» | `by_block[] {block, label, color, count}` | `blocks` — массив `{id, label?, count}` **или** объект `{engineering: 3, line: 5}` | пусто |
-| «Топ вузов» | `by_university[] {university, count}` | `top_universities` — массив `{name, count}` или объект `{"ИТМО": 2}` | пусто |
-| «Что волнует кандидатов» | `top_topics[] {topic, label, count}` | `asked_topics` — массив `{topic|id, count}` или объект `{dorm: 8}` | пусто |
-| — | — | `total_players`, `merch` — фронт сейчас не показывает, отдавать можно | — |
+| KPI «Средний возраст» | `avg_age` | нет | прочерк |
+| подпись «в компании сейчас 52» | `company_avg_age` | нет | 52 |
+| «Воронка сезона» | `funnel[] {step, value}` | `funnel[] {label, count}` (`id` и `pct` игнорируются, проценты фронт считает от первого шага) | обязательно |
+| «Кандидаты по 3 блокам» | `by_block[] {block, label, color, count}` | `blocks`, массив `{id, label?, count}` или объект `{engineering: 3, line: 5}` | пусто |
+| «Топ вузов» | `by_university[] {university, count}` | `top_universities`, массив `{name, count}` или объект `{"ИТМО": 2}` | пусто |
+| «Что волнует кандидатов» | `top_topics[] {topic, label, count}` | `asked_topics`, массив `{topic|id, count}` или объект `{dorm: 8}` | пусто |
+| нет | нет | `total_players`, `merch` (фронт их сейчас не показывает, но отдавать можно) | нет |
 
 Ключи блоков: `engineering` (Инженерия), `profile` (Химики и технологи), `line` (Линейный персонал), `free` (Бесплатная практика).
 Подписи и цвета блоков фронт берёт из `BLOCKS` в `src/data/content.js`, если не прислать `label`/`color`.
-Ключи тем — см. список в разделе «ИИ-агент №1»; подписи — `TOPIC_LABELS` в `content.js`.
+Ключи тем: см. список в разделе «ИИ-агент №1»; подписи: `TOPIC_LABELS` в `content.js`.
 
-### 2. `telemetry.stations` — что лежит внутри каждой станции
+### 2. `telemetry.stations`: что лежит внутри каждой станции
 
-**Id станций на фронте: `lab`, `engineering`, `line`, `design`** (не `bottling` / `rnd`).
-Фронт на всякий случай понимает и `bottling → line`, `rnd → design`, `tech → engineering`, `laboratory → lab`,
+Id станций на фронте: `lab`, `engineering`, `line`, `design` (не `bottling` и не `rnd`).
+На всякий случай фронт понимает и `bottling → line`, `rnd → design`, `tech → engineering`, `laboratory → lab`,
 но шлёт всегда свои id. Станция появляется в `stations` только после прохождения.
 
 ```jsonc
 {
   "stations": {
     "lab": {
-      "titration_accuracy": 82,          // 0–100, точность титрования (100 — остановился ровно в точке эквивалентности)
+      "titration_accuracy": 82,          // 0–100, точность титрования (100: остановился ровно в точке эквивалентности)
       "drops": 21, "endpoint": 20,       // сколько капель добавил / где была точка эквивалентности
       "brix_correct": 4, "brix_total": 4,// верные вердикты «норма/брак» по рефрактометру ATAGO
       "tasting_done": true,
@@ -260,7 +258,7 @@ iv_yes, iv_question, iv_later, season_yes, excursion_yes`.
     },
     "engineering": {
       "pressure_stability": 87,          // % времени, когда давление в абсорбере было в зелёной зоне 1,8–2,2 бар
-      "mea_reaction_ms": 1900,           // реакция на аварию МЭА в мс; null — не успел за 6 с
+      "mea_reaction_ms": 1900,           // реакция на аварию МЭА в мс; null, если не успел за 6 с
       "inspections_correct": 3, "inspections_total": 3,  // обход: барботёр (верно «отклонение»), SCHENK и чан ЛЭП («норма»)
       "quiz_correct": 2, "quiz_total": 2,
       "score": 233, "breakdown": [], "completed_at": "…"
@@ -287,15 +285,15 @@ iv_yes, iv_question, iv_later, season_yes, excursion_yes`.
 }
 ```
 
-Остальные поля `telemetry` — в разделе «Объект telemetry» выше. Когда что отправляется:
-- `POST /api/telemetry` с `event: "station_done"` и `payload: {id, points, result, skipped}` — сразу после станции (`result` = объект станции выше);
-- полный снимок `telemetry` — в `POST /api/recommendation` (финал) и в `POST /api/candidates` (анкета).
+Остальные поля `telemetry` описаны в разделе «Объект telemetry» выше. Отправляется это так:
+- `POST /api/telemetry` с `event: "station_done"` и `payload: {id, points, result, skipped}`, сразу после станции (`result` равен объекту станции выше);
+- полный снимок `telemetry` уходит в `POST /api/recommendation` (финал) и в `POST /api/candidates` (анкета).
 
-Как фронт считает компетенции из этих полей — `computeCompetencies()` в `src/services/localEngine.js`.
+Как фронт считает компетенции из этих полей: `computeCompetencies()` в `src/services/localEngine.js`.
 
 ### 3. Иконка и id архетипа
 
-**Не эмодзи.** Фронт ждёт имя иконки из набора `lucide-react`, как в `ARCHETYPES` (`src/data/content.js`):
+Эмодзи не нужны. Фронт ждёт имя иконки из набора `lucide-react`, как в `ARCHETYPES` (`src/data/content.js`):
 
 | `archetype.id` | `name` | `icon` | Станция-источник |
 |---|---|---|---|
@@ -305,15 +303,15 @@ iv_yes, iv_question, iv_later, season_yes, excursion_yes`.
 | `design` | Архитектор Бренда | `Palette` | дизайн и Mirapolis |
 
 Если придёт эмодзи или незнакомое имя, фронт сам подставит иконку по `id` (`normalizeArchetype`).
-`id` `bottling` и `rnd` тоже понимаются (→ `line`, `design`), но лучше отдавать фронтовые.
+`id` `bottling` и `rnd` тоже понимаются (как `line` и `design`), но лучше отдавать фронтовые.
 
-Вакансии (`matches[].id`), веса компетенций и блоки — `VACANCIES` в `content.js`:
+Вакансии (`matches[].id`), веса компетенций и блоки: `VACANCIES` в `content.js`:
 `chem` (Химик-лаборант, profile), `technologist` (Технолог, profile), `machinist` (Машинист тех. установок, engineering),
 `automation` (Наладчик / автоматизация, engineering), `bottling` (Оператор линии розлива, line),
 `warehouse` (Оператор склада / кладовщик, line), `digital` (Практика: дизайн, IT, оцифровка, free).
 
-### 4. `GET /api/candidates` — массив или объект
+### 4. `GET /api/candidates`: массив или объект
 
-Подходит **и то, и другое**: просто массив `[...]` (как сейчас) или `{items: [...]}`. Любая другая форма → локальный список.
+Подходит и то, и другое: просто массив `[...]` (как сейчас) или `{items: [...]}`. При любой другой форме фронт возьмёт локальный список.
 Каждому кандидату нужна `telemetry` (из неё фронт пересчитывает компетенции, архетип, удержание и рисует столбец
 «Вопросы маскоту»); станции внутри неё можно называть и фронтовыми id, и `bottling`/`rnd`.

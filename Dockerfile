@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile для единого развертывания проекта «ОЧАКОВО: Крафт-код 1978»
+# Multi-stage Dockerfile для единого развертывания проекта «ОЧАКОВО: Секретный код 1978»
 # Stage 1: Сборка клиентского SPA (React + Vite + Tailwind CSS)
 FROM node:20-alpine AS frontend-builder
 WORKDIR /build/frontend

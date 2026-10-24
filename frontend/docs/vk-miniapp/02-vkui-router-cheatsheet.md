@@ -1,7 +1,7 @@
 # Шпаргалка: VKUI 8 + vk-mini-apps-router 1.8 + vk-bridge 3
 
-Код ниже на JS (как наш проект). Эталон структуры — `reference/create-vk-mini-app-js-router/`.
-Если поведение кажется странным — смотреть исходники роутера в `reference/router-example/` и типы
+Код ниже на JS (как наш проект). Эталон структуры: `reference/create-vk-mini-app-js-router/`.
+Если поведение кажется странным, смотрите исходники роутера в `reference/router-example/` и типы
 навигатора `reference/router-example/RouteNavigator.type.ts`.
 
 ## 0. Пакеты (как в официальном шаблоне)
@@ -11,9 +11,9 @@ npm i @vkontakte/vkui@^8 @vkontakte/vk-mini-apps-router@^1.8.6 @vkontakte/vk-bri
 npm i -D eruda          # консоль на телефоне, только в dev
 ```
 
-- vk-bridge 3 — только ESM, API тот же, что у 2.15. vk-bridge-react 2 нужен для хуков `useAppearance`, `useInsets`, `useAdaptivity`.
+- vk-bridge 3 поставляется только как ESM, API тот же, что у 2.15. vk-bridge-react 2 нужен для хуков `useAppearance`, `useInsets`, `useAdaptivity`.
 - Браузеры VKUI 8: iOS ≥ 15, Chrome/Android WebView ≥ 84, Safari ≥ 15.
-- В шаблоне есть плагин Vite, который вырезает `"use-client"` из `@vkontakte/icons` (см. `reference/.../vite.config.js`), и `@vitejs/plugin-legacy`. Плагин legacy нужен для старых WebView — у нас его нет.
+- В шаблоне есть плагин Vite, который вырезает `"use-client"` из `@vkontakte/icons` (см. `reference/.../vite.config.js`), и `@vitejs/plugin-legacy`. Плагин legacy нужен для старых WebView, у нас его нет.
 - `index.html`: `<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no, viewport-fit=cover">`. Без `viewport-fit=cover` не работают безопасные зоны.
 
 ## 1. Точка входа
@@ -105,11 +105,11 @@ export const router = createHashRouter(routes.getRoutes())
 // Обращение к описаниям: routes.root.quest.station (для push с параметрами)
 ```
 
-- `createHashRouter` — адрес живёт после `#`, это стандарт для мини-приложений: прямая ссылка
+- `createHashRouter` держит адрес после `#`, как принято в мини-приложениях: прямая ссылка
   `https://vk.com/app<ID>#/station/lab` открывает станцию. Роутер сам синхронизирует адрес с ВК
   (`VKWebAppSetLocation`) и слушает `VKWebAppChangeFragment`.
-- Одинаковый `panel` можно повесить на два пути (например `/station/:id` и `/station/:id/quiz`) — так
-  в примере сделано с Персиком.
+- Одну `panel` можно повесить на два пути (например, `/station/:id` и `/station/:id/quiz`); так
+  сделано в примере с Персиком.
 - Для 404: `<RouterProvider notFound={<NotFound/>}>` или `notFoundRedirectPath="/"`.
 - `hierarchy` + параметр `?inflate=1` (см. пример) достраивают историю при входе по глубокой ссылке.
 
@@ -142,21 +142,21 @@ export const App = () => {
 }
 ```
 
-- **Порядок `Panel` внутри `View` = порядок переходов**, иначе анимация пойдёт «не в ту сторону».
+- Порядок `Panel` внутри `View` задаёт порядок переходов, иначе анимация пойдёт «не в ту сторону».
 - Переход: `navigator.push('/station/lab')` или `navigator.push(routes.root.quest.station, { id: 'lab' })`.
   Замена без записи в историю: `replace`. Назад: `back()`; в самое начало: `backToFirst()`.
-- **Первый экран:** на нём нужно разрешить нативный свайп, который закрывает мини-приложение. Для этого в первой
+- На первом экране нужно разрешить нативный свайп, который закрывает мини-приложение. Для этого в первой
   панели вызывается хук `useEnableSwipeBack()`: он сам шлёт `VKWebAppSetSwipeSettings {history:true}` и
   `VKWebAppEnableSwipeBack`. `SetSwipeSettings` работает только на iOS.
-- **Кнопка «Назад» в шапке при входе по прямой ссылке:**
+- Кнопка «Назад» в шапке при входе по прямой ссылке:
   ```jsx
   const isFirst = useFirstPageCheck()
   <PanelHeader before={<PanelHeaderBack onClick={() => (isFirst ? navigator.push('/') : navigator.back())} />}>Лаборатория</PanelHeader>
   ```
-- **Android:** аппаратная кнопка «Назад» вызывает `history.back`. Роутер на hash-истории обрабатывает её сам;
+- Android: аппаратная кнопка «Назад» вызывает `history.back`. Роутер на hash-истории обрабатывает её сам;
   если вернуться некуда, ВК закроет приложение.
 - Скролл каждой панели VKUI запоминает сам (роутер ставит `history.scrollRestoration = 'manual'`).
-  **Не трогать** `window.scrollTo` при смене экрана.
+  Не трогать `window.scrollTo` при смене экрана.
 
 ## 4. Панель
 
@@ -182,12 +182,12 @@ export const Station = ({ nav }) => {
 
 - Заголовок у каждого экрана свой (совет ВК: не дублировать одно название на всех экранах).
 - `after` у `PanelHeader` не использовать: там капсула ВК.
-- `PanelHeader` по умолчанию фиксируется сверху на мобильных; на vkcom — в потоке.
-- `FixedLayout` в VKUI 8 устарел (удалят в v10), вместо него `Box position="sticky"` — **важно сохранить порядок в DOM**.
+- `PanelHeader` по умолчанию фиксируется сверху на мобильных, а на vkcom лежит в потоке.
+- `FixedLayout` в VKUI 8 устарел (удалят в v10), вместо него используйте `Box position="sticky"` и сохраняйте порядок в DOM.
 
 ## 5. Модальные окна
 
-**Через роутер** (адрес меняется, «назад» закрывает шторку, можно дать прямую ссылку):
+Через роутер (адрес меняется, «назад» закрывает шторку, можно дать прямую ссылку):
 
 ```jsx
 const { modal } = useActiveVkuiLocation()
@@ -203,9 +203,9 @@ const modalRoot = (
 
 - `ModalRoot` в VKUI 8 помечен deprecated, но роутер 1.8.6 и его официальный пример работают именно с ним.
   Для модалок без адреса можно взять `useModalManager()` (`api.openModalPage({...})` + `contextHolder` в JSX).
-- На мобильном `ModalPage` — шторка снизу, на ширине ≥ 768 px — диалог. С `hasCustomPanelHeaderAfter`
+- На мобильном `ModalPage`: шторка снизу, а на ширине ≥ 768 px диалог. С `hasCustomPanelHeaderAfter`
   шторка не залезает под капсулу ВК.
-- `ModalCard` — короткое сообщение с 1–2 кнопками (подтверждение 18+, «цифра кода получена»).
+- `ModalCard` подходит для короткого сообщения с 1–2 кнопками (подтверждение 18+, «цифра кода получена»).
 
 ## 6. Попауты: Alert и ScreenSpinner
 
@@ -220,7 +220,7 @@ navigator.showPopout(
 navigator.showPopout(<ScreenSpinner state="loading" />)   // загрузка при старте
 ```
 
-Замена `window.confirm`: внутри WebView системные диалоги работают плохо и выглядят как в браузере.
+`Alert` заменяет `window.confirm`: внутри WebView системные диалоги работают плохо и выглядят как в браузере.
 
 ## 7. Уведомления: Snackbar
 
@@ -230,7 +230,7 @@ snackbar.open({ children: '+100 баллов за станцию', before: <Icon
 // {holder} — один раз в разметке App
 ```
 
-Если не через менеджер, `Snackbar` нужно убирать из DOM в `onClosed`, иначе он мешает следующему показу.
+Если не использовать менеджер, `Snackbar` нужно убирать из DOM в `onClosed`, иначе он мешает следующему показу.
 Позиция: `placement` и `offsetY`, чтобы не перекрывать Tabbar.
 
 ## 8. Разделы: Epic + Tabbar
@@ -247,18 +247,18 @@ snackbar.open({ children: '+100 баллов за станцию', before: <Icon
 </Epic>
 ```
 
-- `Epic` переключает разделы **без анимации**, а `View` внутри них — с анимацией.
+- `Epic` переключает разделы без анимации, а `View` внутри них переключает панели с анимацией.
 - В роутере разделы описываются как разные `createView` внутри одного `createRoot`, тогда `activeStory = view`.
-- `indicator` у `TabbarItem` — бейдж или `Counter` (например, «новая награда»).
+- `indicator` у `TabbarItem`: бейдж или `Counter` (например, «новая награда»).
 - На ширине планшета и больше Tabbar принято заменять боковым меню (`useAdaptivityConditionalRender`),
   пример в `reference/vkui-docs/navigation.mdx`, раздел «Интерактивный пример».
 - Таббар над игрой можно прятать: `tabbar={showTabbar && …}`.
 
 ## 9. Бренд ОЧАКОВО поверх VKUI
 
-Тема VKUI — это CSS-переменные `--vkui--*`, которые висят на классах `vkui--vkBase--light`, `vkui--vkIOS--dark`
+Тема VKUI состоит из CSS-переменных `--vkui--*`, которые висят на классах `vkui--vkBase--light`, `vkui--vkIOS--dark`
 и других. Цвета кнопок, вкладок, ссылок и переключателей берутся из «акцентных» токенов. Минимальное
-переопределение (файл подключать **после** `vkui.css`):
+переопределение (файл подключать после `vkui.css`):
 
 ```css
 /* brand-tokens.css */
@@ -277,16 +277,16 @@ snackbar.open({ children: '+100 баллов за станцию', before: <Icon
 /* для .--dark — свои оттенки (красный светлее, чтобы был контраст на тёмном) */
 ```
 
-Список акцентных токенов, которые реально используют компоненты (grep по исходникам VKUI 8.4):
+Акцентные токены, которые реально используют компоненты (найдены поиском по исходникам VKUI 8.4):
 `color_background_accent(_themed)`, `color_text_accent(_themed)`, `color_icon_accent(_themed)`,
 `color_stroke_accent(_themed)`, `color_text_contrast_themed` (текст на акцентной кнопке),
 `color_background_accent_tint(_themed)`, `color_background_accent_alternative`.
 
 Официально рекомендован другой путь: своя тема на `@vkontakte/vkui-tokens` и `ConfigProvider tokensClassNames`.
-Переопределение классов проще, и для прототипа его достаточно.
+Переопределять классы проще, и для прототипа этого достаточно.
 
-- Шрифт интерфейса VKUI — системный (`--vkui--font_family_base`). Montserrat оставить для крупных
-  заголовков и игровых экранов, а шапки, списки и формы не трогать: правило 3.3.1 про нативный вид.
+- Шрифт интерфейса VKUI: системный (`--vkui--font_family_base`). Montserrat оставить для крупных
+  заголовков и игровых экранов, а шапки, списки и формы не трогать: этого требует правило 3.3.1 про нативный вид.
 - В своих компонентах брать цвета фона и текста из токенов (`var(--vkui--color_background_content)`,
   `var(--vkui--color_text_primary)`), тогда тёмная тема заработает сама. Жёсткие `bg-white` и `text-ink`
   в тёмной теме дадут белые пятна.
@@ -294,9 +294,9 @@ snackbar.open({ children: '+100 баллов за станцию', before: <Icon
 
 ## 10. Мелочи
 
-- Виброотклик: `runTapticImpactOccurred('light')` из `@vkontakte/vk-bridge-react` — он сам проверяет поддержку.
-- `PullToRefresh` — для списка в HR, игре не нужен.
-- `Placeholder icon={<Icon56…/>} action={<Button>Повторить</Button>}>Текст ошибки</Placeholder>` — заглушка ошибки (3.5.1).
-- `Skeleton` / `Spinner` / `PanelSpinner` — загрузка (3.5.2).
+- Виброотклик: `runTapticImpactOccurred('light')` из `@vkontakte/vk-bridge-react` сам проверяет поддержку.
+- `PullToRefresh` пригодится для списка в HR, игре он не нужен.
+- Заглушка ошибки (3.5.1): `Placeholder icon={<Icon56…/>} action={<Button>Повторить</Button>}>Текст ошибки</Placeholder>`.
+- Для загрузки (3.5.2) есть `Skeleton`, `Spinner` и `PanelSpinner`.
 - Иконки ВК: https://vkcom.github.io/icons, импорт вида `import { Icon28GameOutline } from '@vkontakte/icons'`.
 - MCP-сервер VKUI (`npx -y @vkontakte/vkui-mcp`) отдаёт свойства компонентов и примеры для текущей версии.
