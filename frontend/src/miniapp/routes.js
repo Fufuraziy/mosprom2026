@@ -126,6 +126,8 @@ export function pathForScreen(screen, stationId, state) {
       return PATH[PANEL.VERDICT]
     case 'apply':
       return PATH[PANEL.APPLY]
+    case 'jury':
+      return PATH[PANEL.JURY_HOME]
     case 'jury_hr':
       return PATH[PANEL.JURY_HR]
     case 'jury_bot':

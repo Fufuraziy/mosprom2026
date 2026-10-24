@@ -30,7 +30,8 @@ export default function InviteModal({ candidate, onClose }) {
   const send = async () => {
     setSending(true)
     const r = await api.botSend(candidate, text)
-    const threadId = hrSend(candidate, text, draft?.keyboard)
+    // id строки истории бота на сервере (bot_message_id) — тот же, что вернёт GET /api/bot/inbox: без дублей при опросе
+    const threadId = hrSend(candidate, text, draft?.keyboard, r?.bot_message_id != null ? `bm_${r.bot_message_id}` : r?.message_id)
     setSending(false)
     setSent({ ...r, threadId })
     toast(`ВК-бот: приглашение отправлено · ${candidate.fio.split(' ').slice(0, 2).join(' ')}`, 'info')

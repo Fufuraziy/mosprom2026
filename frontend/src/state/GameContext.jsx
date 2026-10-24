@@ -87,7 +87,10 @@ function reducer(state, a) {
     case 'BOT_PUSH': {
       const b = state.bot
       const prev = b.threads[a.threadId] || { id: a.threadId, name: a.name || 'Кандидат', candidateId: a.candidateId || null, messages: [], unread: 0 }
-      const msgs = a.messages.map((m) => ({ id: Math.random().toString(36).slice(2), ts: new Date().toISOString(), ...m }))
+      // id с сервера (сообщения из /api/bot/inbox) не дублируем: одно и то же приглашение может прийти и локально, и при опросе
+      const seen = new Set(prev.messages.map((m) => m.id))
+      const msgs = a.messages.map((m) => ({ id: Math.random().toString(36).slice(2), ts: new Date().toISOString(), ...m })).filter((m) => !seen.has(m.id))
+      if (!msgs.length) return state
       const incoming = msgs.filter((m) => m.from !== 'user').length
       const thread = { ...prev, name: a.name || prev.name, messages: [...prev.messages, ...msgs].slice(-80), unread: a.markUnread ? prev.unread + incoming : prev.unread }
       return {
@@ -377,6 +380,7 @@ export function GameProvider({ children }) {
         track('hr_auth_success', { role: res.role })
         if (pendingHrTarget === 'jury') {
           dispatch({ type: 'JURY', value: true })
+          if (navigation.go) navigation.go('jury') // сразу открываем экран «Режим жюри»
         } else if (pendingHrTarget === 'hr' || pendingHrTarget === 'bot') {
           dispatch({ type: 'MODE', mode: pendingHrTarget })
           if (navigation.go) navigation.go(pendingHrTarget === 'hr' ? 'jury_hr' : 'jury_bot')

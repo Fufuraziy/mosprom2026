@@ -145,6 +145,8 @@ async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = fa
             ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
             // внутри ВК — строка запуска с подписью: бэкенд проверяет sign и доверяет vk_user_id (BACKEND_HANDOFF.md, 7.1)
             ...(launchQuery ? { 'X-VK-Launch-Params': launchQuery } : {}),
+            // токен сессии HR (после входа по корпоративному ключу) — для эндпоинтов Панели HR
+            ...(getHrToken() ? { 'X-HR-Token': getHrToken() } : {}),
           },
           body: body !== undefined ? JSON.stringify(body) : undefined,
         },
@@ -213,18 +215,18 @@ export const api = {
       {
         key: keyOrPin ? String(keyOrPin).trim() : undefined,
         pin: keyOrPin ? String(keyOrPin).trim() : undefined,
-        login,
-        vk_user_id: vk_user_id || undefined,
+        login: typeof login === 'string' && login.includes('@') ? login : 'hr-kab1155@ochakovo.ru',
+        vk_user_id: vk_user_id || (typeof login !== 'string' || !login.includes('@') ? login : undefined) || undefined,
       },
       () => {
-        const val = String(keyOrPin).trim()
-        if (val === 'Ochakovo#HR525!' || val === '1978') {
-          return { authenticated: true, token: 'ochakovo-hr-secret-1978', role: 'hr_admin' }
+        const k = String(keyOrPin || '').trim()
+        if (k === 'Ochakovo#HR525!' || k === '1978') {
+          return { authenticated: true, token: 'ochakovo-hr-secret-1978', role: 'hr_admin', source: 'local' }
         }
         const err = new Error('Неверный корпоративный ключ доступа сотрудника HR Очаково')
         err.status = 401
         err.detail = 'Неверный корпоративный ключ доступа сотрудника HR Очаково'
-        err.errors = { key: 'Неверный корпоративный ключ доступа сотрудника HR Очаково' }
+        err.errors = { key: err.detail, pin: err.detail }
         throw err
       },
     ).then((res) => {
@@ -304,6 +306,13 @@ export const api = {
     call('POST', '/api/bot/invite-draft', { candidate_id: candidate.id }, () => botLocal.inviteDraft(candidate), { timeout: LLM_TIMEOUT, slow: true }).then((r) =>
       r?.text ? { keyboard: botLocal.INVITE_KEYBOARD, ...r } : botLocal.inviteDraft(candidate),
     ),
+
+  /**
+   * Сообщения ВК-бота с сервера (GET /api/bot/inbox): приглашения HR, отправленные с любого устройства.
+   * params: { session_id?, candidate_id?, since?, limit? }. Офлайн — пустой список (всё уже в локальном симуляторе).
+   */
+  botInbox: (params = {}) =>
+    call('GET', `/api/bot/inbox${q(params)}`, undefined, () => ({ items: [], source: 'local' })).then((r) => (Array.isArray(r?.items) ? r : { items: [], source: 'local' })),
 
   /** Отправка сообщения кандидату от имени сообщества через ВК-бота. */
   botSend: (candidate, text) =>

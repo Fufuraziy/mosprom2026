@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { useGame } from './GameContext.jsx'
 import { api } from '../services/api.js'
 import { pushMessage } from '../services/botEngine.js'
@@ -40,12 +40,12 @@ export function useBot() {
     [state.sessionId, state.mode, state.bot.active, ctx.stationsDone, ctx.capsuleOpened, ctx.tickets],
   )
 
-  /** Сообщение от HR кандидату. Свой живой кандидат попадает в диалог «Вы». */
+  /** Сообщение от HR кандидату. Свой живой кандидат попадает в диалог «Вы». serverId — id из POST /api/bot/send (защита от дубля при опросе inbox). */
   const hrSend = useCallback(
-    (candidate, text, keyboard) => {
+    (candidate, text, keyboard, serverId) => {
       const own = candidate.session_id && candidate.session_id === state.sessionId
       const threadId = own ? 'me' : `cand:${candidate.id}`
-      actions.botPush(threadId, [{ from: 'hr', kind: 'invite', text, keyboard }], {
+      actions.botPush(threadId, [{ ...(serverId ? { id: serverId } : {}), from: 'hr', kind: 'invite', text, keyboard }], {
         name: own ? 'Вы (демо-кандидат)' : candidate.fio,
         candidateId: candidate.id,
         markUnread: true,
@@ -70,5 +70,30 @@ export function useBot() {
     [state.sessionId, actions],
   )
 
-  return { ctx, userSend, push, hrSend }
+  /**
+   * Подтянуть с сервера приглашения HR (GET /api/bot/inbox), отправленные с другого устройства — например, HR
+   * написал из Панели HR на ноутбуке, а вкладку «ВК-бот» смотрят на телефоне. Опрашиваем только новые (since).
+   */
+  const since = useRef(null)
+  const syncInbox = useCallback(async () => {
+    const r = await api.botInbox({ since: since.current || undefined, limit: 50 })
+    if (r.source !== 'remote') return 0
+    if (r.server_time) since.current = r.items.length ? r.items[r.items.length - 1].created_at : since.current || null
+    let added = 0
+    for (const m of r.items) {
+      if (!m.is_from_hr) continue
+      const own = m.session_id && m.session_id === state.sessionId
+      const threadId = own ? 'me' : `cand:${m.candidate_id || m.session_id}`
+      actions.botPush(threadId, [{ id: m.id, ts: m.created_at, from: 'hr', kind: 'invite', text: m.text }], {
+        name: own ? 'Вы (демо-кандидат)' : m.candidate_name || 'Кандидат',
+        candidateId: m.candidate_id || null,
+        markUnread: !isWatching(threadId),
+      })
+      added++
+    }
+    return added
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.sessionId, state.mode, state.bot.active])
+
+  return { ctx, userSend, push, hrSend, syncInbox }
 }

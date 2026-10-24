@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Lock, Zap, ShieldCheck, X, AlertCircle, Eye, EyeOff, ShieldAlert, KeyRound } from 'lucide-react'
 import { LogoPlate } from './ui.jsx'
 
+/** Корпоративный ключ доступа HR (backend: HR_ACCESS_KEY). Для жюри хакатона он публичный — указан в README. */
+export const HR_ACCESS_KEY = 'Ochakovo#HR525!'
+
 export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = 'hr' }) {
   const [login, setLogin] = useState('hr-kab1155@ochakovo.ru')
   const [key, setKey] = useState('')
@@ -99,7 +102,7 @@ export default function HrAuthModal({ isOpen, onClose, onSuccess, targetMode = '
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 16 }}
           transition={{ type: 'spring', damping: 24, stiffness: 320 }}
-          className="relative z-10 w-full max-w-lg overflow-hidden border-2 border-brand bg-white p-6 shadow-2xl sm:p-8"
+          className="relative z-10 w-full max-w-lg overflow-hidden border-2 border-brand bg-paper p-6 shadow-2xl sm:p-8"
           role="dialog"
           aria-modal="true"
         >

@@ -1,347 +1,334 @@
+"""Два ИИ-агента ОЧАКОВО.
+
+Агент №1 «Крафти» — маскот-наставник: отвечает по базе знаний и классифицирует тему вопроса.
+Агент №2 «Рекомендатель» — профайлинг по телеметрии (числа считает telemetry_engine,
+LLM только формулирует тексты) и черновик приглашения от HR. Диалоги ВК-бота — в vk_bot.py.
+
+LLM подключается, если в .env есть OPENAI_API_KEY или GEMINI_API_KEY. Любая ошибка/таймаут LLM —
+мгновенный переход на детерминированный движок, поэтому API отвечает всегда.
 """
-ИИ-Агенты платформы «ОЧАКОВО: Крафт-код 1978»:
-1. Агент №1 («Крафти» — Маскот и консультант по адаптации студентов)
-2. Агент №2 (HR Рекомендатель: скоринг компетенций, прогноз удержания, досье и генератор офферов)
-"""
+from __future__ import annotations
+
+import json
+import logging
+import os
 import re
-from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
 
-# Справочник тем
-TOPIC_LABELS = {
-    "dorm": "Общежитие и быт",
-    "salary": "Зарплата и выплаты",
-    "session": "Сессия и учёба",
-    "military": "Военкомат",
-    "schedule": "Смены и график",
-    "contract": "Оформление и ТК РФ",
-    "food": "Питание и столовая",
-    "transport": "Как добраться",
-    "uniform": "Спецодежда и СИЗ",
-    "mentor": "Наставничество",
-    "health": "Здравпункт",
-    "pass": "Пропускная система",
-    "practice_docs": "Документы практики",
-    "brands": "Бренды и продукция",
-    "history": "История и рекорды",
-    "vacancies": "Вакансии и старт",
-    "other": "Другой вопрос"
-}
+import httpx
 
-TOPIC_KEYWORDS = {
-    "dorm": ["общаг", "общежит", "комнат", "рябинов", "36", "проживан", "засел", "фен", "душ", "кухн", "комендант"],
-    "salary": ["зарплат", "зп", "доход", "деньг", "выплат", "аванс", "12", "27", "ндфл", "ночн", "рубл", "ставк"],
-    "session": ["сесси", "экзамен", "зачет", "учеб", "пары", "универ", "институт", "колледж", "отпуск"],
-    "military": ["военком", "арми", "повестк", "призыв", "отсрочк", "учет"],
-    "schedule": ["график", "смен", "2/2", "часов", "ноч", "выходн", "перерыв", "отсыпн", "режим"],
-    "contract": ["договор", "оформлен", "тк", "трудов", "стаж", "испытательн", "книжк", "срочн"],
-    "food": ["питани", "столов", "обед", "ужин", "еда", "компенсац", "карточк", "50%"],
-    "transport": ["добрат", "автобус", "метро", "озерн", "кунцевск", "говорово", "проезд", "маршрут", "адрес"],
-    "uniform": ["одежд", "форма", "халат", "сиз", "ботинк", "беруш", "перчатк", "стирк", "прачечн"],
-    "mentor": ["наставник", "обучен", "курсы", "мираполис", "mirapolis", "опыт", "помощ"],
-    "health": ["врач", "здравпункт", "больничн", "1370", "1303", "медосмотр", "поликлиник"],
-    "pass": ["пропуск", "турникет", "штраф", "500", "потер"],
-    "practice_docs": ["договор", "дневник", "отчет", "приказ", "характеристик", "каб 525", "учебный центр"],
-    "brands": ["квас", "coolcola", "kern", "кола", "сок", "лимонад", "мохито", "limontel", "ах", "напитк"],
-    "history": ["1978", "олимпиад", "пэт", "1994", "1995", "1996", "рекорд", "завод", "музей"],
-    "vacancies": ["ваканси", "лаборант", "технолог", "оператор", "машинист", "склад", "работа", "устроит"]
-}
+import http_pool
 
-FAQ_KNOWLEDGE_BASE = {
-    "dorm": {
-        "reply": "Общежитие ОЧАКОВО находится на ул. Рябиновая, 36, к. 2 (в 10 минутах пешком от завода на Рябиновой, 44). Для студентов стоимость всего 3 400 ₽ в месяц (50% компенсирует компания!). Комнаты на 4–6 человек, на каждом этаже кухни со всей техникой и посудой. Важный лайфхак: фен нужно взять свой! Вход закрывается с 23:00 до 6:00.",
-        "suggestions": ["Как добраться до завода?", "Сколько стоит питание?", "Когда выплачивается зарплата?"]
-    },
-    "salary": {
-        "reply": "Зарплата выплачивается строго 2 раза в месяц: 12 и 27 числа на банковскую карту. Все суммы в вакансиях (от 56 000 до 70 000+ ₽) указаны до вычета НДФЛ. За ночные смены начисляется повышенный коэффициент. Расчётный листок приходит на электронную почту.",
-        "suggestions": ["Как совмещать с учёбой?", "Есть ли общежитие?", "Какие вакансии есть?"]
-    },
-    "session": {
-        "reply": "В ОЧАКОВО отличные условия для студентов: в высокий сезон (март–сентябрь) экзамены и зачёты можно сдавать прямо на территории комбината! Главное — заранее согласовать даты сессии с руководителем смены, и на эти дни тебе не будут ставить рабочие смены.",
-        "suggestions": ["Какое общежитие?", "Есть ли испытательный срок?", "Где оформить практику?"]
-    },
-    "military": {
-        "reply": "Воинский учёт ведётся официально и строго по закону. При получении повестки нужно написать заявление в отдел кадров и приложить оригинал повестки. Дни прохождения медкомиссии согласовываются с руководителем с сохранением места.",
-        "suggestions": ["Какой график работы?", "Где общежитие?", "Сколько платят?"]
-    },
-    "schedule": {
-        "reply": "Основные графики: сменный 2/2 по 12 часов (дневные смены 8:00–20:00, ночные 20:00–8:00) либо график день–ночь–отсыпной–выходной. В высокий сезон возможны дополнительные смены по повышенной ставке.",
-        "suggestions": ["Как доехать до завода?", "Как оплачивается ночная смена?", "Как насчёт сессии?"]
-    },
-    "contract": {
-        "reply": "С первого дня заключается официальный срочный трудовой договор по ТК РФ с записью в электронную трудовую книжку. Главный плюс для студентов: у нас НЕТ испытательного срока! Вместо него — производственная практика с наставником.",
-        "suggestions": ["Со скольки лет берут?", "Сколько платят лаборанту?", "Как оформить документы?"]
-    },
-    "food": {
-        "reply": "На комбинате работает собственная столовая: горячие комплексные обеды (11:30–14:30) и ужины (20:30–22:00). Компания компенсирует 50% стоимости питания! Наличные не нужны: расчёт идёт по карточке сотрудника с удержанием остатка из зарплаты.",
-        "suggestions": ["Где находится общежитие?", "Как добраться до завода?", "Какая зарплата?"]
-    },
-    "transport": {
-        "reply": "Завод и офис: г. Москва, ул. Рябиновая, д. 44. Доехать легко: бесплатный корпоративный автобус от м. Озёрная; городские автобусы № 275 и 610 от м. Кунцевская; № 259 от пл. Рабочий посёлок; № 221, 259, 275 от м. Говорово.",
-        "suggestions": ["Где находится общежитие?", "Какой график смен?", "Какие вакансии открыты?"]
-    },
-    "uniform": {
-        "reply": "Каждому сотруднику бесплатно выдаётся фирменная удобная спецодежда с манифестом на спине «Я ДЕЛАЮ НАТУРАЛЬНЫЕ НАПИТКИ» и все необходимые СИЗ (защитная обувь, перчатки, очки, беруши). На территории завода работает бесплатная прачечная (стирка 1–2 дня).",
-        "suggestions": ["Нужны ли свои СИЗ?", "Как устроен первый день?", "Кто такой наставник?"]
-    },
-    "mentor": {
-        "reply": "За каждым молодым специалистом закрепляется опытный Гранд-мастер с 15–30-летним стажем. Он лично обучает работе на оборудовании. Дополнительно доступна мобильная СДО Mirapolis с курсами по менеджменту: SMART, SWOT, диаграмма Исикавы, 5 Почему.",
-        "suggestions": ["Как пройти тест в Mirapolis?", "Какие вакансии есть?", "Как сдавать сессию?"]
-    },
-    "health": {
-        "reply": "На территории комбината круглосуточно работает лицензированный здравпункт. Внутренние телефоны: доб. 1370 или 1303. В случае недомогания тебе окажут первую помощь. Больничный лист оформляется официально через городскую поликлинику.",
-        "suggestions": ["Как получить пропуск?", "Какой график работы?", "Как с питанием?"]
-    },
-    "pass": {
-        "reply": "Электронный пропуск оформляется в отделе кадров в первый день. Он служит ключом на проходной завода и карточкой оплаты питания в столовой. Береги его: при утере штраф составляет 500 ₽.",
-        "suggestions": ["Где находится отдел кадров?", "Что нужно в первый день?", "Как доехать?"]
-    },
-    "practice_docs": {
-        "reply": "Все документы по практике (договор от вуза/колледжа, приказ, дневник практики, индивидуальное задание, характеристика) оформляются в Учебном центре ОЧАКОВО: главный корпус, 5-й этаж, кабинет 525. Тел.: 8 800 100 77 77 (доб. 1155).",
-        "suggestions": ["Берут ли без опыта?", "Со скольки лет?", "Можно ли остаться в штате?"]
-    },
-    "brands": {
-        "reply": "ОЧАКОВО — лидер натурального брожения! Наши флагманы: легендарный квас «Очаковский» (двойное брожение), премиальная CoolCola, безалкогольный солодовый напиток KERN (ананас, малина), лимонады «Таёжная кола», «Тархун-мята», «Ситро-апельсин», «Дюшес-Барбарис», Мохито Fresh и Limontel.",
-        "suggestions": ["Как делают квас?", "Где варят KERN?", "Какие вакансии в цехе варки?"]
-    },
-    "history": {
-        "reply": "Комбинат основан в 1978 году к Олимпиаде-80 как самый мощный в Европе. ОЧАКОВО — мировой трендсеттер: первыми в мире разлили пиво в ПЭТ (1994), первыми в РФ выпустили напитки в банке (1995), первыми в промышленности воссоздали натуральное молочнокислое и дрожжевое брожение кваса (1996). 100% российский капитал без иностранных инвесторов!",
-        "suggestions": ["Что за капсула 1978 года?", "Где музей комбината?", "Какие вакансии есть?"]
-    },
-    "vacancies": {
-        "reply": "Сейчас открыт весенне-летний набор: Химики-лаборанты (от 60 000 ₽), Технологи / Операторы варки (от 70 000 ₽), Операторы линии розлива (от 70 000 ₽), Машинисты техустановок CO2 (от 70 000 ₽), Операторы склада и кладовщики (от 56 000 до 60 000+ ₽), а также бесплатная IT-практика. Приём строго с 18 лет! Звони: 8 800 100 77 77 (доб. 1155).",
-        "suggestions": ["Как подать анкету?", "Какое общежитие?", "С чего начать?"]
+import database  # noqa: F401 — загружает .env до того, как LLMClient прочитает ключи
+from knowledge_base import (
+    ALCOHOL_ANSWER, ALCOHOL_KEYWORDS, FALLBACK_ANSWER, FAQ, SMALL_TALK, STAGES, TOPICS, build_kb_text, normalize_topic,
+    topic_label,
+)
+from telemetry_engine import build_dossier, evaluate
+
+log = logging.getLogger("ochakovo.ai")
+
+
+# ======================================================================================
+# LLM-клиент (OpenAI-совместимый или Gemini) через httpx
+# ======================================================================================
+class LLMClient:
+    def __init__(self) -> None:
+        self.timeout = float(os.getenv("LLM_TIMEOUT", "10"))
+        preferred = os.getenv("LLM_PROVIDER", "auto").lower()
+        self.openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+        self.gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.openai_base = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+        self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        if preferred == "off":
+            self.provider = None
+        elif preferred == "openai":
+            self.provider = "openai" if self.openai_key else None
+        elif preferred == "gemini":
+            self.provider = "gemini" if self.gemini_key else None
+        else:
+            self.provider = "openai" if self.openai_key else "gemini" if self.gemini_key else None
+
+    @property
+    def model(self) -> str | None:
+        return {"openai": self.openai_model, "gemini": self.gemini_model}.get(self.provider or "")
+
+    async def complete_json(self, system: str, user: str, max_tokens: int = 700, temperature: float = 0.6) -> dict | None:
+        if not self.provider:
+            return None
+        try:
+            client = http_pool.client()  # общий пул соединений; свой таймаут на запрос — генерация LLM дольше 4 с
+            if self.provider == "openai":
+                r = await client.post(
+                    f"{self.openai_base}/chat/completions", timeout=self.timeout,
+                    headers={"Authorization": f"Bearer {self.openai_key}"},
+                    json={"model": self.openai_model, "temperature": temperature, "max_tokens": max_tokens,
+                          "response_format": {"type": "json_object"},
+                          "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
+                )
+                r.raise_for_status()
+                text = r.json()["choices"][0]["message"]["content"]
+            else:
+                r = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent", timeout=self.timeout,
+                    headers={"x-goog-api-key": self.gemini_key},
+                    json={"systemInstruction": {"parts": [{"text": system}]},
+                          "contents": [{"role": "user", "parts": [{"text": user}]}],
+                          "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens,
+                                               "responseMimeType": "application/json"}},
+                )
+                r.raise_for_status()
+                text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            text = re.sub(r"^```(?:json)?|```$", "", text.strip()).strip()
+            data = json.loads(text)
+            return data if isinstance(data, dict) else None
+        except Exception as exc:  # сеть, таймаут, квота, невалидный JSON — всё уходит в фоллбэк
+            log.warning("LLM %s недоступна, используем детерминированный движок: %r", self.provider, exc)
+            return None
+
+
+llm = LLMClient()
+
+
+def _lf(text: str) -> str:
+    return text[:1].lower() + text[1:]
+
+
+def _norm(text: str) -> str:
+    return " " + re.sub(r"\s+", " ", text.lower().replace("ё", "е")) + " "
+
+
+# ======================================================================================
+# Агент №1: маскот «Крафти»
+# ======================================================================================
+def _rank_faq(message: str) -> list[tuple[int, dict]]:
+    t = _norm(message)
+    ranked = []
+    for item in FAQ:
+        score = sum(len(kw) for kw in item["keywords"] if kw.replace("ё", "е") in t)
+        if any(term in t for term in ("сесси", "экзамен", "зачет")) and item["topic"] == "session":
+            score += 15
+        if score:
+            ranked.append((score, item))
+    ranked.sort(key=lambda x: x[0], reverse=True)
+    return ranked
+
+
+STAGE_PREFERRED = {"lab": "lab", "bottling": "bottling", "engineering": "engineering", "rnd": "brewing", "locker": "uniform"}
+
+
+def classify(message: str, stage: str | None = None) -> tuple[str, list[dict]]:
+    """Определяет тему вопроса. Возвращает (topic_id, подходящие FAQ-записи по убыванию релевантности)."""
+    t = _norm(message)
+    if any(k in t for k in ALCOHOL_KEYWORDS):
+        return "brands", []
+    if re.search(r"мне\s*(1[0-7])\b", t) or re.search(r"\b(1[0-7])\s*лет\b", t):
+        return "contract", [next(i for i in FAQ if i["id"] == "age")]
+    ranked = _rank_faq(message)
+    if not ranked:
+        return "other", []
+    best = ranked[0][0]
+    top = [item for score, item in ranked if score == best]
+    preferred = STAGE_PREFERRED.get(stage or "")
+    top.sort(key=lambda i: i["id"] != preferred)
+    rest = [item for score, item in ranked if score != best]
+    entries = top + rest
+    return entries[0]["topic"], entries
+
+
+def _suggestions(entries: list[dict], stage: str | None, message: str, asked: list[str]) -> list[str]:
+    pool: list[str] = []
+    for e in entries[:2]:
+        pool += e["suggestions"]
+    pool += STAGES.get(stage or "", STAGES["final"])["suggestions"]
+    pool += ["Сколько стоит общежитие?", "Какие есть вакансии?", "А если у меня сессия?"]
+    msg = message.lower().strip(" ?!.")
+    out: list[str] = []
+    for s in pool:
+        if s.lower().strip(" ?!.") == msg or s in out:
+            continue
+        sid, _ = classify(s)
+        if sid in asked and sid != (entries[0]["topic"] if entries else None) and len(pool) > 4:
+            continue
+        out.append(s)
+        if len(out) == 3:
+            break
+    return out
+
+
+def rule_based_reply(message: str, stage: str | None = None, asked: list[str] | None = None) -> dict:
+    asked = asked or []
+    t = _norm(message)
+    topic, entries = classify(message, stage)
+
+    if any(k in t for k in ALCOHOL_KEYWORDS):
+        reply = ALCOHOL_ANSWER
+    elif entries:
+        main = entries[0]
+        reply = main["answer"]
+        second = next((e for e in entries[1:] if e["topic"] != main["topic"]), None)
+        if second and _rank_faq(message) and len(message) > 25:
+            scores = {item["id"]: s for s, item in _rank_faq(message)}
+            if scores.get(second["id"], 0) >= 0.6 * scores.get(main["id"], 1):
+                reply += "\n\nИ про " + topic_label(second["topic"]).lower() + ": " + second["answer"]
+        if any(k in t for k in SMALL_TALK[0]["keywords"]) and len(t.split()) <= 12:
+            reply = "Привет! " + reply
+    else:
+        small = next((s for s in SMALL_TALK if any(k in t for k in s["keywords"])), None)
+        if small:
+            reply = small["answer"]
+        else:
+            reply = FALLBACK_ANSWER
+            fact = STAGES.get(stage or "", {}).get("fact")
+            if fact:
+                reply += f"\n\nКстати, факт с этой станции: {fact}"
+    return {"reply": reply, "topic": topic, "suggestions": _suggestions(entries, stage, message, asked), "source": "rules"}
+
+
+MASCOT_SYSTEM = """Ты — Крафти, дружелюбный маскот-наставник игры «ОЧАКОВО: Секретный код 1978» для студентов 18–26 лет.
+Говоришь на «ты», коротко (2–5 предложений, до 600 символов), по-молодёжному, с 1–2 эмодзи.
+Правила:
+- Используй ТОЛЬКО факты из базы знаний ниже. Не выдумывай цифры, даты, имена и условия.
+- Все суммы зарплат — «до вычета НДФЛ».
+- Работа и практика — строго с 18 лет.
+- Не рекламируй алкоголь; пивные факты — только как история компании (например, ПЭТ-бутылки в 1994 г.).
+- Бренд пишется ОЧАКОВО (прописными, без кавычек); юрлицо — АО МПБК «ОЧАКОВО».
+- Если ответа нет в базе — честно скажи и направь в отдел подбора: 8 800 100 77 77, доб. 1155.
+Верни строго JSON: {"reply": "<ответ>", "topic": "<id темы>"}.
+Допустимые id тем: """ + ", ".join(TOPICS) + "\n\nБАЗА ЗНАНИЙ:\n"
+
+
+async def mascot_reply(message: str, stage: str | None, history: list[dict], asked: list[str]) -> dict:
+    base = rule_based_reply(message, stage, asked)
+    if not llm.provider:
+        return base
+    dialog = "\n".join(f"{'Студент' if h.get('role') == 'user' else 'Крафти'}: {h.get('text', '')}" for h in history[-8:])
+    stage_info = STAGES.get(stage or "", {})
+    user = (f"Текущая станция игры: {stage_info.get('label', 'не указана')}. Факт станции: {stage_info.get('fact', '—')}\n"
+            f"История диалога:\n{dialog or '—'}\n\n"
+            f"Подсказка классификатора: тема «{base['topic']}».\n"
+            f"Справка-черновик по теме (опирайся на неё):\n{base['reply']}\n\n"
+            f"Вопрос студента: {message}")
+    data = await llm.complete_json(MASCOT_SYSTEM + build_kb_text(), user, max_tokens=500)
+    if not data or not str(data.get("reply", "")).strip():
+        return base
+    topic = normalize_topic(data.get("topic"))
+    if topic == "other" and base["topic"] != "other":
+        topic = base["topic"]
+    return {"reply": str(data["reply"]).strip()[:1200], "topic": topic, "suggestions": base["suggestions"], "source": "llm"}
+
+
+# ======================================================================================
+# Агент №2: профайлинг и приглашение
+# ======================================================================================
+EVAL_SYSTEM = """Ты — HR-аналитик АО МПБК «ОЧАКОВО». По готовым метрикам игры перепиши три текста живым языком.
+Не меняй и не добавляй числа — используй только те, что есть во входных данных. Без алкоголя. Бренд — ОЧАКОВО.
+Верни строго JSON: {"personalized_pitch": "<до 350 символов, на «ты», для студента>",
+"verdict": "<до 400 символов, на «ты»: архетип, лучшая вакансия и % совпадения, сильные стороны, что подтянуть>",
+"ai_executive_summary": "<до 600 символов, деловой стиль, для HR: ТБ, сильные стороны, зона роста, Mirapolis, вывод>"}"""
+
+
+async def evaluate_with_ai(raw: dict, target_vacancy: str | None = None, readiness: str | None = None) -> dict:
+    """Числа считает telemetry_engine; LLM (если есть) только переписывает тексты вердикта, питча и резюме."""
+    result = evaluate(raw, target_vacancy, readiness)
+    meta = result.pop("_meta")
+    result["source"] = "rules"
+    if not llm.provider:
+        return result
+    rec, st, hr = result["recommendation"], result["student_recommendations"], result["hr_deep_dossier"]
+    payload = {
+        "archetype": rec["archetype"]["name"], "archetype_title": st["archetype_title"],
+        "competencies": rec["competencies"], "strengths": rec["strengths"], "growth": rec["growth"],
+        "top_matches": [f"{m['title']} — {m['match']}%" for m in rec["matches"][:3]],
+        "retention": meta["retention"], "ppe_attempts": meta["metrics"]["ppe_attempts"],
+        "primary_vacancy": st["primary_vacancy"], "needs_dorm": meta["metrics"]["needs_dorm"],
+        "exam_on_site": meta["metrics"]["exam_on_site"], "night_ok": meta["metrics"]["night_ok"],
+        "asked_topics": hr["asked_topics_labels"], "mirapolis": hr["mirapolis_pre_attestation"]["label"],
+        "draft_verdict": rec["verdict"], "draft_pitch": st["personalized_pitch"], "draft_summary": hr["ai_executive_summary"],
     }
-}
+    data = await llm.complete_json(EVAL_SYSTEM, json.dumps(payload, ensure_ascii=False), max_tokens=800, temperature=0.4)
+    if not data:
+        return result
+    for target, key, limit in ((st, "personalized_pitch", 500), (rec, "verdict", 600), (hr, "ai_executive_summary", 900)):
+        text = str(data.get(key, "")).strip()
+        if text:
+            target[key] = text[:limit]
+            result["source"] = "llm"
+    return result
 
-MENTORS = {
-    "profile": {"name": "Елена Васильевна Морозова", "role": "Главный химик-технолог ЛЭП", "age": 49, "exp": "24 года в ОЧАКОВО", "quote": "Научу слышать каждую ноту вкуса и работать на ATAGO с закрытыми глазами."},
-    "engineering": {"name": "Виктор Сергеевич Громов", "role": "Ведущий инженер КИПиА", "age": 54, "exp": "28 лет на комбинате", "quote": "Мнемосхемы и абсорбер CO2 станут для тебя как родные. Главное — дисциплина."},
-    "line": {"name": "Михаил Николаевич Соколов", "role": "Старший мастер линии розлива", "age": 52, "exp": "26 лет в ОЧАКОВО", "quote": "Линия SMI SK 500 P выдаёт 500 банок в минуту. Передам тебе весь ритм цеха."},
-    "free": {"name": "Анна Павловна Романова", "role": "Руководитель Учебного центра и проектов", "age": 46, "exp": "19 лет в компании", "quote": "Помогу упаковать твои идеи в реальные цифровые сервисы и макеты комбината."}
-}
 
-VACANCIES_DATA = [
-    {"id": "chem", "title": "Химик-лаборант", "dept": "Лаборатория качества", "salary": "от 60 000 ₽", "block": "profile", "weights": {"safety": 0.2, "lab": 0.5, "speed": 0.1, "systems": 0.1, "lms": 0.1}},
-    {"id": "technologist", "title": "Технолог пищевого производства", "dept": "Цех варки и ЛЭП", "salary": "от 70 000 ₽", "block": "profile", "weights": {"safety": 0.15, "lab": 0.35, "speed": 0.1, "systems": 0.25, "lms": 0.15}},
-    {"id": "machinist", "title": "Машинист технологических установок", "dept": "Участок углекислоты CO2", "salary": "от 70 000 ₽", "block": "engineering", "weights": {"safety": 0.3, "lab": 0.05, "speed": 0.1, "systems": 0.45, "lms": 0.1}},
-    {"id": "automation", "title": "Наладчик / автоматизация", "dept": "Инженерная служба", "salary": "от 70 000 ₽", "block": "engineering", "weights": {"safety": 0.2, "lab": 0.05, "speed": 0.2, "systems": 0.45, "lms": 0.1}},
-    {"id": "bottling", "title": "Оператор линии розлива", "dept": "Цех розлива", "salary": "от 70 000 ₽", "block": "line", "weights": {"safety": 0.25, "lab": 0.05, "speed": 0.5, "systems": 0.1, "lms": 0.1}},
-    {"id": "warehouse", "title": "Оператор склада / кладовщик", "dept": "Складской комплекс", "salary": "от 56 000 ₽", "block": "line", "weights": {"safety": 0.2, "lab": 0.05, "speed": 0.35, "systems": 0.2, "lms": 0.2}},
-    {"id": "digital", "title": "Практика: дизайн, IT, оцифровка", "dept": "Офис и Учебный центр", "salary": "Практика / стажировка", "block": "free", "weights": {"safety": 0.1, "lab": 0.1, "speed": 0.1, "systems": 0.3, "lms": 0.4}}
+def _btn(label: str, payload: str, color: str = "secondary") -> dict:
+    """Кнопка в формате фронтенда ({label, payload, color}); в формат VK её переводит vk_bot.to_vk_keyboard."""
+    return {"label": label, "payload": payload, "color": color}
+
+
+INVITE_KEYBOARD = [
+    [_btn("Записаться на собеседование", "iv_yes", "positive")],
+    [_btn("Задать вопрос HR", "iv_question"), _btn("Позже", "iv_later")],
 ]
 
-def classify_topic(message: str) -> str:
-    msg = message.lower()
-    for topic, words in TOPIC_KEYWORDS.items():
-        for w in words:
-            if w in msg:
-                return topic
-    return "other"
+INVITE_TOPIC_LINES = {
+    "dorm": "Ты спрашивал(а) про общежитие — место на Рябиновой, 36к2 за 3 400 ₽ забронируем.",
+    "session": "Про сессию не переживай: на дни экзаменов смены не ставим, а в сезон экзамены можно сдать прямо на заводе.",
+    "military": "Вопрос с военкоматом решаем через отдел кадров — всё расскажем.",
+    "salary": "По деньгам: выплаты 12 и 27 числа, ночные смены оплачиваются по повышенному коэффициенту.",
+    "schedule": "График 2/2 покажем вживую, ночные оплачиваются дороже.",
+    "transport": "От м. Озёрная ходит наш корпоративный автобус.",
+    "food": "Половину стоимости обедов в столовой компенсирует завод.",
+    "contract": "Для студентов нет испытательного срока — сразу договор по ТК РФ.",
+    "mentor": "Наставник будет с первого дня, теория — в СДО Mirapolis.",
+    "practice_docs": "Документы по практике подпишем в Учебном центре, каб. 525.",
+}
 
-class MascotAgent:
-    """ИИ-Агент №1 («Крафти»): диалоговый агент маскота"""
-    @staticmethod
-    def chat(message: str, history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-        topic = classify_topic(message)
-        kb_entry = FAQ_KNOWLEDGE_BASE.get(topic)
-        if kb_entry:
-            reply = kb_entry["reply"]
-            suggestions = kb_entry["suggestions"]
-        else:
-            reply = (
-                "Привет! Я Крафти — цифровой маскот ОЧАКОВО. "
-                "Я знаю всё про работу, стажировку и практику на комбинате: общежитие за 3 400 ₽, "
-                "сдачу сессии на территории завода, смены 2/2, зарплату от 56 000 до 70 000+ ₽, питание и СИЗ. "
-                "О чём тебе подробнее рассказать?"
-            )
-            suggestions = ["Расскажи про общежитие", "Как сдавать сессию?", "Сколько платят?", "Какие есть вакансии?"]
-        
-        return {
-            "reply": reply,
-            "topic": topic,
-            "topic_label": TOPIC_LABELS.get(topic, "Консультация"),
-            "suggestions": suggestions
-        }
+WEEKDAYS = ["в понедельник", "во вторник", "в среду", "в четверг", "в пятницу"]
+MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"]
 
-class RecSysAgent:
-    """ИИ-Агент №2 (HR Рекомендатель и Аналитик Досье)"""
 
-    @staticmethod
-    def compute_competencies(telemetry: Dict[str, Any]) -> Dict[str, int]:
-        stations = telemetry.get("stations", {})
-        ppe_att = telemetry.get("ppe_attempts", 1)
-        ppe_wrong = len(telemetry.get("ppe_wrong_picks", []))
-        
-        # 1. Safety (0-100)
-        safety = max(20, min(100, 100 - (ppe_att - 1) * 22 - ppe_wrong * 4))
-        
-        # 2. Lab (0-100)
-        lab_st = stations.get("lab", {})
-        titration = lab_st.get("titration_accuracy", 75)
-        brix = (lab_st.get("brix_correct", 3) / max(1, lab_st.get("brix_total", 4))) * 100
-        lab_comp = round(titration * 0.6 + brix * 0.4)
-        
-        # 3. Speed / Focus (0-100)
-        line_st = stations.get("line", {})
-        defects = line_st.get("defects_caught", 8)
-        missed = line_st.get("defects_missed", 1)
-        false_rej = line_st.get("false_rejects", 0)
-        ttn = (line_st.get("ttn_correct", 3) / 3) * 100
-        line_acc = max(20, min(100, defects * 8 - missed * 12 - false_rej * 10 + 30))
-        speed_comp = round(line_acc * 0.6 + ttn * 0.4)
-        
-        # 4. Systems / Engineering (0-100)
-        eng_st = stations.get("engineering", {})
-        pressure = eng_st.get("pressure_stability", 80)
-        mea_ms = eng_st.get("mea_reaction_ms")
-        mea_score = 90 if (mea_ms and mea_ms < 2500) else (60 if mea_ms else 40)
-        systems_comp = round(pressure * 0.5 + mea_score * 0.3 + 20)
-        
-        # 5. LMS / Management (0-100)
-        des_st = stations.get("design", {})
-        mira = (des_st.get("mirapolis_correct", 4) / max(1, des_st.get("mirapolis_total", 4))) * 100
-        quiz_data = telemetry.get("quiz", {})
-        q_acc = (quiz_data.get("correct", 6) / max(1, quiz_data.get("total", 7))) * 100
-        lms_comp = round(mira * 0.6 + q_acc * 0.4)
-        
-        return {
-            "safety": max(30, min(100, safety)),
-            "lab": max(30, min(100, lab_comp)),
-            "speed": max(30, min(100, speed_comp)),
-            "systems": max(30, min(100, systems_comp)),
-            "lms": max(30, min(100, lms_comp))
-        }
+def interview_slot(now: datetime | None = None) -> str:
+    """Ближайший будний день через 3+ дня, 11:00."""
+    day = (now or datetime.now()) + timedelta(days=3)
+    while day.weekday() >= 5:
+        day += timedelta(days=1)
+    return f"{WEEKDAYS[day.weekday()]}, {day.day} {MONTHS[day.month - 1]}, в 11:00"
 
-    @classmethod
-    def determine_archetype(cls, comp: Dict[str, int]) -> Dict[str, str]:
-        # Выбираем сильнейшую компетенцию
-        key_max = max(comp, key=comp.get)
-        if key_max == "lab":
-            return {"id": "lab", "name": "Хранитель Точности", "tagline": "Твой конёк — безупречный контроль качества проб, титрование и Brix.", "icon": "FlaskConical"}
-        elif key_max in ("systems", "safety") and comp["systems"] >= 70:
-            return {"id": "engineering", "name": "Инженер Потока", "tagline": "Ты мгновенно видишь отклонения мнемосхем и держишь давление под контролем.", "icon": "Gauge"}
-        elif key_max == "speed":
-            return {"id": "line", "name": "Капитан Линии", "tagline": "Рекордная реакция на линии SMI SK 500 P и точное паллетирование по ТТН.", "icon": "Factory"}
-        else:
-            return {"id": "design", "name": "Архитектор Бренда", "tagline": "Умение соединять дизайн вкусов KERN с передовыми инструментами менеджмента.", "icon": "Palette"}
 
-    @classmethod
-    def calculate_retention(cls, comp: Dict[str, int], telemetry: Dict[str, Any]) -> int:
-        avg_comp = sum(comp.values()) / len(comp)
-        why_cnt = len(telemetry.get("why_ochakovo_cards_viewed", []))
-        calc_cnt = telemetry.get("calculator", {}).get("interactions", 0)
-        skipped_cnt = len(telemetry.get("skipped", []))
-        
-        base = 50 + (avg_comp * 0.3) + (why_cnt * 2) + min(10, calc_cnt * 2) - (skipped_cnt * 5)
-        return int(max(35, min(97, round(base))))
+def template_invite(c: dict) -> dict:
+    """Шаблон приглашения (эталон — inviteDraft() в frontend/src/services/botEngine.js)."""
+    d = build_dossier(c)
+    cand = d["candidate"]
+    words = (cand.get("fio") or "").split()
+    name = words[1] if len(words) > 1 else (words[0] if words else "Привет")
+    rec = evaluate(cand.get("telemetry") or {}, cand.get("vacancy"), cand.get("readiness"))["recommendation"]
+    top = d["matches"][0]
+    strengths = f"особенно {' и '.join(rec['strengths'][:2])}" if rec["strengths"] else "отличный результат"
+    tips = [INVITE_TOPIC_LINES[t["topic"]] for t in d["asked_topics"] if t["topic"] in INVITE_TOPIC_LINES][:2]
+    mentor = d["mentor"]
+    text = (f"{name}, привет! Это HR ОЧАКОВО 👋 Ты прошёл(-ла) «Секретный код 1978» на {cand.get('points', 0)} баллов — {strengths}. "
+            f"ИИ-наставник видит в тебе «{d['archetype']['name']}», а это {top['match']}% совпадения с вакансией «{top['title']}». "
+            f"Приглашаем познакомиться {interview_slot()}: ул. Рябиновая, д. 44 (Учебный центр, каб. 525). "
+            + (" ".join(tips) + " " if tips else "")
+            + f"Твоим наставником будет {mentor['name']} ({mentor['role']}). Записать тебя?")
+    if len(text) > 700 and len(tips) > 1:
+        text = text.replace(" " + tips[1], "")
+    based_on = [f"{cand.get('points', 0)} баллов", f"архетип «{d['archetype']['name']}»", f"мэтч {top['match']}%",
+                *[f"вопрос: {t['label'].lower()}" for t in d["asked_topics"][:2]],
+                f"наставник: {mentor['name']}", f"прогноз удержания {d['retention_score']}%"]
+    return {"text": text, "based_on": based_on, "keyboard": INVITE_KEYBOARD, "source": "rules"}
 
-    @classmethod
-    def match_vacancies(cls, comp: Dict[str, int]) -> List[Dict[str, Any]]:
-        results = []
-        for vac in VACANCIES_DATA:
-            score = 0
-            for k, w in vac["weights"].items():
-                score += comp.get(k, 60) * w
-            match_pct = max(45, min(98, round(score)))
-            results.append({
-                "id": vac["id"],
-                "title": vac["title"],
-                "dept": vac["dept"],
-                "salary": vac["salary"],
-                "block": vac["block"],
-                "match": match_pct
-            })
-        results.sort(key=lambda x: x["match"], reverse=True)
-        return results
 
-    @classmethod
-    def build_recommendation(cls, telemetry: Dict[str, Any]) -> Dict[str, Any]:
-        comp = cls.compute_competencies(telemetry)
-        archetype = cls.determine_archetype(comp)
-        retention = cls.calculate_retention(comp, telemetry)
-        matches = cls.match_vacancies(comp)
-        
-        best = matches[0]
-        strengths = []
-        if comp["safety"] >= 80: strengths.append("Высокая культура охраны труда и работы с СИЗ")
-        if comp["lab"] >= 80: strengths.append("Филигранная точность химического анализа")
-        if comp["speed"] >= 80: strengths.append("Быстрая реакция на линии упаковки")
-        if comp["systems"] >= 80: strengths.append("Системное понимание технологических установок")
-        if comp["lms"] >= 80: strengths.append("Отличное владение методологиями менеджмента")
-        if not strengths: strengths.append("Уверенный баланс инженерных и аналитических навыков")
+INVITE_SYSTEM = """Ты пишешь личное приглашение кандидату от команды подбора АО МПБК «ОЧАКОВО» во ВКонтакте.
+На «ты», 500–700 символов, 2–3 эмодзи. Обязательно: баллы, сильные стороны, архетип, вакансия и % мэтча,
+дата/место (ул. Рябиновая, 44, Учебный центр, каб. 525), ответы на темы, которые кандидат спрашивал у маскота, имя наставника.
+Только факты из входных данных, без алкоголя, бренд — ОЧАКОВО. Верни строго JSON: {"text": "<приглашение>"}"""
 
-        verdict = (
-            f"По результатам испытаний в ЛЭП и цехах твой архетип — «{archetype['name']}». "
-            f"Наивысший мэтч ({best['match']}%) зафиксирован с вакансией «{best['title']}» ({best['dept']}). "
-            f"Прогноз удержания в команде ОЧАКОВО составляет {retention}% с минимальным риском на адаптационном периоде!"
-        )
 
-        return {
-            "archetype": archetype,
-            "competencies": comp,
-            "matches": matches,
-            "retention_score": retention,
-            "strengths": strengths,
-            "growth": [],
-            "verdict": verdict
-        }
-
-    @classmethod
-    def generate_invite_draft(cls, candidate: Any) -> Dict[str, Any]:
-        fio = candidate.fio.strip()
-        first_name = fio.split()[1] if len(fio.split()) > 1 else fio.split()[0]
-        
-        telemetry = {}
-        if hasattr(candidate, "telemetry_json") and candidate.telemetry_json:
-            import json
-            try:
-                telemetry = json.loads(candidate.telemetry_json)
-            except Exception:
-                pass
-        
-        comp = cls.compute_competencies(telemetry)
-        archetype = cls.determine_archetype(comp)
-        matches = cls.match_vacancies(comp)
-        best_match = matches[0] if matches else {"title": candidate.vacancy, "match": 92}
-        
-        block = "profile" if "лаборант" in candidate.vacancy.lower() or "технолог" in candidate.vacancy.lower() else (
-            "engineering" if "машинист" in candidate.vacancy.lower() or "автоматиз" in candidate.vacancy.lower() else "line"
-        )
-        mentor = MENTORS.get(block, MENTORS["line"])
-        
-        asked = telemetry.get("asked_topics", {})
-        topic_clause = ""
-        if "dorm" in asked:
-            topic_clause = " Заселение в общежитие на Рябиновой 36к2 (3 400 ₽/мес) организуем в день приезда."
-        elif "session" in asked:
-            topic_clause = " График смен скорректируем под твою сессию, экзамены можно сдать прямо на заводе."
-        elif "salary" in asked:
-            topic_clause = f" Оплата смен 2 раза в месяц, ставка по вакансии «{best_match['title']}»."
-
-        text = (
-            f"{first_name}, привет! Это команда подбора ОЧАКОВО. "
-            f"Ты набрал(а) {candidate.points} баллов в квесте «Крафт-код 1978», твой архетип — «{archetype['name']}», "
-            f"а мэтч с позицией «{best_match['title']}» составил рекордные {best_match['match']}%! "
-            f"Твой наставник — {mentor['name']} ({mentor['role']}).{topic_clause} "
-            f"Ждём тебя в Учебном центре комбината: ул. Рябиновая, д. 44, каб. 525. Готов(а) к старту?"
-        )
-
-        based_on = [
-            f"{candidate.points} Крафт-баллов",
-            f"Архетип: {archetype['name']}",
-            f"Мэтч: {best_match['title']} ({best_match['match']}%)",
-            f"Наставник: {mentor['name']} ({mentor['age']} лет, мост поколений)",
-        ]
-        if asked:
-            based_on.append(f"Учтены вопросы: {', '.join(TOPIC_LABELS.get(k, k) for k in asked.keys())}")
-
-        keyboard = [
-            [{"label": "Да, готов(а) приехать!", "payload": "iv_yes", "color": "positive"}],
-            [{"label": "Уточнить дату собеседования", "payload": "iv_question", "color": "secondary"}]
-        ]
-
-        return {
-            "text": text,
-            "based_on": based_on,
-            "keyboard": keyboard
-        }
+async def invite_draft(c: dict) -> dict:
+    base = template_invite(c)
+    if not llm.provider:
+        return base
+    data = await llm.complete_json(INVITE_SYSTEM, json.dumps({"draft": base["text"], "facts": base["based_on"]},
+                                                             ensure_ascii=False), max_tokens=600, temperature=0.5)
+    if data and 300 <= len(str(data.get("text", ""))) <= 900:
+        return {**base, "text": str(data["text"]).strip(), "source": "llm"}
+    return base
