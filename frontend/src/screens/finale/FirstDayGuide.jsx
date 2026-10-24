@@ -83,7 +83,7 @@ export default function FirstDayGuide() {
       <SectionTitle kicker="Интерактивный справочник первого дня" title="Твой первый день в ОЧАКОВО" sub="Всё из справочника студента: как доехать, что взять и куда звонить." />
       <div className="no-scrollbar mb-4 flex gap-2 overflow-x-auto">
         {TABS.map(([id, label, I]) => (
-          <button key={id} onClick={() => setTab(id)} className={cx('flex shrink-0 items-center gap-2 rounded-sm border border-line px-4 py-2 text-sm font-extrabold', tab === id ? 'bg-graphite text-white shadow-pop' : 'bg-white')}>
+          <button key={id} onClick={() => setTab(id)} className={cx('flex shrink-0 items-center gap-2 rounded-sm border border-line px-4 py-2 text-sm font-extrabold', tab === id ? 'bg-graphite text-white shadow-pop' : 'bg-paper')}>
             <I className="h-4 w-4" /> {label}
           </button>
         ))}
@@ -96,7 +96,7 @@ export default function FirstDayGuide() {
           </Card>
           <div className="space-y-3">
             {FIRST_DAY.addresses.map((a, i) => (
-              <div key={a.label} className="flex items-center gap-3 rounded-sm border border-line bg-white p-3">
+              <div key={a.label} className="flex items-center gap-3 rounded-sm border border-line bg-paper p-3">
                 <span className={cx('grid h-10 w-10 place-items-center rounded-sm border border-line text-white', i ? 'bg-malt' : 'bg-brand')}>{i ? <BedDouble className="h-5 w-5" /> : <Building2 className="h-5 w-5" />}</span>
                 <div>
                   <div className="text-xs font-bold uppercase text-ink-mute">{a.label}</div>
@@ -105,7 +105,7 @@ export default function FirstDayGuide() {
               </div>
             ))}
             {FIRST_DAY.routes.map((r) => (
-              <button key={r.from} onClick={() => setActive(r.from)} className={cx('flex w-full items-center gap-3 rounded-sm border-2 p-3 text-left', active === r.from ? 'border-brand bg-brand-50' : 'border-ink/15 bg-white')}>
+              <button key={r.from} onClick={() => setActive(r.from)} className={cx('flex w-full items-center gap-3 rounded-sm border-2 p-3 text-left', active === r.from ? 'border-brand bg-brand-50' : 'border-ink/15 bg-paper')}>
                 <MapPin className={cx('h-5 w-5 shrink-0', active === r.from ? 'text-brand' : 'text-ink-mute')} />
                 <div className="flex-1">
                   <div className="text-sm font-extrabold">{r.from}</div>
@@ -124,7 +124,7 @@ export default function FirstDayGuide() {
           <ul className="space-y-2">
             {FIRST_DAY.checklist.map((c) => (
               <li key={c.id}>
-                <button onClick={() => setDone((d) => ({ ...d, [c.id]: !d[c.id] }))} className={cx('flex w-full items-start gap-3 rounded-sm border-2 p-3 text-left transition', done[c.id] ? 'border-lime bg-lime/10' : 'border-ink/15 bg-white hover:border-ink/40')}>
+                <button onClick={() => setDone((d) => ({ ...d, [c.id]: !d[c.id] }))} className={cx('flex w-full items-start gap-3 rounded-sm border-2 p-3 text-left transition', done[c.id] ? 'border-lime bg-lime/10' : 'border-ink/15 bg-paper hover:border-ink/40')}>
                   {done[c.id] ? <CheckSquare className="h-5 w-5 shrink-0 text-lime" /> : <Square className="h-5 w-5 shrink-0 text-ink-mute" />}
                   <span className={cx('text-sm font-semibold', done[c.id] && 'line-through opacity-70')}>{c.text}</span>
                 </button>
@@ -142,7 +142,7 @@ export default function FirstDayGuide() {
       {tab === 'contacts' && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {FIRST_DAY.contacts.map((c) => (
-            <a key={c.label} href={`tel:${c.tel}`} className="flex items-center gap-3 rounded-sm border border-line bg-white p-4 shadow-pop-sm transition hover:-translate-y-0.5">
+            <a key={c.label} href={`tel:${c.tel}`} className="flex items-center gap-3 rounded-sm border border-line bg-paper p-4 shadow-pop-sm transition hover:-translate-y-0.5">
               <span className="grid h-11 w-11 place-items-center rounded-sm bg-brand text-white">
                 <Phone className="h-5 w-5" />
               </span>

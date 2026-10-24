@@ -258,6 +258,13 @@ export function validateCandidate(form) {
   return errors
 }
 
+/** Удаление своих данных (правило ВК 1.1.10): анкета и события этой сессии. */
+export function deleteMine({ session_id, candidate_id }) {
+  lsSet(LS_CANDIDATES, lsGet(LS_CANDIDATES, []).filter((c) => c.id !== candidate_id && (!session_id || c.session_id !== session_id)))
+  lsSet(LS_EVENTS, lsGet(LS_EVENTS, []).filter((e) => e.session_id !== session_id))
+  return { ok: true, source: 'local' }
+}
+
 export function submitCandidate({ form, telemetry, points, session_id }) {
   const errors = validateCandidate(form)
   if (Object.keys(errors).length) {

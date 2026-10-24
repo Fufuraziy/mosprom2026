@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, Download, Search, Users, TrendingDown, Percent, Baby, RefreshCw, Database, Wifi, WifiOff, ChevronRight, Sparkles } from 'lucide-react'
 import { useGame } from '../../state/GameContext.jsx'
-import { api } from '../../services/api.js'
+import { api, API_URL } from '../../services/api.js'
 import { BLOCKS, UNIVERSITIES, TOPIC_LABELS } from '../../data/content.js'
 import { Button, Card, cx } from '../../components/ui.jsx'
 import Dossier from './Dossier.jsx'
@@ -61,7 +61,7 @@ function HBars({ rows, color = '#D50032', format = (v) => v.toLocaleString('ru-R
 }
 
 export default function HRPanel() {
-  const { apiStatus, toast } = useGame()
+  const { apiStatus, toast, state } = useGame()
   const [stats, setStats] = useState(null)
   const [list, setList] = useState([])
   const [filters, setFilters] = useState({ q: '', university: '', block: '', sort: 'created' })
@@ -73,9 +73,15 @@ export default function HRPanel() {
     setLoading(true)
     const [a, l] = await Promise.all([api.analytics(), api.listCandidates({})])
     setStats(a)
-    setList(l)
+    let combined = Array.isArray(l) ? [...l] : []
+    // Гарантируем, что только что отправленный кандидат state.candidate всегда на первой строке
+    if (state.candidate && !combined.some((c) => c.id === state.candidate.id)) {
+      combined.unshift(state.candidate)
+    }
+    setList(combined)
     setLoading(false)
   }
+
   useEffect(() => {
     load()
   }, [])
@@ -98,12 +104,16 @@ export default function HRPanel() {
   }, [list, filters])
 
   const exportCsv = () => {
-    downloadText(`ochakovo_candidates_${new Date().toISOString().slice(0, 10)}.csv`, api.csv(filtered))
-    toast(`CSV: ${filtered.length} кандидатов`, 'info')
+    if (apiStatus.online) {
+      window.open(`${API_URL}/api/hr/export-csv`, '_blank')
+    } else {
+      downloadText(`ochakovo_candidates_${new Date().toISOString().slice(0, 10)}.csv`, api.csv(filtered))
+    }
+    toast(`CSV сформирован: ${filtered.length} кандидатов`, 'info')
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-brand">Головной офис · ул. Рябиновая, 44</div>
@@ -133,7 +143,7 @@ export default function HRPanel() {
             <Kpi icon={Baby} label="Средний возраст" value={stats.avg_age ? `${String(stats.avg_age).replace('.', ',')} лет` : '—'} sub={`в компании сейчас ${stats.company_avg_age}: омоложение`} />
           </div>
 
-          <div className="mt-5 grid gap-5 lg:grid-cols-3">
+          <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-3">
             <Card className="p-5 lg:col-span-1">
               <div className="flex items-center justify-between">
                 <div className="font-display text-lg font-extrabold">Воронка сезона</div>
@@ -179,15 +189,15 @@ export default function HRPanel() {
         <div className="flex flex-wrap items-center gap-2 border-b-2 border-brand bg-kraft-light p-3">
           <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-mute" />
-            <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Поиск: ФИО, вакансия, специальность" className="w-full rounded-sm border-2 border-ink/20 bg-white py-2 pl-9 pr-3 text-sm font-semibold outline-none focus:border-brand" />
+            <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Поиск: ФИО, вакансия, специальность" className="w-full rounded-sm border-2 border-ink/20 bg-paper py-2 pl-9 pr-3 text-sm font-semibold outline-none focus:border-brand" />
           </div>
-          <select value={filters.university} onChange={(e) => setFilters({ ...filters, university: e.target.value })} className="max-w-[240px] rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.university} onChange={(e) => setFilters({ ...filters, university: e.target.value })} className="max-w-[240px] rounded-sm border-2 border-ink/20 bg-paper px-3 py-2 text-sm font-semibold">
             <option value="">Все вузы и колледжи</option>
             {unis.map((u) => (
               <option key={u}>{u}</option>
             ))}
           </select>
-          <select value={filters.block} onChange={(e) => setFilters({ ...filters, block: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.block} onChange={(e) => setFilters({ ...filters, block: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-paper px-3 py-2 text-sm font-semibold">
             <option value="">Все направления</option>
             {Object.entries(BLOCKS).map(([k, b]) => (
               <option key={k} value={k}>
@@ -195,7 +205,7 @@ export default function HRPanel() {
               </option>
             ))}
           </select>
-          <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-white px-3 py-2 text-sm font-semibold">
+          <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })} className="rounded-sm border-2 border-ink/20 bg-paper px-3 py-2 text-sm font-semibold">
             <option value="created">Сначала новые</option>
             <option value="retention">По прогнозу удержания</option>
             <option value="match">По мэтчу вакансии</option>
@@ -235,7 +245,7 @@ export default function HRPanel() {
                     <div className="text-ink-mute">мэтч {c.top_match?.match}%</div>
                   </td>
                   <td className="px-3 py-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 bg-white px-2 py-0.5 text-[11px] font-bold">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-ink/15 bg-paper px-2 py-0.5 text-[11px] font-bold">
                       <span className="h-2 w-2 rounded-full" style={{ background: BLOCKS[c.block]?.color }} />
                       {c.block_label}
                     </span>

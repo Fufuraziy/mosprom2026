@@ -46,7 +46,7 @@ export function AIVerdict() {
 
   const comp = rec.competencies || {}
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_1.1fr]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
       <div className="relative overflow-hidden rounded-sm border border-line bg-brand p-6 text-white shadow-pop-lg">
         <div className="halftone-white absolute inset-0 opacity-40" />
         <div className="relative">
@@ -54,7 +54,7 @@ export function AIVerdict() {
             <Bot className="h-4 w-4" /> ИИ-агент №2 · твой архетип
           </div>
           <div className="mt-3 flex items-center gap-4">
-            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-sm border border-line bg-white text-brand shadow-pop">
+            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-sm border border-line bg-paper text-brand shadow-pop">
               <Icon name={rec.archetype?.icon || 'Sparkles'} className="h-8 w-8" />
             </span>
             <div className="font-display text-3xl font-extrabold leading-none sm:text-4xl">{rec.archetype?.name}</div>
@@ -86,7 +86,7 @@ export function AIVerdict() {
           {(rec.matches || []).slice(0, 3).map((m, i) => (
             <div key={m.id || m.title} className={cx('flex items-center gap-3 rounded-sm border-2 p-3', i === 0 ? 'border-brand bg-malt-light/40' : 'border-ink/15')}>
               <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-line font-mono text-sm font-extrabold" style={{ background: `conic-gradient(${BLOCKS[m.block]?.color || '#D50032'} ${m.match * 3.6}deg, #fff 0)` }}>
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-white text-[11px]">{m.match}%</span>
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-paper text-[11px]">{m.match}%</span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-extrabold">{m.title}</div>
@@ -148,7 +148,7 @@ export function SalaryCalculator() {
         <div className="space-y-5">
           <label className="block">
             <span className="text-xs font-extrabold uppercase text-ink-mute">Подразделение</span>
-            <select value={dept} onChange={(e) => setDept(e.target.value)} className="mt-1 w-full rounded-sm border border-line bg-white px-3 py-2.5 font-semibold">
+            <select value={dept} onChange={(e) => setDept(e.target.value)} className="mt-1 w-full rounded-sm border border-line bg-paper px-3 py-2.5 font-semibold">
               {DEPARTMENTS.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.label}: от {x.base.toLocaleString('ru-RU')} ₽
@@ -211,9 +211,9 @@ function Row({ k, v }) {
 
 function Toggle({ on, set, icon: I, label, sub }) {
   return (
-    <button onClick={() => set(!on)} className={cx('flex items-start gap-2 rounded-sm border-2 p-3 text-left transition', on ? 'border-brand bg-brand-50' : 'border-ink/15 bg-white')} aria-pressed={on}>
-      <span className={cx('mt-0.5 grid h-5 w-9 shrink-0 items-center rounded-full border border-line px-0.5 transition', on ? 'bg-brand' : 'bg-white')}>
-        <span className={cx('block h-3 w-3 rounded-full border border-brand bg-white transition', on && 'translate-x-4')} />
+    <button onClick={() => set(!on)} className={cx('flex items-start gap-2 rounded-sm border-2 p-3 text-left transition', on ? 'border-brand bg-brand-50' : 'border-ink/15 bg-paper')} aria-pressed={on}>
+      <span className={cx('mt-0.5 grid h-5 w-9 shrink-0 items-center rounded-full border border-line px-0.5 transition', on ? 'bg-brand' : 'bg-paper')}>
+        <span className={cx('block h-3 w-3 rounded-full border border-brand bg-paper transition', on && 'translate-x-4')} />
       </span>
       <span>
         <span className="flex items-center gap-1 text-sm font-extrabold">

@@ -64,7 +64,7 @@ export default function Locker() {
                   disabled={done}
                   className={cx(
                     'relative flex flex-col items-center gap-2 rounded-sm border-2 p-3 text-center transition-all',
-                    on ? 'border-brand bg-white shadow-pop -translate-y-0.5' : 'border-ink/20 bg-paper hover:border-ink/60',
+                    on ? 'border-brand bg-paper shadow-pop -translate-y-0.5' : 'border-ink/20 bg-paper hover:border-ink/60',
                     isWrong && 'border-brand bg-brand-50',
                     done && !it.ok && 'opacity-40',
                   )}
@@ -127,7 +127,7 @@ export default function Locker() {
                             initial={{ opacity: 0, y: 10, rotate: -4 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.15 * i + 0.2 }}
-                            className="rounded-sm border border-line bg-white px-3 py-1.5 font-display text-sm font-extrabold text-ink shadow-pop-sm"
+                            className="rounded-sm border border-line bg-paper px-3 py-1.5 font-display text-sm font-extrabold text-ink shadow-pop-sm"
                           >
                             {v}
                           </motion.span>

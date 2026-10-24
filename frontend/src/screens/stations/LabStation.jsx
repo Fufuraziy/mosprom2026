@@ -54,7 +54,7 @@ function Titration({ onDone }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-      <Card className="relative overflow-hidden bg-[linear-gradient(180deg,#fff,#F4F5F6)] p-4 sm:p-6">
+      <Card className="relative overflow-hidden bg-[linear-gradient(180deg,rgb(var(--och-paper)),rgb(var(--och-kraft-light)))] p-4 sm:p-6">
         <VerbTag>Контролируй процесс</VerbTag>
         <div className="mt-2 text-sm text-ink-soft">
           Индикатор — фенолфталеин. Добавляй титрант по каплям: розовый «всплеск» исчезает, пока точка не достигнута. Остановись на <b>первой устойчивой бледно-розовой</b> окраске.
@@ -109,7 +109,7 @@ function Titration({ onDone }) {
             </Button>
           </div>
         ) : (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-2 rounded-sm border border-line bg-white p-4 text-center">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mt-2 rounded-sm border border-line bg-paper p-4 text-center">
             <div className="font-mono text-xs font-bold uppercase text-ink-mute">Точка эквивалентности: {endpoint} кап. · ты остановился на {drops}</div>
             <div className="mt-1 font-display text-3xl font-extrabold text-brand">Точность {acc}%</div>
             <div className="mt-1 text-sm text-ink-soft">
@@ -167,7 +167,7 @@ function Refractometer({ onDone }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
       {/* прибор */}
-      <div className="self-start rounded-[28px] border border-line bg-[linear-gradient(160deg,#ECEBE8,#C9C7C2)] p-4 shadow-pop">
+      <div className="self-start rounded-[28px] border border-line och-light bg-[linear-gradient(160deg,#ECEBE8,#C9C7C2)] p-4 shadow-pop">
         <div className="flex items-center justify-between px-1 pb-2">
           <span className="font-display text-sm font-extrabold tracking-widest text-ink/70">ATAGO</span>
           <span className="font-mono text-[11px] font-bold text-ink/60">RX-7000i</span>
@@ -247,7 +247,7 @@ function Refractometer({ onDone }) {
                       key={k}
                       disabled={measured[s.n] == null}
                       onClick={() => setVerdict((v) => ({ ...v, [s.n]: k }))}
-                      className={cx('px-2.5 py-1.5 disabled:opacity-30', verdict[s.n] === k ? (k === 'ok' ? 'bg-lime text-white' : 'bg-brand text-white') : 'bg-white')}
+                      className={cx('px-2.5 py-1.5 disabled:opacity-30', verdict[s.n] === k ? (k === 'ok' ? 'bg-lime text-white' : 'bg-brand text-white') : 'bg-paper')}
                     >
                       {l}
                     </button>

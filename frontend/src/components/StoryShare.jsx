@@ -7,6 +7,8 @@ import { buildRecommendation } from '../services/localEngine.js'
 import { shareStory, isInsideVK, VK_APP_URL } from '../services/vk.js'
 import { LOGO } from '../data/logo.js'
 import { cx } from './ui.jsx'
+import { Button, Placeholder, Spinner } from '@vkontakte/vkui'
+import { Icon24StoryOutline, Icon56StoryOutline } from '@vkontakte/icons'
 
 const W = 1080
 const H = 1920
@@ -91,6 +93,65 @@ export async function renderStory({ archetype, points, match }) {
   return c.toDataURL('image/jpeg', 0.9)
 }
 
+/** Кнопка «Поделиться в Истории» — открывает шторку MODAL.STORY_SHARE мини-приложения. */
+export function StoryShareButton({ onOpen }) {
+  const { state } = useGame()
+  return (
+    <Button size="l" mode="secondary" stretched before={<Icon24StoryOutline />} onClick={onOpen}>
+      {state.storyShared ? 'Поделиться в Истории ещё раз' : 'В Историю ВК · +100 баллов'}
+    </Button>
+  )
+}
+
+/** Содержимое шторки: превью истории 1080×1920 и публикация через VKWebAppShowStoryBox. */
+export function StoryShareContent() {
+  const { state, balance, actions } = useGame()
+  const [img, setImg] = useState(null)
+  const [status, setStatus] = useState(null) // null | sending | done | unsupported
+
+  useEffect(() => {
+    const rec = buildRecommendation(state.telemetry)
+    renderStory({ archetype: rec.archetype.name, points: balance, match: rec.matches[0]?.match || 80 }).then(setImg)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const publish = async () => {
+    setStatus('sending')
+    const r = await shareStory(img)
+    if (r.ok) {
+      if (!state.storyShared) actions.storyShared(r.source)
+      setStatus('done')
+    } else setStatus(r.source === 'unsupported' ? 'unsupported' : null)
+  }
+
+  return (
+    <div className="space-y-3 px-4 pb-4">
+      <div className="flex justify-center rounded-xl bg-cream p-3">
+        {img ? <img src={img} alt="Превью истории" className="max-h-[48vh] w-auto rounded-xl shadow-lg" /> : <Spinner size="l" className="my-24" />}
+      </div>
+      {status === 'unsupported' && (
+        <Placeholder icon={<Icon56StoryOutline />} title="Истории — в приложении ВКонтакте">
+          Открой «Секретный код 1978» на телефоне, чтобы поделиться результатом.
+        </Placeholder>
+      )}
+      {status === 'done' ? (
+        <div className="flex items-center gap-2 rounded-lg bg-lime/15 px-3 py-2.5 text-sm font-semibold text-ink">
+          <Check className="h-5 w-5 text-leaf" />
+          {isInsideVK ? 'История опубликована!' : 'Демо: история «опубликована». Во ВКонтакте откроется редактор историй со ссылкой на мини-приложение.'}
+        </div>
+      ) : (
+        status !== 'unsupported' && (
+          <Button size="l" stretched loading={status === 'sending'} disabled={!img} onClick={publish}>
+            {isInsideVK ? 'Открыть редактор историй' : 'Опубликовать (демо вне ВК)'}
+          </Button>
+        )
+      )}
+      <p className="text-center text-xs text-ink-mute">В истории — кнопка-ссылка на «Секретный код 1978». Переходы друзей HR видит в воронке как vk_ref=story.</p>
+    </div>
+  )
+}
+
+/** Старая версия с собственным оверлеем (страница HR / сайт). */
 export default function StoryShare({ className = '' }) {
   const { state, balance, actions } = useGame()
   const [open, setOpen] = useState(false)
@@ -125,7 +186,7 @@ export default function StoryShare({ className = '' }) {
       {open &&
         createPortal(
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" onClick={() => setOpen(false)}>
-            <motion.div initial={{ y: 20 }} animate={{ y: 0 }} onClick={(e) => e.stopPropagation()} className="relative flex max-h-full w-full max-w-[420px] flex-col overflow-hidden rounded-2xl bg-white">
+            <motion.div initial={{ y: 20 }} animate={{ y: 0 }} onClick={(e) => e.stopPropagation()} className="relative flex max-h-full w-full max-w-[420px] flex-col overflow-hidden rounded-2xl bg-paper">
               <div className="flex items-center justify-between border-b border-[#E7E8EC] px-4 py-3">
                 <span className="text-[15px] font-semibold text-[#2C2D2E]">История ВКонтакте</span>
                 <button onClick={() => setOpen(false)} className="text-vk-gray" aria-label="Закрыть">

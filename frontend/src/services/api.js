@@ -7,6 +7,7 @@
 import * as local from './localEngine.js'
 import * as botLocal from './botEngine.js'
 import { normalizeAnalytics, normalizeArchetype, normalizeTelemetry } from './normalize.js'
+import { launchParams, launchQuery } from './vk.js'
 
 export const API_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
@@ -91,7 +92,11 @@ async function call(method, path, body, fallback, { timeout = TIMEOUT, slow = fa
         API_URL + path,
         {
           method,
-          headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+          headers: {
+            ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+            // внутри ВК — строка запуска с подписью: бэкенд проверяет sign и доверяет vk_user_id (BACKEND_HANDOFF.md, 7.1)
+            ...(launchQuery ? { 'X-VK-Launch-Params': launchQuery } : {}),
+          },
           body: body !== undefined ? JSON.stringify(body) : undefined,
         },
         timeout,
@@ -142,11 +147,13 @@ export const api = {
   health: () => checkHealth(true),
 
   /** Новая игровая сессия (анонимная, до анкеты). */
-  startSession: () =>
-    call('POST', '/api/sessions', { started_at: new Date().toISOString() }, () => ({
-      session_id: local.uid('sess'),
-      source: 'local',
-    })),
+  startSession: (extra = {}) =>
+    call(
+      'POST',
+      '/api/sessions',
+      { started_at: new Date().toISOString(), vk_platform: launchParams.vk_platform || null, vk_ref: launchParams.vk_ref || null, ...extra },
+      () => ({ session_id: extra.session_id || local.uid('sess'), target_code: extra.target_code || null, source: 'local' }),
+    ),
 
   /** Событие телеметрии: {session_id, event, payload}. Ошибки не мешают игре. */
   track: (session_id, event, payload = {}) =>
@@ -213,6 +220,13 @@ export const api = {
       channel: candidate.vk_user_id ? 'vk' : 'vk_demo',
       message_id: local.uid('msg'),
     })),
+
+  /** Удалить мои данные (правило ВК 1.1.10). На бэкенде пользователь определяется по подписи строки запуска ВК. */
+  deleteMe: (session_id, candidate_id) =>
+    call('DELETE', '/api/candidates/me', { session_id, candidate_id }, () => local.deleteMine({ session_id, candidate_id })).then((r) => {
+      local.deleteMine({ session_id, candidate_id }) // и локальную копию тоже
+      return r
+    }),
 
   /** CSV формируем на клиенте из уже загруженного списка — так работает и офлайн. */
   csv: (list) => local.toCSV(list),

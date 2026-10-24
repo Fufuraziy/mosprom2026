@@ -1,0 +1,9 @@
+# Не копировать в образ локальные зависимости и сборки: node_modules с Mac ломает сборку Vite в Linux-контейнере
+**/node_modules
+**/dist
+**/.DS_Store
+**/__pycache__
+*.db
+brandbook
+task
+.git
