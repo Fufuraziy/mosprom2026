@@ -6,6 +6,7 @@ import { uid } from '../services/localEngine.js'
 import { LEGACY_CODE, PPE_ITEMS, STATION_ORDER, newCapsuleCode } from '../data/content.js'
 import { nudgeMascot } from './mascotBus.js'
 import { initVK, haptic, launchParams, storageLoad, storageSave, vkStorageEnabled } from '../services/vk.js'
+import { getPendingRef } from '../services/referralLink.js'
 
 const LS_KEY = 'ochakovo1978_game_v1'
 
@@ -349,12 +350,7 @@ export function GameProvider({ children }) {
     if (typeof window === 'undefined') return
     if (state.referral?.claimedWelcome) return
     try {
-      const url = new URL(window.location.href)
-      let refCode = url.searchParams.get('ref') || launchParams.vk_ref
-      if (!refCode && window.location.hash) {
-        const match = window.location.hash.match(/[#&?]ref=([^&]+)/)
-        if (match) refCode = decodeURIComponent(match[1])
-      }
+      const refCode = getPendingRef() || launchParams.vk_ref
       if (refCode && refCode.startsWith('ref_')) {
         api.referralClaim(state.sessionId, refCode).then((res) => {
           if (res?.ok) {

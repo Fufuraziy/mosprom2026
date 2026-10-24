@@ -1,5 +1,6 @@
 // Маршруты VK Mini App (hash-роутер: https://vk.com/app<ID>#/hub открывает карту станций).
 // Карта экранов и решения — frontend/docs/vk-miniapp/03-screen-map.md.
+import '../services/referralLink.js' // забирает #ref=… из адреса до создания роутера
 import { createHashRouter, createPanel, createRoot, createView, RoutesConfig } from '@vkontakte/vk-mini-apps-router'
 
 export const ROOT = 'root'

@@ -5,11 +5,12 @@
 // демо-ответы той же формы, а интерфейс помечает их как демо.
 import bridge from '@vkontakte/vk-bridge'
 
-export const VK_APP_ID = import.meta.env?.VITE_VK_APP_ID || ''
+const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+
+// id приложения: из сборки, а если сборка без .env (ручной деплой) — из параметров запуска ВК
+export const VK_APP_ID = import.meta.env?.VITE_VK_APP_ID || (/^\d+$/.test(params.get('vk_app_id') || '') ? params.get('vk_app_id') : '')
 export const VK_GROUP_ID = Number(import.meta.env?.VITE_VK_GROUP_ID || 0)
 export const VK_APP_URL = VK_APP_ID ? `https://vk.com/app${VK_APP_ID}` : 'https://vk.com/ochakovo'
-
-const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
 
 /**
  * Запущены ли мы внутри ВКонтакте.
@@ -223,8 +224,14 @@ export function getReferralLink(refCode) {
   if (VK_APP_ID) {
     return `https://vk.com/app${VK_APP_ID}#ref=${encodeURIComponent(code)}`
   }
+  // Вне ВК (локальная разработка, браузер): ссылка на эту же страницу без параметров запуска ВК —
+  // в них подпись sign и id игрока, по чужой подписи страница у друга не откроется
   const url = new URL(window.location.href)
+  for (const key of [...url.searchParams.keys()]) {
+    if (key.startsWith('vk_') || key === 'sign') url.searchParams.delete(key)
+  }
   url.searchParams.set('ref', code)
+  url.hash = ''
   return url.toString()
 }
 
